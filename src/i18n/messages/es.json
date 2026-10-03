@@ -1,0 +1,112 @@
+{
+  "appName": "Yield",
+  "tagline": "Tus finanzas personales, de un vistazo.",
+  "auth": {
+    "title": "Inicia sesión en Yield",
+    "description": "Tus gastos, tarjetas e ingresos, en un solo lugar.",
+    "google": "Continuar con Google",
+    "denied": "Esta cuenta no tiene permiso para entrar.",
+    "signOut": "Cerrar sesión"
+  },
+  "nav": {
+    "month": "Mes",
+    "income": "Ingresos",
+    "add": "Agregar",
+    "settings": "Ajustes"
+  },
+  "categories": {
+    "fixed": "Fijos",
+    "food": "Comida",
+    "car": "Carro",
+    "extras": "Extras"
+  },
+  "common": {
+    "cash": "Efectivo",
+    "delete": "Eliminar",
+    "save": "Guardar",
+    "saving": "Guardando…",
+    "previousMonth": "Mes anterior",
+    "nextMonth": "Mes siguiente",
+    "today": "Hoy",
+    "yesterday": "Ayer"
+  },
+  "month": {
+    "spending": "Gastos",
+    "income": "Ingresos",
+    "balance": "Balance",
+    "byCategory": "Por categoría",
+    "entries": "Movimientos",
+    "empty": "Todavía no hay nada registrado este mes.",
+    "addFirst": "Agregar un gasto",
+    "installment": "{number} de {count}",
+    "confirmDeletePurchase": "¿Eliminar esta compra? Las compras a meses se eliminan de todos los meses.",
+    "confirmDeleteIncome": "¿Eliminar este ingreso?"
+  },
+  "income": {
+    "title": "Ingresos",
+    "total": "Ingreso total",
+    "bySource": "Por fuente",
+    "rideshare": "Plataformas de viaje",
+    "rideshareGross": "Bruto",
+    "carSpending": "Gastos del carro",
+    "rideshareNet": "Neto",
+    "log": "Registro diario",
+    "empty": "Todavía no hay ingresos este mes.",
+    "addFirst": "Agregar ingreso"
+  },
+  "add": {
+    "expense": "Gasto",
+    "income": "Ingreso",
+    "amount": "Monto",
+    "description": "Descripción",
+    "descriptionPlaceholder": "p. ej. Gasolina, Calimax, Pho",
+    "category": "Categoría",
+    "paidWith": "Pagado con",
+    "date": "Fecha",
+    "installments": "Meses",
+    "singlePayment": "Una exhibición",
+    "monthlyInstallment": "{count} × {amount} al mes",
+    "source": "Fuente",
+    "note": "Nota",
+    "notePlaceholder": "Opcional",
+    "noSources": "Agrega una fuente de ingreso en Ajustes antes de registrar ingresos.",
+    "goToSettings": "Ir a Ajustes",
+    "saveExpense": "Guardar gasto",
+    "saveIncome": "Guardar ingreso"
+  },
+  "settings": {
+    "title": "Ajustes",
+    "language": "Idioma",
+    "cards": "Tarjetas de crédito",
+    "cardsEmpty": "Todavía no hay tarjetas.",
+    "addCard": "Agregar tarjeta",
+    "cardName": "Nombre de la tarjeta",
+    "cardNamePlaceholder": "p. ej. Nu, Klar",
+    "color": "Color",
+    "closingDay": "Día de corte",
+    "dueDay": "Día límite de pago",
+    "cardDays": "Corte el día {closing} · Pago el día {due}",
+    "incomeSources": "Fuentes de ingreso",
+    "sourcesEmpty": "Todavía no hay fuentes de ingreso.",
+    "addSource": "Agregar fuente",
+    "sourceName": "Nombre de la fuente",
+    "sourceNamePlaceholder": "p. ej. Uber, Didi, Clientes web",
+    "isRideshare": "Plataforma de viaje (app de manejo)",
+    "rideshareBadge": "Plataforma",
+    "remove": "Quitar",
+    "confirmRemove": "¿Quitar de tus listas? Los registros anteriores la conservan."
+  },
+  "errors": {
+    "amount": "Ingresa un monto mayor a cero, con hasta dos decimales.",
+    "description": "Agrega una descripción breve.",
+    "date": "Elige una fecha válida.",
+    "category": "Elige una categoría.",
+    "paymentMethod": "Elige cómo pagaste.",
+    "installments": "Los meses deben ser un número entero de 1 a 48 y solo aplican a tarjetas.",
+    "source": "Elige una fuente de ingreso.",
+    "name": "Agrega un nombre.",
+    "day": "Usa un día entre 1 y 31.",
+    "color": "Elige un color.",
+    "generic": "Algo salió mal. Inténtalo de nuevo."
+  }
+}

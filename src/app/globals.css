@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+/* Yield brand palette — see BRAND.md. Dark-first by design. */
+:root {
+  --void: #0d0f12;
+  --surface: #13161a;
+  --line: #1e2228;
+  --yield-green: #00c896;
+  --espresso-amber: #f5a623;
+  --loss-red: #e05252;
+  --crema: #f0ede8;
+  --muted: #5a6070;
+  /* Readable secondary text derived from Muted: ~6:1 on Void, where brand Muted is ~3:1. */
+  --muted-text: #8b91a1;
+
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-background: var(--void);
+  --color-surface: var(--surface);
+  --color-border: var(--line);
+  --color-foreground: var(--crema);
+  --color-muted-foreground: var(--muted-text);
+  --color-subtle: var(--muted);
+  --color-primary: var(--yield-green);
+  --color-primary-foreground: var(--void);
+  --color-gain: var(--yield-green);
+  --color-warning: var(--espresso-amber);
+  --color-loss: var(--loss-red);
+
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-syne);
+  --font-mono: var(--font-dm-mono);
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+}

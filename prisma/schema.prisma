@@ -1,0 +1,159 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum PaymentMethodKind {
+  CASH
+  CARD
+
+  @@map("payment_method_kind")
+}
+
+model User {
+  id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name           String?         @map("display_name")
+  email          String?         @unique
+  emailVerified  DateTime?       @map("email_verified") @db.Timestamptz(6)
+  image          String?
+  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  accounts       Account[]
+  sessions       Session[]
+  paymentMethods PaymentMethod[]
+  categories     Category[]
+  purchases      Purchase[]
+  incomeSources  IncomeSource[]
+  incomes        Income[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String  @map("user_id") @db.Uuid
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id") @db.Uuid
+  expires      DateTime @db.Timestamptz(6)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime @db.Timestamptz(6)
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+/// Cash, or a credit card. Closing and due days only apply to cards.
+model PaymentMethod {
+  id         String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String            @map("user_id") @db.Uuid
+  kind       PaymentMethodKind
+  name       String
+  color      String
+  closingDay Int?              @map("closing_day")
+  dueDay     Int?              @map("due_day")
+  archivedAt DateTime?         @map("archived_at") @db.Timestamptz(6)
+  createdAt  DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purchases  Purchase[]
+
+  @@index([userId])
+  @@map("payment_methods")
+}
+
+/// Built-in categories have a `key` and are labelled through i18n; custom ones use `name`.
+model Category {
+  id        String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String     @map("user_id") @db.Uuid
+  key       String?
+  name      String?
+  sortOrder Int        @default(0) @map("sort_order")
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purchases Purchase[]
+
+  @@unique([userId, key])
+  @@index([userId])
+  @@map("categories")
+}
+
+/// Amounts are stored in centavos. A card purchase may be split into monthly installments.
+model Purchase {
+  id               String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId           String        @map("user_id") @db.Uuid
+  categoryId       String        @map("category_id") @db.Uuid
+  paymentMethodId  String        @map("payment_method_id") @db.Uuid
+  date             DateTime      @db.Date
+  amountCents      Int           @map("amount_cents")
+  description      String
+  installmentCount Int           @default(1) @map("installment_count")
+  createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category         Category      @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  paymentMethod    PaymentMethod @relation(fields: [paymentMethodId], references: [id], onDelete: Restrict)
+
+  @@index([userId, date])
+  @@map("purchases")
+}
+
+model IncomeSource {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  name        String
+  isRideshare Boolean   @default(false) @map("is_rideshare")
+  archivedAt  DateTime? @map("archived_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  incomes     Income[]
+
+  @@index([userId])
+  @@map("income_sources")
+}
+
+/// Gross income, in centavos.
+model Income {
+  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String       @map("user_id") @db.Uuid
+  sourceId    String       @map("source_id") @db.Uuid
+  date        DateTime     @db.Date
+  amountCents Int          @map("amount_cents")
+  note        String?
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  source      IncomeSource @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+
+  @@index([userId, date])
+  @@map("incomes")
+}

@@ -1,0 +1,112 @@
+{
+  "appName": "Yield",
+  "tagline": "Your personal finances, at a glance.",
+  "auth": {
+    "title": "Sign in to Yield",
+    "description": "Your spending, cards, and income, all in one place.",
+    "google": "Continue with Google",
+    "denied": "This account isn't allowed to sign in.",
+    "signOut": "Sign out"
+  },
+  "nav": {
+    "month": "Month",
+    "income": "Income",
+    "add": "Add",
+    "settings": "Settings"
+  },
+  "categories": {
+    "fixed": "Fixed",
+    "food": "Food",
+    "car": "Car",
+    "extras": "Extras"
+  },
+  "common": {
+    "cash": "Cash",
+    "delete": "Delete",
+    "save": "Save",
+    "saving": "Saving…",
+    "previousMonth": "Previous month",
+    "nextMonth": "Next month",
+    "today": "Today",
+    "yesterday": "Yesterday"
+  },
+  "month": {
+    "spending": "Spending",
+    "income": "Income",
+    "balance": "Balance",
+    "byCategory": "By category",
+    "entries": "Entries",
+    "empty": "Nothing recorded this month yet.",
+    "addFirst": "Add an expense",
+    "installment": "{number} of {count}",
+    "confirmDeletePurchase": "Delete this purchase? Installment purchases are deleted from every month.",
+    "confirmDeleteIncome": "Delete this income?"
+  },
+  "income": {
+    "title": "Income",
+    "total": "Total income",
+    "bySource": "By source",
+    "rideshare": "Rideshare",
+    "rideshareGross": "Gross",
+    "carSpending": "Car spending",
+    "rideshareNet": "Net",
+    "log": "Daily log",
+    "empty": "No income recorded this month yet.",
+    "addFirst": "Add income"
+  },
+  "add": {
+    "expense": "Expense",
+    "income": "Income",
+    "amount": "Amount",
+    "description": "Description",
+    "descriptionPlaceholder": "e.g. Gas, Calimax, Pho",
+    "category": "Category",
+    "paidWith": "Paid with",
+    "date": "Date",
+    "installments": "Installments",
+    "singlePayment": "Single payment",
+    "monthlyInstallment": "{count} × {amount} per month",
+    "source": "Source",
+    "note": "Note",
+    "notePlaceholder": "Optional",
+    "noSources": "Add an income source in Settings before recording income.",
+    "goToSettings": "Go to Settings",
+    "saveExpense": "Save expense",
+    "saveIncome": "Save income"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "cards": "Credit cards",
+    "cardsEmpty": "No cards yet.",
+    "addCard": "Add card",
+    "cardName": "Card name",
+    "cardNamePlaceholder": "e.g. Nu, Klar",
+    "color": "Color",
+    "closingDay": "Statement closing day",
+    "dueDay": "Payment due day",
+    "cardDays": "Closes day {closing} · Due day {due}",
+    "incomeSources": "Income sources",
+    "sourcesEmpty": "No income sources yet.",
+    "addSource": "Add source",
+    "sourceName": "Source name",
+    "sourceNamePlaceholder": "e.g. Uber, Didi, Web clients",
+    "isRideshare": "Rideshare (driving app)",
+    "rideshareBadge": "Rideshare",
+    "remove": "Remove",
+    "confirmRemove": "Remove this from your lists? Past records keep it."
+  },
+  "errors": {
+    "amount": "Enter an amount greater than zero, with up to two decimals.",
+    "description": "Add a short description.",
+    "date": "Choose a valid date.",
+    "category": "Choose a category.",
+    "paymentMethod": "Choose how you paid.",
+    "installments": "Installments must be a whole number from 1 to 48, and only apply to cards.",
+    "source": "Choose an income source.",
+    "name": "Add a name.",
+    "day": "Use a day between 1 and 31.",
+    "color": "Choose a color.",
+    "generic": "Something went wrong. Please try again."
+  }
+}
