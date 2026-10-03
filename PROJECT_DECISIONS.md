@@ -50,6 +50,8 @@ Last updated: 2026-10-03
 - Next.js 16 App Router, TypeScript, Tailwind CSS v4, matching the astrocoach project conventions in `AGENTS.md`. The older yield-cafe conventions (JavaScript, SCSS, no Tailwind) do not apply.
 - Postgres through Prisma 7 (`@prisma/adapter-pg`, client generated to `src/generated/prisma`), and Auth.js v5 with Google sign-in and database sessions, as in astrocoach.
 - Sign-in is restricted to the emails in `ALLOWED_EMAILS`; every Server Action re-checks the session and scopes reads and writes to the signed-in user.
+- Environment variables are read where they are used, so the build never needs credentials. Missing `ALLOWED_EMAILS` refuses every sign-in rather than allowing anyone.
+- Vercel deployments run `prisma migrate deploy` before `next build` (see `vercel.json`), so schema migrations ship with the code that needs them.
 - A new user receives a Cash payment method and the built-in categories on first sign-in.
 
 ## Data conventions

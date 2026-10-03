@@ -19,6 +19,6 @@ npm run dev          # http://localhost:3000
 npm run check        # lint, typecheck, tests, build
 ```
 
-On Vercel, set the same environment variables and run `npm run db:deploy` against the production database.
+On Vercel, set the same environment variables. Each deployment applies pending migrations before building (`vercel.json`).
 
 Project context lives in `AGENTS.md`, `PROJECT_DECISIONS.md`, and `PROJECT_PROGRESS.md`.
