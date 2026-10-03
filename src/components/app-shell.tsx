@@ -4,19 +4,20 @@ import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, Plus, Settings, Wallet } from "lucide-react";
+import { CalendarDays, CreditCard, Plus, Settings, Wallet } from "lucide-react";
 import type { Locale } from "@/i18n/config";
 import { cn } from "@/lib/cn";
 
 export function AppShell({ children, locale, labels }: {
   children: ReactNode;
   locale: Locale;
-  labels: { month: string; income: string; add: string; settings: string };
+  labels: { month: string; income: string; add: string; cards: string; settings: string };
 }) {
   const pathname = usePathname();
   const navigation = [
     { href: `/${locale}/month`, label: labels.month, icon: CalendarDays },
     { href: `/${locale}/income`, label: labels.income, icon: Wallet },
+    { href: `/${locale}/cards`, label: labels.cards, icon: CreditCard },
     { href: `/${locale}/settings`, label: labels.settings, icon: Settings },
   ];
   const addActive = pathname === `/${locale}/add`;
@@ -34,7 +35,7 @@ export function AppShell({ children, locale, labels }: {
       <main className="mx-auto w-full max-w-2xl px-4 pb-32 pt-5">{children}</main>
 
       <nav aria-label="Primary" className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
-        <div className="mx-auto grid max-w-2xl grid-cols-4">
+        <div className="mx-auto grid max-w-2xl grid-cols-5">
           {navigation.slice(0, 2).map((item) => <NavItem active={pathname === item.href} key={item.href} {...item} />)}
           <Link
             aria-current={addActive ? "page" : undefined}

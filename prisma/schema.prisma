@@ -15,20 +15,23 @@ enum PaymentMethodKind {
 }
 
 model User {
-  id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name           String?         @map("display_name")
-  email          String?         @unique
-  emailVerified  DateTime?       @map("email_verified") @db.Timestamptz(6)
-  image          String?
-  createdAt      DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
-  accounts       Account[]
-  sessions       Session[]
-  paymentMethods PaymentMethod[]
-  categories     Category[]
-  purchases      Purchase[]
-  incomeSources  IncomeSource[]
-  incomes        Income[]
+  id                   String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                 String?               @map("display_name")
+  email                String?               @unique
+  emailVerified        DateTime?             @map("email_verified") @db.Timestamptz(6)
+  image                String?
+  createdAt            DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+  accounts             Account[]
+  sessions             Session[]
+  paymentMethods       PaymentMethod[]
+  categories           Category[]
+  purchases            Purchase[]
+  incomeSources        IncomeSource[]
+  incomes              Income[]
+  recurringPayments    RecurringPayment[]
+  recurringOccurrences RecurringOccurrence[]
+  statementPayments    StatementPayment[]
 
   @@map("users")
 }
@@ -75,17 +78,19 @@ model VerificationToken {
 
 /// Cash, or a credit card. Closing and due days only apply to cards.
 model PaymentMethod {
-  id         String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId     String            @map("user_id") @db.Uuid
-  kind       PaymentMethodKind
-  name       String
-  color      String
-  closingDay Int?              @map("closing_day")
-  dueDay     Int?              @map("due_day")
-  archivedAt DateTime?         @map("archived_at") @db.Timestamptz(6)
-  createdAt  DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-  user       User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  purchases  Purchase[]
+  id                String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId            String             @map("user_id") @db.Uuid
+  kind              PaymentMethodKind
+  name              String
+  color             String
+  closingDay        Int?               @map("closing_day")
+  dueDay            Int?               @map("due_day")
+  archivedAt        DateTime?          @map("archived_at") @db.Timestamptz(6)
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purchases         Purchase[]
+  recurringPayments RecurringPayment[]
+  statementPayments StatementPayment[]
 
   @@index([userId])
   @@map("payment_methods")
@@ -93,14 +98,15 @@ model PaymentMethod {
 
 /// Built-in categories have a `key` and are labelled through i18n; custom ones use `name`.
 model Category {
-  id        String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId    String     @map("user_id") @db.Uuid
-  key       String?
-  name      String?
-  sortOrder Int        @default(0) @map("sort_order")
-  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  purchases Purchase[]
+  id                String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId            String             @map("user_id") @db.Uuid
+  key               String?
+  name              String?
+  sortOrder         Int                @default(0) @map("sort_order")
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purchases         Purchase[]
+  recurringPayments RecurringPayment[]
 
   @@unique([userId, key])
   @@index([userId])
@@ -156,4 +162,59 @@ model Income {
 
   @@index([userId, date])
   @@map("incomes")
+}
+
+/// A bill that repeats every month from `startMonth` (first day of a month) through `endMonth` when set.
+model RecurringPayment {
+  id              String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String                @map("user_id") @db.Uuid
+  categoryId      String                @map("category_id") @db.Uuid
+  paymentMethodId String                @map("payment_method_id") @db.Uuid
+  name            String
+  amountCents     Int                   @map("amount_cents")
+  dayOfMonth      Int                   @map("day_of_month")
+  startMonth      DateTime              @map("start_month") @db.Date
+  endMonth        DateTime?             @map("end_month") @db.Date
+  createdAt       DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user            User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category        Category              @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  paymentMethod   PaymentMethod         @relation(fields: [paymentMethodId], references: [id], onDelete: Restrict)
+  occurrences     RecurringOccurrence[]
+
+  @@index([userId])
+  @@map("recurring_payments")
+}
+
+/// Per-month state of a recurring payment, stored only once the month differs from the default:
+/// a changed amount, or (for cash) being marked paid. Card-paid occurrences follow their statement.
+model RecurringOccurrence {
+  id                 String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId             String           @map("user_id") @db.Uuid
+  recurringPaymentId String           @map("recurring_payment_id") @db.Uuid
+  month              DateTime         @db.Date
+  amountCents        Int?             @map("amount_cents")
+  paidAt             DateTime?        @map("paid_at") @db.Timestamptz(6)
+  user               User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recurringPayment   RecurringPayment @relation(fields: [recurringPaymentId], references: [id], onDelete: Cascade)
+
+  @@unique([recurringPaymentId, month])
+  @@index([userId, month])
+  @@map("recurring_occurrences")
+}
+
+/// A card statement marked as paid. Statements themselves are derived from charges and the billing cycle;
+/// `statementMonth` is the first day of the month in which the statement closes.
+model StatementPayment {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String        @map("user_id") @db.Uuid
+  paymentMethodId String        @map("payment_method_id") @db.Uuid
+  statementMonth  DateTime      @map("statement_month") @db.Date
+  paidAt          DateTime      @default(now()) @map("paid_at") @db.Timestamptz(6)
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  paymentMethod   PaymentMethod @relation(fields: [paymentMethodId], references: [id], onDelete: Cascade)
+
+  @@unique([paymentMethodId, statementMonth])
+  @@index([userId])
+  @@map("statement_payments")
 }

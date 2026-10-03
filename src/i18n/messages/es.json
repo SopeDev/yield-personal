@@ -12,7 +12,8 @@
     "month": "Mes",
     "income": "Ingresos",
     "add": "Agregar",
-    "settings": "Ajustes"
+    "settings": "Ajustes",
+    "cards": "Tarjetas"
   },
   "categories": {
     "fixed": "Fijos",
@@ -28,7 +29,14 @@
     "previousMonth": "Mes anterior",
     "nextMonth": "Mes siguiente",
     "today": "Hoy",
-    "yesterday": "Ayer"
+    "yesterday": "Ayer",
+    "paid": "Pagado",
+    "unpaid": "Sin pagar",
+    "markPaid": "Marcar pagado",
+    "markUnpaid": "Marcar sin pagar",
+    "change": "Cambiar",
+    "cancel": "Cancelar",
+    "manage": "Administrar"
   },
   "month": {
     "spending": "Gastos",
@@ -40,7 +48,18 @@
     "addFirst": "Agregar un gasto",
     "installment": "{number} de {count}",
     "confirmDeletePurchase": "¿Eliminar esta compra? Las compras a meses se eliminan de todos los meses.",
-    "confirmDeleteIncome": "¿Eliminar este ingreso?"
+    "confirmDeleteIncome": "¿Eliminar este ingreso?",
+    "toPay": "Total a pagar",
+    "outstanding": "Por pagar",
+    "outstandingEmpty": "Todo lo de este mes está pagado.",
+    "recurring": "Pagos recurrentes",
+    "recurringEmpty": "Todavía no hay pagos recurrentes.",
+    "addRecurring": "Agregar pagos recurrentes",
+    "statementDue": "Estado de cuenta {card}",
+    "dueOn": "Vence {date}",
+    "onStatement": "En el estado de cuenta {card} · vence {date}",
+    "changedAmount": "Cambiado este mes",
+    "day": "Día {day}"
   },
   "income": {
     "title": "Ingresos",
@@ -94,7 +113,8 @@
     "isRideshare": "Plataforma de viaje (app de manejo)",
     "rideshareBadge": "Plataforma",
     "remove": "Quitar",
-    "confirmRemove": "¿Quitar de tus listas? Los registros anteriores la conservan."
+    "confirmRemove": "¿Quitar de tus listas? Los registros anteriores la conservan.",
+    "recurringLink": "Pagos recurrentes"
   },
   "errors": {
     "amount": "Ingresa un monto mayor a cero, con hasta dos decimales.",
@@ -107,6 +127,39 @@
     "name": "Agrega un nombre.",
     "day": "Usa un día entre 1 y 31.",
     "color": "Elige un color.",
-    "generic": "Algo salió mal. Inténtalo de nuevo."
+    "generic": "Algo salió mal. Inténtalo de nuevo.",
+    "month": "Elige un mes válido."
+  },
+  "recurring": {
+    "title": "Pagos recurrentes",
+    "description": "Pagos que se repiten cada mes. Aparecen en cada mes para marcarlos como pagados; los que se pagan con tarjeta se pagan con su estado de cuenta.",
+    "empty": "Todavía no hay pagos recurrentes.",
+    "add": "Agregar pago recurrente",
+    "name": "Nombre",
+    "namePlaceholder": "p. ej. Renta, Netflix, Luz",
+    "defaultAmount": "Monto habitual",
+    "dayOfMonth": "Día del mes",
+    "startMonth": "Mes de inicio",
+    "stop": "Detener",
+    "confirmStop": "¿Detener este pago recurrente? Se conserva en los meses ya pagados.",
+    "summary": "Día {day} · {method}",
+    "ended": "Terminó en {month}",
+    "amountThisMonth": "Monto de este mes",
+    "stoppedTitle": "Detenidos"
+  },
+  "cards": {
+    "title": "Tarjetas",
+    "empty": "Agrega tus tarjetas de crédito en Ajustes para seguir sus estados de cuenta.",
+    "msiOwed": "MSI por pagar",
+    "closes": "Corte {date}",
+    "due": "Vence {date}",
+    "open": "Abierto",
+    "upcoming": "Próximo",
+    "overdue": "Vencido",
+    "dueSoon": "Por pagar",
+    "noCharges": "Todavía no hay cargos.",
+    "charges": "Cargos",
+    "installment": "{number} de {count}",
+    "recurringCharge": "Recurrente"
   }
 }

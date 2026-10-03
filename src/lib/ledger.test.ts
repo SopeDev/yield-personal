@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { monthSpendingEntries, summarizeIncome, summarizeSpending, type LedgerCategory, type LedgerPurchase } from "./ledger";
+import { monthSpendingEntries, spendingItemsOf, summarizeIncome, summarizeSpending, type LedgerCategory, type LedgerPurchase } from "./ledger";
 import { dateFromKey } from "./months";
 
 const categories: LedgerCategory[] = [
@@ -29,12 +29,12 @@ const october = [
 ];
 
 test("totals each category, counting installment purchases one installment per month", () => {
-  const spending = summarizeSpending(monthSpendingEntries(october, "2026-10"), categories);
+  const spending = summarizeSpending(spendingItemsOf(monthSpendingEntries(october, "2026-10")), categories);
   assert.deepEqual(spending.byCategory.map((item) => item.totalCents), [0, 63500, 123000, 33300]);
   assert.equal(spending.totalCents, 219800);
   assert.equal(spending.carCents, 123000);
 
-  const november = summarizeSpending(monthSpendingEntries(october, "2026-11"), categories);
+  const november = summarizeSpending(spendingItemsOf(monthSpendingEntries(october, "2026-11")), categories);
   assert.equal(november.totalCents, 33300);
 });
 

@@ -27,6 +27,12 @@ Last updated: 2026-10-03
 - A card charge belongs to the statement whose cycle contains its date (for example, with a closing day of 25, a purchase on Oct 28 falls on the November statement).
 - A recurring payment assigned to a card is considered paid when the statement containing it is paid; it is never marked paid twice.
 - "Por pagar" (outstanding) is the set of unpaid recurring occurrences, unpaid cash items, and unpaid card statements for the month.
+- A statement's payment is due in the month it closes when the due day comes after the closing day; when the due day is the same as or before the closing day, it is due the following month (a card closing and due on the 15th is due on the 15th of the next month). Closing and due days past a month's end fall on its last day.
+- A charge belongs to the statement closing on or after its date; each installment of a card purchase lands on the next consecutive statement.
+- Recurring payments generate one occurrence per month between their start and end months. Occurrence rows are stored only when a month differs from the default (a changed amount, or a cash payment marked paid); a card-paid occurrence is paid when its statement is paid.
+- Stopping a recurring payment keeps it through the current month only if that month was already paid or changed; a payment that never applied to a past month is deleted instead.
+- Statements are derived, never stored; only "statement paid" is persisted per card and closing month. Archived cards keep showing while they have unpaid statements.
+- Month balance follows the spreadsheet: income − total to pay.
 - Net rideshare income = rideshare-group income − all Car category spending for the same month. Income is entered gross.
 - Average monthly spending is the average of fixed costs (excluding savings contributions) plus the averages of Food and Car over months that have data, so empty months do not lower the average.
 - Emergency fund target = 3 × average monthly spending. Savings goal = emergency fund target + MSI still owed across all cards. Pending = savings goal − current fund.

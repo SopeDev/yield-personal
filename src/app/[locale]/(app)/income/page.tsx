@@ -9,8 +9,8 @@ import { isLocale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { requireUserId } from "@/lib/auth-user";
 import { formatDayHeading, groupByDay } from "@/lib/dates";
-import { monthSpendingEntries, summarizeIncome, summarizeSpending } from "@/lib/ledger";
-import { getActiveIncomeSources, getCategories, getMonthIncomes, getPurchasesReachingMonth } from "@/lib/queries";
+import { loadMonthView } from "@/lib/month-view";
+import { getActiveIncomeSources } from "@/lib/queries";
 import { monthFromSearchParam } from "@/lib/search-params";
 import { currentMonthKey, todayKey } from "@/lib/today";
 import { cn } from "@/lib/cn";
@@ -22,14 +22,7 @@ export default async function IncomePage({ params, searchParams }: PageProps<"/[
   const month = monthFromSearchParam((await searchParams).m, currentMonthKey());
   const messages = getDictionary(locale);
 
-  const [categories, purchases, incomes, sources] = await Promise.all([
-    getCategories(userId),
-    getPurchasesReachingMonth(userId, month),
-    getMonthIncomes(userId, month),
-    getActiveIncomeSources(userId),
-  ]);
-  const spending = summarizeSpending(monthSpendingEntries(purchases, month), categories);
-  const income = summarizeIncome(incomes, spending.carCents);
+  const [{ incomes, spending, income }, sources] = await Promise.all([loadMonthView(userId, month), getActiveIncomeSources(userId)]);
   const hasRideshare = sources.some((source) => source.isRideshare) || income.rideshareGrossCents > 0;
   const today = todayKey();
 

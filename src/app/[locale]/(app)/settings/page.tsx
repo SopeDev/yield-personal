@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { ChevronRight } from "lucide-react";
 import { signOut } from "@/auth";
 import { archiveCard, archiveIncomeSource, setLocale } from "@/app/actions/settings";
 import { CardForm } from "@/components/card-form";
@@ -46,6 +48,11 @@ export default async function SettingsPage({ params }: PageProps<"/[locale]/sett
           ))}
         </div>
       </Section>
+
+      <Link className="flex min-h-12 items-center justify-between rounded-2xl border border-border bg-surface px-4 font-medium" href={`/${locale}/recurring`}>
+        {messages.settings.recurringLink}
+        <ChevronRight aria-hidden="true" className="size-5 text-muted-foreground" />
+      </Link>
 
       <Section title={messages.settings.cards}>
         <Card>

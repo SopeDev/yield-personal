@@ -45,3 +45,13 @@ export function monthDifference(from: MonthKey, to: MonthKey) {
 export function monthRange(month: MonthKey) {
   return { start: dateFromKey(`${month}-01`), end: dateFromKey(`${addMonths(month, 1)}-01`) };
 }
+
+export function daysInMonth(month: MonthKey) {
+  const [year, monthNumber] = month.split("-").map(Number);
+  return new Date(Date.UTC(year, monthNumber, 0)).getUTCDate();
+}
+
+/** The given day of a month, clamped to the month's last day (day 31 in February is Feb 28/29). */
+export function dateInMonth(month: MonthKey, day: number) {
+  return dateFromKey(`${month}-${String(Math.min(day, daysInMonth(month))).padStart(2, "0")}`);
+}

@@ -29,3 +29,8 @@ export function groupByDay<T>(items: T[], dateOf: (item: T) => Date) {
   }
   return [...groups.values()];
 }
+
+/** Short date like "Nov 15" / "15 nov". */
+export function formatShortDate(date: Date, locale: Locale) {
+  return new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", timeZone: "UTC" }).format(date);
+}

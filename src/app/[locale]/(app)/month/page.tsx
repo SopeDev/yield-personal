@@ -1,23 +1,27 @@
 import Link from "next/link";
 import { deleteIncome, deletePurchase } from "@/app/actions/entries";
+import { setOccurrencePaid, setStatementPaid } from "@/app/actions/recurring";
 import { DeleteButton } from "@/components/delete-button";
 import { EntryRow } from "@/components/entry-row";
 import { Money } from "@/components/money";
 import { MonthNav } from "@/components/month-nav";
+import { OccurrenceAmountForm } from "@/components/occurrence-amount-form";
+import { PaidToggle, StatusBadge } from "@/components/paid-toggle";
 import { Card, Section } from "@/components/section";
 import { isLocale } from "@/i18n/config";
 import { format, getDictionary } from "@/i18n/dictionaries";
 import { requireUserId } from "@/lib/auth-user";
+import { occurrencePaymentStatus } from "@/lib/cash-flow";
 import { categoryLabel } from "@/lib/categories";
-import { formatDayHeading, groupByDay } from "@/lib/dates";
-import { monthSpendingEntries, summarizeIncome, summarizeSpending, type LedgerIncome, type MonthSpendingEntry } from "@/lib/ledger";
+import { formatDayHeading, formatShortDate, groupByDay } from "@/lib/dates";
+import type { LedgerIncome, MonthSpendingEntry } from "@/lib/ledger";
 import { paymentMethodLabel } from "@/lib/payment-methods";
-import { getCategories, getMonthIncomes, getPurchasesReachingMonth } from "@/lib/queries";
+import { loadMonthView } from "@/lib/month-view";
 import { monthFromSearchParam } from "@/lib/search-params";
 import { currentMonthKey, todayKey } from "@/lib/today";
 import { cn } from "@/lib/cn";
 
-type MonthItem = { kind: "purchase"; entry: MonthSpendingEntry; date: Date } | { kind: "income"; income: LedgerIncome; date: Date };
+type DayItem = { kind: "purchase"; entry: MonthSpendingEntry; date: Date } | { kind: "income"; income: LedgerIncome; date: Date };
 
 export default async function MonthPage({ params, searchParams }: PageProps<"/[locale]/month">) {
   const { locale } = await params;
@@ -25,24 +29,18 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
   const userId = await requireUserId(locale);
   const month = monthFromSearchParam((await searchParams).m, currentMonthKey());
   const messages = getDictionary(locale);
+  const { cards, entries, incomes, occurrences, statements, spending, income, cashFlow } = await loadMonthView(userId, month);
 
-  const [categories, purchases, incomes] = await Promise.all([
-    getCategories(userId),
-    getPurchasesReachingMonth(userId, month),
-    getMonthIncomes(userId, month),
-  ]);
-  const entries = monthSpendingEntries(purchases, month);
-  const spending = summarizeSpending(entries, categories);
-  const income = summarizeIncome(incomes, spending.carCents);
-  const balanceCents = income.totalCents - spending.totalCents;
+  const balanceCents = income.totalCents - cashFlow.toPayCents;
+  const statementCards = new Map(cards.map((card) => [card.id, card]));
+  const toggleLabels = { paid: messages.common.paid, markPaid: messages.common.markPaid, markUnpaid: messages.common.markUnpaid };
 
   // Installments of purchases made in earlier months are listed apart from this month's days.
   const carriedInstallments = entries.filter((entry) => entry.installmentNumber > 1);
-  const items: MonthItem[] = [
+  const dayItems: DayItem[] = [
     ...entries.filter((entry) => entry.installmentNumber === 1).map((entry) => ({ kind: "purchase" as const, entry, date: entry.purchase.date })),
     ...incomes.map((item) => ({ kind: "income" as const, income: item, date: item.date })),
   ].sort((a, b) => b.date.getTime() - a.date.getTime());
-  const days = groupByDay(items, (item) => item.date);
   const today = todayKey();
 
   function purchaseRow(entry: MonthSpendingEntry) {
@@ -68,11 +66,90 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
     <div className="space-y-7">
       <MonthNav labels={messages.common} locale={locale} month={month} path={`/${locale}/month`} />
 
-      <Card className="grid grid-cols-3 divide-x divide-border text-center">
-        <Stat label={messages.month.spending}><Money cents={spending.totalCents} /></Stat>
-        <Stat label={messages.month.income}><Money cents={income.totalCents} /></Stat>
-        <Stat label={messages.month.balance}><Money cents={balanceCents} className={cn(balanceCents < 0 ? "text-loss" : "text-gain")} /></Stat>
+      <Card>
+        <div className="border-b border-border px-4 py-4 text-center">
+          <p className="text-xs text-muted-foreground">{messages.month.balance}</p>
+          <Money cents={balanceCents} className={cn("mt-1 block text-3xl", balanceCents < 0 ? "text-loss" : "text-gain")} />
+        </div>
+        <div className="grid grid-cols-2 divide-x divide-border text-center [&>*:nth-child(n+3)]:border-t [&>*:nth-child(n+3)]:border-border">
+          <Stat label={messages.month.spending}><Money cents={spending.totalCents} /></Stat>
+          <Stat label={messages.month.income}><Money cents={income.totalCents} /></Stat>
+          <Stat label={messages.month.toPay}><Money cents={cashFlow.toPayCents} /></Stat>
+          <Stat label={messages.month.outstanding}><Money cents={cashFlow.outstandingCents} className={cashFlow.outstandingCents > 0 ? "text-warning" : undefined} /></Stat>
+        </div>
       </Card>
+
+      {cashFlow.statementsDue.length > 0 ? (
+        <Section title={messages.cards.title}>
+          <Card>
+            <ul className="divide-y divide-border">
+              {cashFlow.statementsDue.map((statement) => {
+                const card = statementCards.get(statement.paymentMethodId);
+                return (
+                  <li className="flex items-center gap-3 py-3 pl-4 pr-3" key={`${statement.paymentMethodId}-${statement.month}`}>
+                    <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: card?.color }} />
+                    <Link className="min-w-0 flex-1" href={`/${locale}/cards`}>
+                      <p className="truncate font-medium">{format(messages.month.statementDue, { card: card?.name ?? "" })}</p>
+                      <p className="text-sm text-muted-foreground">{format(messages.month.dueOn, { date: formatShortDate(statement.dueDate, locale) })}</p>
+                    </Link>
+                    <Money cents={statement.totalCents} />
+                    <PaidToggle action={setStatementPaid} fields={{ locale, paymentMethodId: statement.paymentMethodId, statementMonth: statement.month }} labels={toggleLabels} paid={statement.paid} />
+                  </li>
+                );
+              })}
+            </ul>
+          </Card>
+        </Section>
+      ) : null}
+
+      <Section action={<Link className="text-sm font-medium text-primary" href={`/${locale}/recurring`}>{messages.common.manage}</Link>} title={messages.month.recurring}>
+        {occurrences.length === 0 ? (
+          <Card className="px-4 py-6 text-center">
+            <p className="text-muted-foreground">{messages.month.recurringEmpty}</p>
+            <Link className="mt-3 inline-flex min-h-11 items-center font-semibold text-primary" href={`/${locale}/recurring`}>{messages.month.addRecurring}</Link>
+          </Card>
+        ) : (
+          <Card>
+            <ul className="divide-y divide-border">
+              {occurrences.map((occurrence) => {
+                const { recurring } = occurrence;
+                const status = occurrencePaymentStatus(occurrence, statements);
+                const details = status.statement
+                  ? format(messages.month.onStatement, { card: recurring.paymentMethod.name, date: formatShortDate(status.statement.dueDate, locale) })
+                  : [format(messages.month.day, { day: occurrence.date.getUTCDate() }), paymentMethodLabel(recurring.paymentMethod, messages.common.cash)].join(" · ");
+                return (
+                  <li key={recurring.id}>
+                    <details className="group">
+                      <summary className="flex cursor-pointer list-none items-center gap-3 py-3 pl-4 pr-3">
+                        <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: recurring.paymentMethod.color }} />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-medium">{recurring.name}</p>
+                          <p className="truncate text-sm text-muted-foreground">{occurrence.amountChanged ? `${details} · ${messages.month.changedAmount}` : details}</p>
+                        </div>
+                        <Money cents={occurrence.amountCents} />
+                      </summary>
+                      <OccurrenceAmountForm
+                        amount={(occurrence.amountCents / 100).toFixed(2)}
+                        locale={locale}
+                        messages={messages}
+                        month={month}
+                        recurringPaymentId={recurring.id}
+                      />
+                    </details>
+                    <div className="flex justify-end px-3 pb-3 -mt-1">
+                      {recurring.paymentMethod.kind === "CASH" ? (
+                        <PaidToggle action={setOccurrencePaid} fields={{ locale, recurringPaymentId: recurring.id, month }} labels={toggleLabels} paid={status.paid} />
+                      ) : (
+                        <StatusBadge labels={messages.common} paid={status.paid} />
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </Card>
+        )}
+      </Section>
 
       <Section title={messages.month.byCategory}>
         <Card>
@@ -88,7 +165,7 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
       </Section>
 
       <Section title={messages.month.entries}>
-        {items.length === 0 && carriedInstallments.length === 0 ? (
+        {dayItems.length === 0 && carriedInstallments.length === 0 ? (
           <Card className="px-4 py-8 text-center">
             <p className="text-muted-foreground">{messages.month.empty}</p>
             <Link className="mt-4 inline-flex min-h-11 items-center rounded-xl bg-primary px-5 font-semibold text-primary-foreground" href={`/${locale}/add`}>
@@ -97,7 +174,7 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
           </Card>
         ) : (
           <div className="space-y-4">
-            {days.map((day) => (
+            {groupByDay(dayItems, (item) => item.date).map((day) => (
               <div key={day.date.toISOString()}>
                 <h3 className="mb-2 px-1 text-sm font-medium text-muted-foreground">{formatDayHeading(day.date, today, locale, messages.common)}</h3>
                 <Card>
@@ -134,7 +211,7 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
 
 function Stat({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="px-2 py-4">
+    <div className="px-2 py-3">
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className="mt-1 text-sm font-medium sm:text-base">{children}</p>
     </div>

@@ -12,7 +12,8 @@
     "month": "Month",
     "income": "Income",
     "add": "Add",
-    "settings": "Settings"
+    "settings": "Settings",
+    "cards": "Cards"
   },
   "categories": {
     "fixed": "Fixed",
@@ -28,7 +29,14 @@
     "previousMonth": "Previous month",
     "nextMonth": "Next month",
     "today": "Today",
-    "yesterday": "Yesterday"
+    "yesterday": "Yesterday",
+    "paid": "Paid",
+    "unpaid": "Unpaid",
+    "markPaid": "Mark paid",
+    "markUnpaid": "Mark unpaid",
+    "change": "Change",
+    "cancel": "Cancel",
+    "manage": "Manage"
   },
   "month": {
     "spending": "Spending",
@@ -40,7 +48,18 @@
     "addFirst": "Add an expense",
     "installment": "{number} of {count}",
     "confirmDeletePurchase": "Delete this purchase? Installment purchases are deleted from every month.",
-    "confirmDeleteIncome": "Delete this income?"
+    "confirmDeleteIncome": "Delete this income?",
+    "toPay": "To pay",
+    "outstanding": "Outstanding",
+    "outstandingEmpty": "Everything due this month is paid.",
+    "recurring": "Recurring",
+    "recurringEmpty": "No recurring payments yet.",
+    "addRecurring": "Add recurring payments",
+    "statementDue": "{card} statement",
+    "dueOn": "Due {date}",
+    "onStatement": "On {card} statement · due {date}",
+    "changedAmount": "Changed this month",
+    "day": "Day {day}"
   },
   "income": {
     "title": "Income",
@@ -94,7 +113,8 @@
     "isRideshare": "Rideshare (driving app)",
     "rideshareBadge": "Rideshare",
     "remove": "Remove",
-    "confirmRemove": "Remove this from your lists? Past records keep it."
+    "confirmRemove": "Remove this from your lists? Past records keep it.",
+    "recurringLink": "Recurring payments"
   },
   "errors": {
     "amount": "Enter an amount greater than zero, with up to two decimals.",
@@ -107,6 +127,39 @@
     "name": "Add a name.",
     "day": "Use a day between 1 and 31.",
     "color": "Choose a color.",
-    "generic": "Something went wrong. Please try again."
+    "generic": "Something went wrong. Please try again.",
+    "month": "Choose a valid month."
+  },
+  "recurring": {
+    "title": "Recurring payments",
+    "description": "Bills that repeat every month. They appear in each month to mark as paid; card-paid bills are paid with their card statement.",
+    "empty": "No recurring payments yet.",
+    "add": "Add recurring payment",
+    "name": "Name",
+    "namePlaceholder": "e.g. Renta, Netflix, Luz",
+    "defaultAmount": "Usual amount",
+    "dayOfMonth": "Day of the month",
+    "startMonth": "Starting month",
+    "stop": "Stop",
+    "confirmStop": "Stop this recurring payment? It stays in months already paid.",
+    "summary": "Day {day} · {method}",
+    "ended": "Ended {month}",
+    "amountThisMonth": "Amount this month",
+    "stoppedTitle": "Stopped"
+  },
+  "cards": {
+    "title": "Cards",
+    "empty": "Add your credit cards in Settings to track statements.",
+    "msiOwed": "Installments owed",
+    "closes": "Closes {date}",
+    "due": "Due {date}",
+    "open": "Open",
+    "upcoming": "Upcoming",
+    "overdue": "Overdue",
+    "dueSoon": "Due",
+    "noCharges": "No charges yet.",
+    "charges": "Charges",
+    "installment": "{number} of {count}",
+    "recurringCharge": "Recurring"
   }
 }

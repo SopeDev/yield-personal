@@ -14,10 +14,13 @@ Personal finances as a mobile-first PWA. Part of the Yield brand — see `BRAND.
 
 ```bash
 npm install
-npm run db:migrate   # applies prisma/migrations
+npm run db:deploy    # applies prisma/migrations (safe for a shared/production database)
 npm run dev          # http://localhost:3000
 npm run check        # lint, typecheck, tests, build
 ```
+
+Use `npm run db:migrate` only against a disposable development database: when creating new
+migrations it may offer to reset the database.
 
 On Vercel, set the same environment variables. Each deployment applies pending migrations before building (`vercel.json`).
 
