@@ -26,9 +26,10 @@ test("builds category groups with item rows and monthly totals", () => {
     ],
     incomes: [],
     definitions: [
-      { id: "rent", item: { id: "renta", name: "Renta", category: fixed }, amountCents: 800000, dayOfMonth: 1, startMonth: dateFromKey("2026-11-01"), endMonth: null, paymentMethod: cash },
+      { id: "rent", item: { id: "renta", name: "Renta", category: fixed }, amountCents: 800000, isVariable: false, intervalMonths: 1, dayOfMonth: 1, startMonth: dateFromKey("2026-11-01"), endMonth: null, paymentMethod: cash },
     ],
     overrides: [],
+    recurringHistory: [],
     statements: [],
     savingsMovements: [],
   };

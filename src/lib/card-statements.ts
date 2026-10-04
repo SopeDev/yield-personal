@@ -1,6 +1,6 @@
 import { recurringChargeId } from "./cash-flow";
 import { addMonths, monthKeyOf, type MonthKey } from "./months";
-import { occurrencesForMonth, type OccurrenceOverride, type RecurringDefinition, type RecurringOccurrence } from "./recurring";
+import { occurrencesForMonth, type ConfirmedAmount, type OccurrenceOverride, type RecurringDefinition, type RecurringOccurrence } from "./recurring";
 import { buildStatements, type Statement } from "./statements";
 
 type Card = { id: string; closingDay: number | null; paymentDays: number | null };
@@ -10,11 +10,12 @@ type CardPurchase = { id: string; date: Date; amountCents: number; installmentCo
  * Statements for every card from card purchases and from recurring card charges in `recurringFrom`..`recurringTo`.
  * Statements outside the windows the inputs cover may be incomplete; callers use only the months they loaded for.
  */
-export function statementsForCards({ cards, purchases, definitions, overrides, recurringFrom, recurringTo, paidStatements }: {
+export function statementsForCards({ cards, purchases, definitions, overrides, recurringHistory = [], recurringFrom, recurringTo, paidStatements }: {
   cards: Card[];
   purchases: CardPurchase[];
   definitions: RecurringDefinition[];
   overrides: OccurrenceOverride[];
+  recurringHistory?: ConfirmedAmount[];
   recurringFrom: MonthKey;
   recurringTo: MonthKey;
   paidStatements: { paymentMethodId: string; statementMonth: Date }[];
@@ -22,7 +23,7 @@ export function statementsForCards({ cards, purchases, definitions, overrides, r
   const cardDefinitions = definitions.filter((definition) => definition.paymentMethod.kind === "CARD");
   const occurrences: RecurringOccurrence[] = [];
   for (let month = recurringFrom; month <= recurringTo; month = addMonths(month, 1)) {
-    occurrences.push(...occurrencesForMonth(cardDefinitions, overrides, month));
+    occurrences.push(...occurrencesForMonth(cardDefinitions, overrides, month, recurringHistory));
   }
 
   return cards.flatMap((card) => {

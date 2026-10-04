@@ -68,7 +68,12 @@
     "overdueBy": "{days} días vencido",
     "statements": "Estados de cuenta",
     "carriedTitle": "Pendientes de meses anteriores",
-    "includesCarried": "+ {amount} de meses anteriores"
+    "includesCarried": "+ {amount} de meses anteriores",
+    "estimate": "Estimado",
+    "confirm": "Confirmar",
+    "confirmAndPay": "Confirmar y marcar pagado",
+    "actualAmount": "Monto real",
+    "includesEstimated": "Incluye ≈ {amount} estimado"
   },
   "income": {
     "title": "Ingresos",
@@ -146,7 +151,8 @@
     "recurringEnded": "Este pago recurrente ya terminó y no se puede editar.",
     "item": "Elige un concepto o escribe uno nuevo.",
     "itemExists": "Ya existe otro concepto con este nombre. Mejor combínalos.",
-    "paymentDays": "Usa un número entero de días entre 1 y 60."
+    "paymentDays": "Usa un número entero de días entre 1 y 60.",
+    "interval": "Repite cada 1 a 12 meses."
   },
   "recurring": {
     "title": "Pagos recurrentes",
@@ -161,7 +167,19 @@
     "summary": "Día {day} · {method}",
     "ended": "Terminó en {month}",
     "amountThisMonth": "Monto de este mes",
-    "stoppedTitle": "Detenidos"
+    "stoppedTitle": "Detenidos",
+    "variable": "El monto varía",
+    "variableHint": "Cada mes empieza como estimado según tus recibos recientes; confirma el monto real cuando llegue.",
+    "usualAmount": "Monto habitual",
+    "estimateFallback": "Estimado (mientras no hay historial)",
+    "repeats": "Se repite",
+    "everyMonth": "Cada mes",
+    "everyMonths": "Cada {months} meses",
+    "intervalHint": "Para pagos cada varios meses, empieza en un mes con recibo.",
+    "edit": "Editar",
+    "saveChanges": "Guardar cambios",
+    "editHint": "Los cambios aplican desde este mes; los meses anteriores conservan sus montos.",
+    "varies": "Variable"
   },
   "cards": {
     "title": "Tarjetas",

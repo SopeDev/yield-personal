@@ -35,7 +35,7 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
   // Opening a cell of the year view filters the month's entries and recurring payments to one item.
   const itemFilter = typeof query.item === "string" ? query.item : null;
   const messages = getDictionary(locale);
-  const { cards, entries, incomes, occurrences, statements, spending, income, cashFlow } = await loadMonthView(userId, month, currentMonth);
+  const { cards, entries, incomes, occurrences, statements, spending, income, cashFlow, estimatedCents } = await loadMonthView(userId, month, currentMonth);
 
   const balanceCents = income.totalCents - cashFlow.toPayCents;
   const statementCards = new Map(cards.map((card) => [card.id, card]));
@@ -89,7 +89,12 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
           <Money cents={balanceCents} className={cn("mt-1 block text-3xl", balanceCents < 0 ? "text-loss" : "text-gain")} />
         </div>
         <div className="grid grid-cols-2 divide-x divide-border text-center [&>*:nth-child(n+3)]:border-t [&>*:nth-child(n+3)]:border-border">
-          <Stat label={messages.month.spending}><Money cents={spending.totalCents} /></Stat>
+          <Stat label={messages.month.spending}>
+            <Money cents={spending.totalCents} />
+            {estimatedCents > 0 ? (
+              <span className="mt-0.5 block text-xs font-normal text-warning">{format(messages.month.includesEstimated, { amount: formatCents(estimatedCents) })}</span>
+            ) : null}
+          </Stat>
           <Stat label={messages.month.income}><Money cents={income.totalCents} /></Stat>
           <Stat label={messages.month.toPay}><Money cents={cashFlow.toPayCents} /></Stat>
           <Stat label={messages.month.outstanding}>
@@ -141,32 +146,55 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
                   const details = status.statement
                     ? format(messages.month.onStatement, { card: recurring.paymentMethod.name, date: formatShortDate(status.statement.dueDate, locale) })
                     : [format(messages.month.day, { day: occurrence.date.getUTCDate() }), paymentMethodLabel(recurring.paymentMethod, messages.common.cash)].join(" · ");
+                  const subtitle = [details, occurrence.amountChanged ? messages.month.changedAmount : null, occurrence.estimated ? messages.month.estimate : null].filter(Boolean).join(" · ");
+                  const amountForm = (mode: "change" | "confirm") => (
+                    <OccurrenceAmountForm
+                      amount={(occurrence.amountCents / 100).toFixed(2)}
+                      isCash={recurring.paymentMethod.kind === "CASH"}
+                      locale={locale}
+                      messages={messages}
+                      mode={mode}
+                      month={month}
+                      recurringPaymentId={recurring.id}
+                    />
+                  );
                   return (
                     <li key={recurring.id}>
-                      <details className="group">
-                        <summary className="flex cursor-pointer list-none items-center gap-3 py-3 pl-4 pr-3">
-                          <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: recurring.paymentMethod.color }} />
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate font-medium">{recurring.item.name}</p>
-                            <p className="truncate text-sm text-muted-foreground">{occurrence.amountChanged ? `${details} · ${messages.month.changedAmount}` : details}</p>
+                      {occurrence.estimated ? (
+                        // An estimated variable bill needs its real amount: the confirm form is always shown.
+                        <>
+                          <div className="flex items-center gap-3 py-3 pl-4 pr-3">
+                            <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: recurring.paymentMethod.color }} />
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate font-medium">{recurring.item.name}</p>
+                              <p className="truncate text-sm text-muted-foreground">{subtitle}</p>
+                            </div>
+                            <span className="font-mono tabular-nums text-warning">≈ {formatCents(occurrence.amountCents)}</span>
                           </div>
-                          <Money cents={occurrence.amountCents} />
-                        </summary>
-                        <OccurrenceAmountForm
-                          amount={(occurrence.amountCents / 100).toFixed(2)}
-                          locale={locale}
-                          messages={messages}
-                          month={month}
-                          recurringPaymentId={recurring.id}
-                        />
-                      </details>
-                      <div className="flex justify-end px-3 pb-3 -mt-1">
-                        {recurring.paymentMethod.kind === "CASH" ? (
-                          <PaidToggle action={setOccurrencePaid} fields={{ locale, recurringPaymentId: recurring.id, month }} labels={toggleLabels} paid={status.paid} />
-                        ) : (
-                          <StatusBadge labels={messages.common} paid={status.paid} />
-                        )}
-                      </div>
+                          {amountForm("confirm")}
+                        </>
+                      ) : (
+                        <>
+                          <details className="group">
+                            <summary className="flex cursor-pointer list-none items-center gap-3 py-3 pl-4 pr-3">
+                              <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: recurring.paymentMethod.color }} />
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate font-medium">{recurring.item.name}</p>
+                                <p className="truncate text-sm text-muted-foreground">{subtitle}</p>
+                              </div>
+                              <Money cents={occurrence.amountCents} />
+                            </summary>
+                            {amountForm("change")}
+                          </details>
+                          <div className="flex justify-end px-3 pb-3 -mt-1">
+                            {recurring.paymentMethod.kind === "CASH" ? (
+                              <PaidToggle action={setOccurrencePaid} fields={{ locale, recurringPaymentId: recurring.id, month }} labels={toggleLabels} paid={status.paid} />
+                            ) : (
+                              <StatusBadge labels={messages.common} paid={status.paid} />
+                            )}
+                          </div>
+                        </>
+                      )}
                     </li>
                   );
                 })}

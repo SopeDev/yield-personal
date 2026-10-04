@@ -16,7 +16,7 @@ const klar = { id: "klar", kind: "CARD" as const, name: "Klar", color: "#14b8a6"
 const klarCard = { id: "klar", closingDay: 20, paymentDays: 30 };
 
 const definitions: RecurringDefinition[] = [
-  { id: "rent", item: { id: "rent", name: "Renta", category: fixed }, amountCents: 800000, dayOfMonth: 1, startMonth: dateFromKey("2026-10-01"), endMonth: null, paymentMethod: cash },
+  { id: "rent", item: { id: "rent", name: "Renta", category: fixed }, amountCents: 800000, isVariable: false, intervalMonths: 1, dayOfMonth: 1, startMonth: dateFromKey("2026-10-01"), endMonth: null, paymentMethod: cash },
 ];
 
 function purchase(id: string, date: string, amountCents: number, category: LedgerPurchase["item"]["category"], paymentMethod: LedgerPurchase["paymentMethod"], installmentCount = 1): LedgerPurchase {
@@ -40,6 +40,7 @@ test("summarizes spending, cash out, savings, and balance for a month", () => {
     incomes: [{ id: "uber", date: dateFromKey("2026-10-01"), amountCents: 326940, note: null, source: { id: "uber", name: "Uber", isRideshare: true } }],
     definitions,
     overrides: [],
+    recurringHistory: [],
     statements,
     savingsMovements: [{ id: "s", fundId: "emergency", date: dateFromKey("2026-10-20"), amountCents: 100000, note: null }],
   };
@@ -65,7 +66,7 @@ test("carries unpaid statements from earlier months into the current month witho
     cards: [klarCard], purchases: purchases.filter((item) => item.paymentMethod.kind === "CARD"),
     definitions: [], overrides: [], recurringFrom: "2026-09", recurringTo: "2026-12", paidStatements: [],
   });
-  const data: LedgerData = { categories: [fixed, food, car, extras], purchases, incomes: [], definitions: [], overrides: [], statements, savingsMovements: [] };
+  const data: LedgerData = { categories: [fixed, food, car, extras], purchases, incomes: [], definitions: [], overrides: [], recurringHistory: [], statements, savingsMovements: [] };
 
   const november = summarizeMonth(data, "2026-11", { carryFrom: "2026-01" });
   assert.deepEqual(november.cashFlow.carriedStatements.map((statement) => statement.month), ["2026-10"]);

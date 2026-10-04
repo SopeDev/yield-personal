@@ -1,7 +1,7 @@
 import { monthCashFlow } from "./cash-flow";
 import { monthSpendingEntries, spendingAmountsOf, summarizeIncome, summarizeSpending, type LedgerCategory, type LedgerIncome, type LedgerPurchase } from "./ledger";
 import { monthKeyOf, type MonthKey } from "./months";
-import { occurrencesForMonth, type OccurrenceOverride, type RecurringDefinition } from "./recurring";
+import { occurrencesForMonth, type ConfirmedAmount, type OccurrenceOverride, type RecurringDefinition } from "./recurring";
 import { netSavingsInMonth, type SavingsMovementRecord } from "./savings";
 import type { Statement } from "./statements";
 
@@ -12,13 +12,15 @@ export type LedgerData = {
   incomes: LedgerIncome[];
   definitions: RecurringDefinition[];
   overrides: OccurrenceOverride[];
+  /** Confirmed recurring amounts by item, for estimating variable bills. */
+  recurringHistory: ConfirmedAmount[];
   statements: Statement[];
   savingsMovements: SavingsMovementRecord[];
 };
 
 export function summarizeMonth(data: LedgerData, month: MonthKey, { carryFrom }: { carryFrom?: MonthKey } = {}) {
   const entries = monthSpendingEntries(data.purchases, month);
-  const occurrences = occurrencesForMonth(data.definitions, data.overrides, month);
+  const occurrences = occurrencesForMonth(data.definitions, data.overrides, month, data.recurringHistory);
   const spending = summarizeSpending(
     [...spendingAmountsOf(entries), ...occurrences.map((occurrence) => ({ item: occurrence.recurring.item, amountCents: occurrence.amountCents }))],
     data.categories,
@@ -36,6 +38,8 @@ export function summarizeMonth(data: LedgerData, month: MonthKey, { carryFrom }:
     spending,
     income,
     savingsNetCents,
+    /** Part of this month's spending that is still an estimate (unconfirmed variable bills). */
+    estimatedCents: occurrences.filter((occurrence) => occurrence.estimated).reduce((sum, occurrence) => sum + occurrence.amountCents, 0),
     cashFlow,
     /** As in the spreadsheet: income minus everything paid out this month. */
     balanceCents: income.totalCents - cashFlow.toPayCents,

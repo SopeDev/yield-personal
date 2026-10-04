@@ -192,14 +192,17 @@ model Income {
   @@map("incomes")
 }
 
-/// A bill that repeats every month from `startMonth` (first day of a month) through `endMonth` when set.
-/// Its name and category come from its expense item.
+/// A bill that repeats every `intervalMonths` months from `startMonth` (first day of a month) through `endMonth`
+/// when set. Its name and category come from its expense item. A variable bill (`isVariable`) is estimated from
+/// recent confirmed amounts until each month's real amount is confirmed.
 model RecurringPayment {
   id              String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId          String                @map("user_id") @db.Uuid
   itemId          String                @map("item_id") @db.Uuid
   paymentMethodId String                @map("payment_method_id") @db.Uuid
   amountCents     Int                   @map("amount_cents")
+  isVariable      Boolean               @default(false) @map("is_variable")
+  intervalMonths  Int                   @default(1) @map("interval_months")
   dayOfMonth      Int                   @map("day_of_month")
   startMonth      DateTime              @map("start_month") @db.Date
   endMonth        DateTime?             @map("end_month") @db.Date
@@ -215,8 +218,9 @@ model RecurringPayment {
   @@map("recurring_payments")
 }
 
-/// Per-month state of a recurring payment, stored only once the month differs from the default:
-/// a changed amount, or (for cash) being marked paid. Card-paid occurrences follow their statement.
+/// Per-month state of a recurring payment, stored only once the month differs from the default: a changed or
+/// confirmed amount, or (for cash) being marked paid. Card-paid occurrences follow their statement. For a
+/// variable bill, a stored `amountCents` is that month's confirmed amount.
 model RecurringOccurrence {
   id                 String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId             String           @map("user_id") @db.Uuid

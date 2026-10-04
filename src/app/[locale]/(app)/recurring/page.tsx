@@ -27,6 +27,8 @@ export default async function RecurringPage({ params }: PageProps<"/[locale]/rec
     getActiveCategories(userId),
     getActivePaymentMethods(userId),
   ]);
+  const categoryOptions = categories.map((category) => ({ id: category.id, key: category.key, label: categoryLabel(category, messages.categories) }));
+  const methodOptions = methods.map((method) => ({ id: method.id, label: paymentMethodLabel(method, messages.common.cash), color: method.color }));
   const active = definitions.filter((definition) => !definition.endMonth || monthKeyOf(definition.endMonth) >= currentMonth);
   const ended = definitions.filter((definition) => definition.endMonth && monthKeyOf(definition.endMonth) < currentMonth);
 
@@ -42,33 +44,66 @@ export default async function RecurringPage({ params }: PageProps<"/[locale]/rec
           <p className="px-4 py-4 text-muted-foreground">{messages.recurring.empty}</p>
         ) : (
           <ul className="divide-y divide-border">
-            {active.map((definition) => (
-              <li className="flex items-center gap-3 py-3 pl-4 pr-2" key={definition.id}>
-                <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: definition.paymentMethod.color }} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{definition.item.name}</p>
-                  <p className="truncate text-sm text-muted-foreground">
-                    {[
-                      categoryLabel(definition.item.category, messages.categories),
-                      format(messages.recurring.summary, { day: definition.dayOfMonth, method: paymentMethodLabel(definition.paymentMethod, messages.common.cash) }),
-                    ].join(" · ")}
-                  </p>
-                </div>
-                <Money cents={definition.amountCents} />
-                <DeleteButton action={stopRecurringPayment} confirmMessage={messages.recurring.confirmStop} id={definition.id} label={messages.recurring.stop} locale={locale} />
-              </li>
-            ))}
+            {active.map((definition) => {
+              const schedule = definition.intervalMonths > 1 ? format(messages.recurring.everyMonths, { months: definition.intervalMonths }) : null;
+              return (
+                <li key={definition.id}>
+                  <details>
+                    <summary className="flex cursor-pointer list-none items-center gap-3 py-3 pl-4 pr-4">
+                      <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: definition.paymentMethod.color }} />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium">{definition.item.name}</p>
+                        <p className="truncate text-sm text-muted-foreground">
+                          {[
+                            categoryLabel(definition.item.category, messages.categories),
+                            format(messages.recurring.summary, { day: definition.dayOfMonth, method: paymentMethodLabel(definition.paymentMethod, messages.common.cash) }),
+                            schedule,
+                            definition.isVariable ? messages.recurring.varies : null,
+                          ].filter(Boolean).join(" · ")}
+                        </p>
+                      </div>
+                      <span className={definition.isVariable ? "text-muted-foreground" : undefined}>
+                        {definition.isVariable ? "≈ " : ""}<Money cents={definition.amountCents} />
+                      </span>
+                    </summary>
+                    <div className="border-t border-border bg-background/40">
+                      <RecurringForm
+                        categories={categoryOptions}
+                        currentMonth={currentMonth}
+                        initial={{
+                          id: definition.id,
+                          itemName: definition.item.name,
+                          amount: (definition.amountCents / 100).toFixed(2),
+                          dayOfMonth: definition.dayOfMonth,
+                          paymentMethodId: definition.paymentMethod.id,
+                          isVariable: definition.isVariable,
+                          intervalMonths: definition.intervalMonths,
+                        }}
+                        items={items}
+                        locale={locale}
+                        messages={messages}
+                        methods={methodOptions}
+                      />
+                      <div className="flex items-center justify-end gap-2 px-4 pb-4 text-sm text-muted-foreground">
+                        {messages.recurring.stop}
+                        <DeleteButton action={stopRecurringPayment} confirmMessage={messages.recurring.confirmStop} id={definition.id} label={messages.recurring.stop} locale={locale} />
+                      </div>
+                    </div>
+                  </details>
+                </li>
+              );
+            })}
           </ul>
         )}
         <details className="border-t border-border" open={active.length === 0}>
           <summary className="flex min-h-12 cursor-pointer items-center px-4 font-medium text-primary">{messages.recurring.add}</summary>
           <RecurringForm
-            items={items}
-            categories={categories.map((category) => ({ id: category.id, key: category.key, label: categoryLabel(category, messages.categories) }))}
+            categories={categoryOptions}
             currentMonth={currentMonth}
+            items={items}
             locale={locale}
             messages={messages}
-            methods={methods.map((method) => ({ id: method.id, label: paymentMethodLabel(method, messages.common.cash), color: method.color }))}
+            methods={methodOptions}
           />
         </details>
       </Card>

@@ -13,8 +13,9 @@ export type CategoryOption = { id: string; key: string | null; label: string };
  * Item entry: typing suggests existing items. A matching name reuses that item (and its category); a new name
  * asks for the category the new item belongs to.
  */
-export function ItemField({ items, categories, defaultCategoryKey, messages, errors, autoFocus }: {
+export function ItemField({ items, categories, defaultCategoryKey, defaultName = "", messages, errors, autoFocus }: {
   items: ItemOption[];
+  defaultName?: string;
   categories: CategoryOption[];
   defaultCategoryKey: string;
   messages: Messages;
@@ -22,7 +23,7 @@ export function ItemField({ items, categories, defaultCategoryKey, messages, err
   autoFocus?: boolean;
 }) {
   const listId = useId();
-  const [name, setName] = useState("");
+  const [name, setName] = useState(defaultName);
   const match = name.trim() ? items.find((item) => normalizeItemName(item.name) === normalizeItemName(name)) : undefined;
   const matchCategory = match ? categories.find((category) => category.id === match.categoryId) : undefined;
   const defaultCategoryId = (categories.find((category) => category.key === defaultCategoryKey) ?? categories[0])?.id;

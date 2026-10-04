@@ -45,9 +45,11 @@ Last updated: 2026-10-03
 
 - Cards are due a number of days after closing (15 / 20 / 30 presets or any 1–60) instead of a fixed due day; migration converts existing cards (Nu, Klar, DiDi → 15 days; Plata → 30), verified on an embedded Postgres.
 
+- Recurring payments: variable amounts (estimated from recent confirmed amounts, confirm or confirm-and-pay in the month view), repeat every N months, and editing on the recurring payments page.
+
 ## Next
 
-- Editing entries, recurring payments, cards, and income sources.
+- Editing entries, cards, and income sources.
 - Savings screen.
 - Item and category management in Settings (rename, recategorize, merge, archive, reorder).
 - Faster quick add (remember each item's usual payment method and amount).

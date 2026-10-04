@@ -7,6 +7,7 @@ import { resolveItem } from "@/lib/item-resolution";
 import { parseAmountToCents } from "@/lib/money";
 import { addMonths, dateFromKey, isMonthKey, monthKeyOf } from "@/lib/months";
 import { MAX_STATEMENT_DAY } from "@/lib/payment-methods";
+import { MAX_INTERVAL_MONTHS, nextActiveMonth } from "@/lib/recurring";
 import { currentMonthKey } from "@/lib/today";
 import { localeFromForm, requireActionUserId } from "./action-user";
 import type { FormState } from "./form-state";
@@ -24,9 +25,12 @@ async function parseRecurring(userId: string, formData: FormData) {
   const amountCents = parseAmountToCents(readText(formData, "amount"));
   const paymentMethodId = readText(formData, "paymentMethodId");
   const dayOfMonth = Number(readText(formData, "dayOfMonth"));
+  const intervalMonths = Number(readText(formData, "intervalMonths") || "1");
+  const isVariable = formData.get("isVariable") === "on";
 
   const fieldErrors: FormState["fieldErrors"] = {};
   if (!amountCents) fieldErrors.amount = "amount";
+  if (!Number.isInteger(intervalMonths) || intervalMonths < 1 || intervalMonths > MAX_INTERVAL_MONTHS) fieldErrors.intervalMonths = "interval";
   if (!isUuid(paymentMethodId)) fieldErrors.paymentMethodId = "paymentMethod";
   if (!Number.isInteger(dayOfMonth) || dayOfMonth < 1 || dayOfMonth > MAX_STATEMENT_DAY) fieldErrors.dayOfMonth = "day";
   if (Object.keys(fieldErrors).length > 0) return { fieldErrors };
@@ -41,7 +45,7 @@ async function parseRecurring(userId: string, formData: FormData) {
   });
   if ("error" in item) return { fieldErrors: (item.error === "item" ? { itemName: "item" } : { categoryId: "category" }) as FormState["fieldErrors"] };
 
-  return { data: { itemId: item.itemId, amountCents: amountCents!, paymentMethodId, dayOfMonth } };
+  return { data: { itemId: item.itemId, amountCents: amountCents!, paymentMethodId, dayOfMonth, intervalMonths, isVariable } };
 }
 
 export async function createRecurringPayment(_state: FormState, formData: FormData): Promise<FormState> {
@@ -59,12 +63,13 @@ export async function createRecurringPayment(_state: FormState, formData: FormDa
 /**
  * Edits apply from the current month on. A payment that already ran in earlier months is split: the old
  * version ends last month and a new version starts this month, so past months keep what was actually due.
+ * A bill every few months keeps its cycle: the new version starts at its next billing month.
  */
 export async function updateRecurringPayment(_state: FormState, formData: FormData): Promise<FormState> {
   const userId = await requireActionUserId();
   const id = readText(formData, "id");
   if (!isUuid(id)) return { error: "generic" };
-  const recurring = await db.recurringPayment.findFirst({ where: { id, userId }, select: { startMonth: true, endMonth: true } });
+  const recurring = await db.recurringPayment.findFirst({ where: { id, userId }, select: { startMonth: true, endMonth: true, intervalMonths: true } });
   if (!recurring) return { error: "generic" };
 
   const month = currentMonthKey();
@@ -76,10 +81,12 @@ export async function updateRecurringPayment(_state: FormState, formData: FormDa
     await db.recurringPayment.update({ where: { id }, data: parsed.data });
   } else {
     const thisMonth = dateFromKey(`${month}-01`);
+    const keepsCycle = parsed.data.intervalMonths === recurring.intervalMonths;
+    const nextStart = (keepsCycle && nextActiveMonth({ ...recurring, endMonth: null }, month)) || month;
     await db.$transaction(async (tx) => {
       await tx.recurringPayment.update({ where: { id }, data: { endMonth: dateFromKey(`${addMonths(month, -1)}-01`) } });
       const next = await tx.recurringPayment.create({
-        data: { userId, ...parsed.data, startMonth: thisMonth, endMonth: recurring.endMonth },
+        data: { userId, ...parsed.data, startMonth: dateFromKey(`${nextStart}-01`), endMonth: recurring.endMonth },
         select: { id: true },
       });
       await tx.recurringOccurrence.updateMany({ where: { recurringPaymentId: id, month: { gte: thisMonth } }, data: { recurringPaymentId: next.id } });
@@ -89,7 +96,6 @@ export async function updateRecurringPayment(_state: FormState, formData: FormDa
   revalidatePath(`/${localeFromForm(formData)}`, "layout");
   return {};
 }
-
 
 /**
  * Stops a recurring payment. It stays in months already paid or changed, including this one;
@@ -122,11 +128,17 @@ async function findOwnedRecurring(userId: string, formData: FormData) {
   const id = readText(formData, "recurringPaymentId");
   const month = readText(formData, "month");
   if (!isUuid(id) || !isMonthKey(month)) return null;
-  const recurring = await db.recurringPayment.findFirst({ where: { id, userId }, select: { id: true, amountCents: true, paymentMethod: { select: { kind: true } } } });
+  const recurring = await db.recurringPayment.findFirst({
+    where: { id, userId },
+    select: { id: true, amountCents: true, isVariable: true, paymentMethod: { select: { kind: true } } },
+  });
   return recurring ? { recurring, month: dateFromKey(`${month}-01`) } : null;
 }
 
-/** Changes the amount for one month only (for bills that vary, like electricity). */
+/**
+ * Sets one month's amount: confirms a variable bill's real amount, or changes a fixed bill for that month only.
+ * With `markPaid`, a cash bill is also marked paid in the same step.
+ */
 export async function setOccurrenceAmount(_state: FormState, formData: FormData): Promise<FormState> {
   const userId = await requireActionUserId();
   const amountCents = parseAmountToCents(readText(formData, "amount"));
@@ -134,11 +146,13 @@ export async function setOccurrenceAmount(_state: FormState, formData: FormData)
   const owned = await findOwnedRecurring(userId, formData);
   if (!owned) return { error: "generic" };
 
-  const override = amountCents === owned.recurring.amountCents ? null : amountCents;
+  // A variable bill always stores the amount, since storing it is what confirms the month.
+  const override = !owned.recurring.isVariable && amountCents === owned.recurring.amountCents ? null : amountCents;
+  const paidAt = formData.get("markPaid") === "true" && owned.recurring.paymentMethod.kind === "CASH" ? new Date() : undefined;
   await db.recurringOccurrence.upsert({
     where: { recurringPaymentId_month: { recurringPaymentId: owned.recurring.id, month: owned.month } },
-    create: { userId, recurringPaymentId: owned.recurring.id, month: owned.month, amountCents: override },
-    update: { amountCents: override },
+    create: { userId, recurringPaymentId: owned.recurring.id, month: owned.month, amountCents: override, paidAt },
+    update: { amountCents: override, ...(paidAt ? { paidAt } : {}) },
   });
   revalidatePath(`/${localeFromForm(formData)}`, "layout");
   return {};

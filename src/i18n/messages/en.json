@@ -68,7 +68,12 @@
     "overdueBy": "{days} days overdue",
     "statements": "Card statements",
     "carriedTitle": "Unpaid from earlier months",
-    "includesCarried": "+ {amount} from earlier"
+    "includesCarried": "+ {amount} from earlier",
+    "estimate": "Estimate",
+    "confirm": "Confirm",
+    "confirmAndPay": "Confirm & mark paid",
+    "actualAmount": "Actual amount",
+    "includesEstimated": "Includes ≈ {amount} estimated"
   },
   "income": {
     "title": "Income",
@@ -146,7 +151,8 @@
     "recurringEnded": "This recurring payment has ended and can't be edited.",
     "item": "Choose an item or type a new one.",
     "itemExists": "Another item already has this name. Merge them instead.",
-    "paymentDays": "Use a whole number of days from 1 to 60."
+    "paymentDays": "Use a whole number of days from 1 to 60.",
+    "interval": "Repeat every 1 to 12 months."
   },
   "recurring": {
     "title": "Recurring payments",
@@ -161,7 +167,19 @@
     "summary": "Day {day} · {method}",
     "ended": "Ended {month}",
     "amountThisMonth": "Amount this month",
-    "stoppedTitle": "Stopped"
+    "stoppedTitle": "Stopped",
+    "variable": "Amount varies",
+    "variableHint": "Each month starts as an estimate from your recent bills; confirm the real amount when it arrives.",
+    "usualAmount": "Usual amount",
+    "estimateFallback": "Estimate (until there's history)",
+    "repeats": "Repeats",
+    "everyMonth": "Every month",
+    "everyMonths": "Every {months} months",
+    "intervalHint": "For bills every few months, start in a month that has a bill.",
+    "edit": "Edit",
+    "saveChanges": "Save changes",
+    "editHint": "Changes apply from this month on; earlier months keep their amounts.",
+    "varies": "Varies"
   },
   "cards": {
     "title": "Cards",

@@ -5,7 +5,7 @@ import { statementsForCards } from "@/lib/card-statements";
 import { earliestContributingMonth } from "@/lib/installments";
 import type { LedgerData } from "@/lib/month-summary";
 import { addMonths, monthRange, type MonthKey } from "@/lib/months";
-import type { OccurrenceOverride, RecurringDefinition } from "@/lib/recurring";
+import type { ConfirmedAmount, OccurrenceOverride, RecurringDefinition } from "@/lib/recurring";
 
 const categorySelect = { id: true, key: true, name: true, sortOrder: true, includeInAverage: true } as const;
 const paymentMethodSelect = { id: true, kind: true, name: true, color: true } as const;
@@ -28,12 +28,21 @@ export function getRecurringDefinitions(userId: string): Promise<RecurringDefini
   return db.recurringPayment.findMany({
     where: { userId },
     select: {
-      id: true, amountCents: true, dayOfMonth: true, startMonth: true, endMonth: true,
+      id: true, amountCents: true, isVariable: true, intervalMonths: true, dayOfMonth: true, startMonth: true, endMonth: true,
       item: { select: itemSelect },
       paymentMethod: { select: paymentMethodSelect },
     },
     orderBy: [{ dayOfMonth: "asc" }, { item: { name: "asc" } }],
   });
+}
+
+/** Every confirmed or changed recurring amount, by item, for estimating variable bills. */
+async function getRecurringHistory(userId: string): Promise<ConfirmedAmount[]> {
+  const rows = await db.recurringOccurrence.findMany({
+    where: { userId, amountCents: { not: null } },
+    select: { month: true, amountCents: true, recurringPayment: { select: { itemId: true } } },
+  });
+  return rows.map((row) => ({ itemId: row.recurringPayment.itemId, month: row.month, amountCents: row.amountCents! }));
 }
 
 function getOccurrenceOverrides(userId: string, from: MonthKey, to: MonthKey): Promise<OccurrenceOverride[]> {
@@ -67,7 +76,7 @@ export function getSavingsFunds(userId: string) {
  */
 export async function loadLedgerRange(userId: string, from: MonthKey, to: MonthKey, { statementsFrom: statementsStart = from }: { statementsFrom?: MonthKey } = {}) {
   const statementsFrom = addMonths(statementsStart < from ? statementsStart : from, -STATEMENT_LOOKBACK_MONTHS);
-  const [categories, definitions, cards, purchases, incomes, overrides, paidStatements, savingsMovements] = await Promise.all([
+  const [categories, definitions, cards, purchases, incomes, overrides, recurringHistory, paidStatements, savingsMovements] = await Promise.all([
     db.category.findMany({ where: { userId }, select: categorySelect, orderBy: { sortOrder: "asc" } }),
     getRecurringDefinitions(userId),
     getCards(userId),
@@ -82,6 +91,7 @@ export async function loadLedgerRange(userId: string, from: MonthKey, to: MonthK
       orderBy: [{ date: "desc" }, { createdAt: "desc" }],
     }),
     getOccurrenceOverrides(userId, statementsFrom, addMonths(to, 1)),
+    getRecurringHistory(userId),
     db.statementPayment.findMany({ where: { userId }, select: { paymentMethodId: true, statementMonth: true } }),
     db.savingsMovement.findMany({ where: { userId }, select: { id: true, fundId: true, date: true, amountCents: true, note: true }, orderBy: { date: "desc" } }),
   ]);
@@ -91,11 +101,12 @@ export async function loadLedgerRange(userId: string, from: MonthKey, to: MonthK
     purchases: purchases.filter((purchase) => purchase.paymentMethod.kind === "CARD"),
     definitions,
     overrides,
+    recurringHistory,
     recurringFrom: statementsFrom,
     recurringTo: addMonths(to, 1),
     paidStatements,
   });
 
-  const data: LedgerData = { categories, purchases, incomes, definitions, overrides, statements, savingsMovements };
+  const data: LedgerData = { categories, purchases, incomes, definitions, overrides, recurringHistory, statements, savingsMovements };
   return { data, cards };
 }

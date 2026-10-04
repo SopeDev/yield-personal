@@ -31,7 +31,9 @@ Last updated: 2026-10-03
 - "Por pagar" (outstanding) is the set of unpaid cash recurring occurrences and unpaid card statements belonging to the month.
 - A statement is due a fixed number of days after it closes (`paymentDays`, 1–60, default 15), so the due date follows real month lengths. A closing day past a month's end falls on its last day. Fixed due days were migrated to days after closing, counting a due day on or before the closing day as 30 days later.
 - A charge belongs to the statement closing on or after its date; each installment of a card purchase lands on the next consecutive statement.
-- Recurring payments generate one occurrence per month between their start and end months. Occurrence rows are stored only when a month differs from the default (a changed amount, or a cash payment marked paid); a card-paid occurrence is paid when its statement is paid.
+- Recurring payments repeat every `intervalMonths` months (1–12) counted from their start month, between their start and end months; bimonthly bills like CFE use 2.
+- A recurring payment can be variable. Each month starts as an estimate (the average of the item's last 3 confirmed amounts, else the usual amount) shown with "≈" and counted in totals; confirming the real amount replaces it, and a cash bill can be confirmed and marked paid in one step. The month view notes how much of its spending is still estimated.
+- Recurring payments generate one occurrence per billing month. Occurrence rows are stored only when a month differs from the default (a changed amount, or a cash payment marked paid); a card-paid occurrence is paid when its statement is paid.
 - Stopping a recurring payment keeps it through the current month only if that month was already paid or changed; a payment that never applied to a past month is deleted instead.
 - Statements are derived, never stored; only "statement paid" is persisted per card and closing month. Archived cards keep showing while they have unpaid statements.
 - Month balance follows the spreadsheet: income − total to pay.
@@ -74,7 +76,7 @@ Last updated: 2026-10-03
 - Moving an item to another category moves its whole history. Two items are combined only by an explicit merge, which moves every purchase and recurring payment to the remaining item. Archived items leave suggestions but keep their history; typing an archived item's name restores it.
 - Existing purchase descriptions and recurring payment names were migrated into items by normalized name: the most recent purchase's category and the most-used spelling win.
 - A custom category name takes precedence over the translated built-in label.
-- Editing a recurring payment applies from the current month: if it already ran in earlier months, the old version ends last month and a new version starts this month, carrying over this month's and later per-month changes.
+- Editing a recurring payment (amount, day, payment method, item, variable flag, interval) applies from the current month; a bill every few months that keeps its interval continues on its cycle: if it already ran in earlier months, the old version ends last month and a new version starts this month, carrying over this month's and later per-month changes.
 - Editing a card's billing cycle applies to all of its statements, past ones included.
 - New purchases, incomes, and savings movements may carry a client-generated UUID; repeating a create with the same id does nothing, so retried submissions (such as a future offline queue) never duplicate entries.
 - All month figures come from one range loader plus pure summaries (`loadLedgerRange` + `summarizeMonth`), shared by the month, year, income, cards, and savings screens.
