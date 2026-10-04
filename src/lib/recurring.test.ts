@@ -7,8 +7,8 @@ const fixed = { id: "fixed", key: "fixed", name: null, sortOrder: 0, includeInAv
 const cash = { id: "cash", kind: "CASH" as const, name: "Cash", color: "#00c896" };
 
 const rent: RecurringDefinition = {
-  id: "rent", name: "Renta", amountCents: 800000, dayOfMonth: 31,
-  startMonth: dateFromKey("2026-10-01"), endMonth: null, category: fixed, paymentMethod: cash,
+  id: "rent", item: { id: "rent", name: "Renta", category: fixed }, amountCents: 800000, dayOfMonth: 31,
+  startMonth: dateFromKey("2026-10-01"), endMonth: null, paymentMethod: cash,
 };
 
 test("recurring payments run from their start month through their end month", () => {

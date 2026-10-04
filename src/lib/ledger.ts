@@ -4,13 +4,15 @@ import type { MonthKey } from "./months";
 
 export type LedgerCategory = { id: string; key: string | null; name: string | null; sortOrder: number; includeInAverage: boolean };
 export type LedgerPaymentMethod = { id: string; kind: "CASH" | "CARD"; name: string; color: string };
+/** A reusable expense concept; its category groups it. */
+export type LedgerItem = { id: string; name: string; category: LedgerCategory };
 export type LedgerPurchase = {
   id: string;
   date: Date;
   amountCents: number;
-  description: string;
+  note: string | null;
   installmentCount: number;
-  category: LedgerCategory;
+  item: LedgerItem;
   paymentMethod: LedgerPaymentMethod;
 };
 export type LedgerIncomeSource = { id: string; name: string; isRideshare: boolean };
@@ -33,24 +35,37 @@ export function monthSpendingEntries(purchases: LedgerPurchase[], month: MonthKe
     .sort((a, b) => b.purchase.date.getTime() - a.purchase.date.getTime());
 }
 
-export type SpendingItem = { categoryId: string; amountCents: number };
+/** One amount of spending in a month, attributed to an expense item. */
+export type SpendingAmount = { item: LedgerItem; amountCents: number };
 
-/** Category totals for a month from any spending items (purchase portions and recurring payments). */
-export function summarizeSpending(items: SpendingItem[], categories: LedgerCategory[]) {
-  const totals = new Map(categories.map((category) => [category.id, 0]));
-  for (const item of items) totals.set(item.categoryId, (totals.get(item.categoryId) ?? 0) + item.amountCents);
+/**
+ * Totals for a month from purchase portions and recurring payments: per category (every category listed, in
+ * display order) and per item (items with spending, grouped by category order, largest first).
+ */
+export function summarizeSpending(amounts: SpendingAmount[], categories: LedgerCategory[]) {
+  const categoryTotals = new Map(categories.map((category) => [category.id, 0]));
+  const itemTotals = new Map<string, { item: LedgerItem; totalCents: number }>();
+  for (const { item, amountCents } of amounts) {
+    categoryTotals.set(item.category.id, (categoryTotals.get(item.category.id) ?? 0) + amountCents);
+    const current = itemTotals.get(item.id) ?? { item, totalCents: 0 };
+    current.totalCents += amountCents;
+    itemTotals.set(item.id, current);
+  }
 
   const byCategory = [...categories]
     .sort((a, b) => a.sortOrder - b.sortOrder)
-    .map((category) => ({ category, totalCents: totals.get(category.id) ?? 0 }));
+    .map((category) => ({ category, totalCents: categoryTotals.get(category.id) ?? 0 }));
+  const byItem = [...itemTotals.values()].sort(
+    (a, b) => a.item.category.sortOrder - b.item.category.sortOrder || b.totalCents - a.totalCents || a.item.name.localeCompare(b.item.name),
+  );
   const totalCents = byCategory.reduce((sum, item) => sum + item.totalCents, 0);
   const carCents = byCategory.find((item) => item.category.key === CAR_CATEGORY_KEY)?.totalCents ?? 0;
 
-  return { byCategory, totalCents, carCents };
+  return { byCategory, byItem, totalCents, carCents };
 }
 
-export function spendingItemsOf(entries: MonthSpendingEntry[]): SpendingItem[] {
-  return entries.map((entry) => ({ categoryId: entry.purchase.category.id, amountCents: entry.amountCents }));
+export function spendingAmountsOf(entries: MonthSpendingEntry[]): SpendingAmount[] {
+  return entries.map((entry) => ({ item: entry.purchase.item, amountCents: entry.amountCents }));
 }
 
 export function summarizeIncome(incomes: LedgerIncome[], carSpendingCents: number) {

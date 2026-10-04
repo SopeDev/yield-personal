@@ -77,8 +77,6 @@
     "expense": "Expense",
     "income": "Income",
     "amount": "Amount",
-    "description": "Description",
-    "descriptionPlaceholder": "e.g. Gas, Calimax, Pho",
     "category": "Category",
     "paidWith": "Paid with",
     "date": "Date",
@@ -91,7 +89,11 @@
     "noSources": "Add an income source in Settings before recording income.",
     "goToSettings": "Go to Settings",
     "saveExpense": "Save expense",
-    "saveIncome": "Save income"
+    "saveIncome": "Save income",
+    "item": "Item",
+    "itemPlaceholder": "e.g. Gasolina, Calimax, Pho",
+    "newItemCategory": "Category for this new item",
+    "itemCategory": "In {category}"
   },
   "settings": {
     "title": "Settings",
@@ -130,15 +132,15 @@
     "generic": "Something went wrong. Please try again.",
     "month": "Choose a valid month.",
     "coverMonths": "Use a whole number of months from 1 to 24.",
-    "recurringEnded": "This recurring payment has ended and can't be edited."
+    "recurringEnded": "This recurring payment has ended and can't be edited.",
+    "item": "Choose an item or type a new one.",
+    "itemExists": "Another item already has this name. Merge them instead."
   },
   "recurring": {
     "title": "Recurring payments",
     "description": "Bills that repeat every month. They appear in each month to mark as paid; card-paid bills are paid with their card statement.",
     "empty": "No recurring payments yet.",
     "add": "Add recurring payment",
-    "name": "Name",
-    "namePlaceholder": "e.g. Renta, Netflix, Luz",
     "defaultAmount": "Usual amount",
     "dayOfMonth": "Day of the month",
     "startMonth": "Starting month",

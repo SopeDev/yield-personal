@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db/client";
+import { resolveItem } from "@/lib/item-resolution";
 import { parseAmountToCents } from "@/lib/money";
 import { addMonths, dateFromKey, isMonthKey, monthKeyOf } from "@/lib/months";
 import { MAX_STATEMENT_DAY } from "@/lib/payment-methods";
@@ -10,7 +11,6 @@ import { currentMonthKey } from "@/lib/today";
 import { localeFromForm, requireActionUserId } from "./action-user";
 import type { FormState } from "./form-state";
 
-const MAX_NAME_LENGTH = 60;
 
 function readText(formData: FormData, name: string) {
   return String(formData.get(name) ?? "").trim();
@@ -21,28 +21,27 @@ function isUuid(value: string) {
 }
 
 async function parseRecurring(userId: string, formData: FormData) {
-  const name = readText(formData, "name");
   const amountCents = parseAmountToCents(readText(formData, "amount"));
-  const categoryId = readText(formData, "categoryId");
   const paymentMethodId = readText(formData, "paymentMethodId");
   const dayOfMonth = Number(readText(formData, "dayOfMonth"));
 
   const fieldErrors: FormState["fieldErrors"] = {};
-  if (!name || name.length > MAX_NAME_LENGTH) fieldErrors.name = "name";
   if (!amountCents) fieldErrors.amount = "amount";
-  if (!isUuid(categoryId)) fieldErrors.categoryId = "category";
   if (!isUuid(paymentMethodId)) fieldErrors.paymentMethodId = "paymentMethod";
   if (!Number.isInteger(dayOfMonth) || dayOfMonth < 1 || dayOfMonth > MAX_STATEMENT_DAY) fieldErrors.dayOfMonth = "day";
   if (Object.keys(fieldErrors).length > 0) return { fieldErrors };
 
-  const [category, paymentMethod] = await Promise.all([
-    db.category.findFirst({ where: { id: categoryId, userId, archivedAt: null }, select: { id: true } }),
-    db.paymentMethod.findFirst({ where: { id: paymentMethodId, userId, archivedAt: null }, select: { id: true } }),
-  ]);
-  if (!category) return { fieldErrors: { categoryId: "category" } as FormState["fieldErrors"] };
+  const paymentMethod = await db.paymentMethod.findFirst({ where: { id: paymentMethodId, userId, archivedAt: null }, select: { id: true } });
   if (!paymentMethod) return { fieldErrors: { paymentMethodId: "paymentMethod" } as FormState["fieldErrors"] };
 
-  return { data: { name, amountCents: amountCents!, categoryId, paymentMethodId, dayOfMonth } };
+  const item = await resolveItem(userId, {
+    itemId: readText(formData, "itemId"),
+    itemName: readText(formData, "itemName"),
+    categoryId: readText(formData, "categoryId"),
+  });
+  if ("error" in item) return { fieldErrors: (item.error === "item" ? { itemName: "item" } : { categoryId: "category" }) as FormState["fieldErrors"] };
+
+  return { data: { itemId: item.itemId, amountCents: amountCents!, paymentMethodId, dayOfMonth } };
 }
 
 export async function createRecurringPayment(_state: FormState, formData: FormData): Promise<FormState> {

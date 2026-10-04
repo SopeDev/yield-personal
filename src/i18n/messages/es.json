@@ -77,8 +77,6 @@
     "expense": "Gasto",
     "income": "Ingreso",
     "amount": "Monto",
-    "description": "Descripción",
-    "descriptionPlaceholder": "p. ej. Gasolina, Calimax, Pho",
     "category": "Categoría",
     "paidWith": "Pagado con",
     "date": "Fecha",
@@ -91,7 +89,11 @@
     "noSources": "Agrega una fuente de ingreso en Ajustes antes de registrar ingresos.",
     "goToSettings": "Ir a Ajustes",
     "saveExpense": "Guardar gasto",
-    "saveIncome": "Guardar ingreso"
+    "saveIncome": "Guardar ingreso",
+    "item": "Concepto",
+    "itemPlaceholder": "p. ej. Gasolina, Calimax, Pho",
+    "newItemCategory": "Categoría para este concepto nuevo",
+    "itemCategory": "En {category}"
   },
   "settings": {
     "title": "Ajustes",
@@ -130,15 +132,15 @@
     "generic": "Algo salió mal. Inténtalo de nuevo.",
     "month": "Elige un mes válido.",
     "coverMonths": "Usa un número entero de meses entre 1 y 24.",
-    "recurringEnded": "Este pago recurrente ya terminó y no se puede editar."
+    "recurringEnded": "Este pago recurrente ya terminó y no se puede editar.",
+    "item": "Elige un concepto o escribe uno nuevo.",
+    "itemExists": "Ya existe otro concepto con este nombre. Mejor combínalos."
   },
   "recurring": {
     "title": "Pagos recurrentes",
     "description": "Pagos que se repiten cada mes. Aparecen en cada mes para marcarlos como pagados; los que se pagan con tarjeta se pagan con su estado de cuenta.",
     "empty": "Todavía no hay pagos recurrentes.",
     "add": "Agregar pago recurrente",
-    "name": "Nombre",
-    "namePlaceholder": "p. ej. Renta, Netflix, Luz",
     "defaultAmount": "Monto habitual",
     "dayOfMonth": "Día del mes",
     "startMonth": "Mes de inicio",

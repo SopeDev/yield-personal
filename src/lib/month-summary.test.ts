@@ -16,11 +16,11 @@ const klar = { id: "klar", kind: "CARD" as const, name: "Klar", color: "#14b8a6"
 const klarCard = { id: "klar", closingDay: 20, dueDay: 20 };
 
 const definitions: RecurringDefinition[] = [
-  { id: "rent", name: "Renta", amountCents: 800000, dayOfMonth: 1, startMonth: dateFromKey("2026-10-01"), endMonth: null, category: fixed, paymentMethod: cash },
+  { id: "rent", item: { id: "rent", name: "Renta", category: fixed }, amountCents: 800000, dayOfMonth: 1, startMonth: dateFromKey("2026-10-01"), endMonth: null, paymentMethod: cash },
 ];
 
-function purchase(id: string, date: string, amountCents: number, category: LedgerPurchase["category"], paymentMethod: LedgerPurchase["paymentMethod"], installmentCount = 1): LedgerPurchase {
-  return { id, date: dateFromKey(date), amountCents, description: id, installmentCount, category, paymentMethod };
+function purchase(id: string, date: string, amountCents: number, category: LedgerPurchase["item"]["category"], paymentMethod: LedgerPurchase["paymentMethod"], installmentCount = 1): LedgerPurchase {
+  return { id, date: dateFromKey(date), amountCents, note: null, installmentCount, item: { id, name: id, category }, paymentMethod };
 }
 
 const purchases = [

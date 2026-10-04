@@ -34,6 +34,7 @@ model User {
   statementPayments    StatementPayment[]
   savingsFunds         SavingsFund[]
   savingsMovements     SavingsMovement[]
+  expenseItems         ExpenseItem[]
 
   @@map("users")
 }
@@ -101,41 +102,63 @@ model PaymentMethod {
 /// Built-in categories have a `key` and are labelled through i18n; custom ones use `name`.
 /// `includeInAverage` marks everyday categories counted in average monthly spending (one-off extras are not).
 model Category {
-  id                String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId            String             @map("user_id") @db.Uuid
-  key               String?
-  name              String?
-  sortOrder         Int                @default(0) @map("sort_order")
-  includeInAverage  Boolean            @default(true) @map("include_in_average")
-  archivedAt        DateTime?          @map("archived_at") @db.Timestamptz(6)
-  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
-  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  purchases         Purchase[]
-  recurringPayments RecurringPayment[]
+  id               String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId           String        @map("user_id") @db.Uuid
+  key              String?
+  name             String?
+  sortOrder        Int           @default(0) @map("sort_order")
+  includeInAverage Boolean       @default(true) @map("include_in_average")
+  archivedAt       DateTime?     @map("archived_at") @db.Timestamptz(6)
+  createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items            ExpenseItem[]
 
   @@unique([userId, key])
   @@index([userId])
   @@map("categories")
 }
 
-/// Amounts are stored in centavos. A card purchase may be split into monthly installments.
+/// Amounts are stored in centavos. A purchase is always of a reusable expense item (which sets its category);
+/// `note` adds optional detail. A card purchase may be split into monthly installments.
 model Purchase {
   id               String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId           String        @map("user_id") @db.Uuid
-  categoryId       String        @map("category_id") @db.Uuid
+  itemId           String        @map("item_id") @db.Uuid
   paymentMethodId  String        @map("payment_method_id") @db.Uuid
   date             DateTime      @db.Date
   amountCents      Int           @map("amount_cents")
-  description      String
+  note             String?
   installmentCount Int           @default(1) @map("installment_count")
   createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
   user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  category         Category      @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  item             ExpenseItem   @relation(fields: [itemId], references: [id], onDelete: Restrict)
   paymentMethod    PaymentMethod @relation(fields: [paymentMethodId], references: [id], onDelete: Restrict)
 
   @@index([userId, date])
+  @@index([itemId])
   @@map("purchases")
+}
+
+/// A reusable expense concept, like "Gasolina" or "Renta" — the rows of the original spreadsheet. Spending is
+/// tracked per item across time; the item's category groups it. `normalizedName` (trimmed, single-spaced,
+/// lowercase) keeps one item per name for each user.
+model ExpenseItem {
+  id                String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId            String             @map("user_id") @db.Uuid
+  categoryId        String             @map("category_id") @db.Uuid
+  name              String
+  normalizedName    String             @map("normalized_name")
+  archivedAt        DateTime?          @map("archived_at") @db.Timestamptz(6)
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category          Category           @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  purchases         Purchase[]
+  recurringPayments RecurringPayment[]
+
+  @@unique([userId, normalizedName])
+  @@index([categoryId])
+  @@map("expense_items")
 }
 
 model IncomeSource {
@@ -170,12 +193,12 @@ model Income {
 }
 
 /// A bill that repeats every month from `startMonth` (first day of a month) through `endMonth` when set.
+/// Its name and category come from its expense item.
 model RecurringPayment {
   id              String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId          String                @map("user_id") @db.Uuid
-  categoryId      String                @map("category_id") @db.Uuid
+  itemId          String                @map("item_id") @db.Uuid
   paymentMethodId String                @map("payment_method_id") @db.Uuid
-  name            String
   amountCents     Int                   @map("amount_cents")
   dayOfMonth      Int                   @map("day_of_month")
   startMonth      DateTime              @map("start_month") @db.Date
@@ -183,11 +206,12 @@ model RecurringPayment {
   createdAt       DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
   user            User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  category        Category              @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  item            ExpenseItem           @relation(fields: [itemId], references: [id], onDelete: Restrict)
   paymentMethod   PaymentMethod         @relation(fields: [paymentMethodId], references: [id], onDelete: Restrict)
   occurrences     RecurringOccurrence[]
 
   @@index([userId])
+  @@index([itemId])
   @@map("recurring_payments")
 }
 

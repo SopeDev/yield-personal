@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { monthSpendingEntries, spendingItemsOf, summarizeIncome, summarizeSpending, type LedgerCategory, type LedgerPurchase } from "./ledger";
+import { monthSpendingEntries, spendingAmountsOf, summarizeIncome, summarizeSpending, type LedgerCategory, type LedgerPurchase } from "./ledger";
 import { dateFromKey } from "./months";
 
 const categories: LedgerCategory[] = [
@@ -14,7 +14,9 @@ const klar = { id: "klar", kind: "CARD" as const, name: "Klar", color: "#14b8a6"
 
 function purchase(id: string, date: string, amountCents: number, categoryId: string, installmentCount = 1): LedgerPurchase {
   const category = categories.find((item) => item.id === categoryId)!;
-  return { id, date: dateFromKey(date), amountCents, description: id, installmentCount, category, paymentMethod: installmentCount > 1 ? klar : cash };
+  // Items are named by the id's prefix, so "gas-1".."gas-3" are all the same "gas" item.
+  const itemId = id.split("-")[0];
+  return { id, date: dateFromKey(date), amountCents, note: null, installmentCount, item: { id: itemId, name: itemId, category }, paymentMethod: installmentCount > 1 ? klar : cash };
 }
 
 // October from the MFP spreadsheet, recorded as individual purchases.
@@ -29,12 +31,15 @@ const october = [
 ];
 
 test("totals each category, counting installment purchases one installment per month", () => {
-  const spending = summarizeSpending(spendingItemsOf(monthSpendingEntries(october, "2026-10")), categories);
+  const spending = summarizeSpending(spendingAmountsOf(monthSpendingEntries(october, "2026-10")), categories);
   assert.deepEqual(spending.byCategory.map((item) => item.totalCents), [0, 63500, 123000, 33300]);
   assert.equal(spending.totalCents, 219800);
   assert.equal(spending.carCents, 123000);
 
-  const november = summarizeSpending(spendingItemsOf(monthSpendingEntries(october, "2026-11")), categories);
+  // All three fill-ups add up under the single "gas" item, as in the spreadsheet's Gasolina row.
+  assert.deepEqual(spending.byItem.find((item) => item.item.id === "gas")?.totalCents, 123000);
+
+  const november = summarizeSpending(spendingAmountsOf(monthSpendingEntries(october, "2026-11")), categories);
   assert.equal(november.totalCents, 33300);
 });
 

@@ -11,7 +11,7 @@ import { formatMonth } from "@/lib/dates";
 import { getRecurringDefinitions } from "@/lib/ledger-data";
 import { monthKeyOf } from "@/lib/months";
 import { paymentMethodLabel } from "@/lib/payment-methods";
-import { getActivePaymentMethods, getActiveCategories } from "@/lib/queries";
+import { getActivePaymentMethods, getActiveCategories, getActiveItems } from "@/lib/queries";
 import { currentMonthKey } from "@/lib/today";
 
 export default async function RecurringPage({ params }: PageProps<"/[locale]/recurring">) {
@@ -21,7 +21,12 @@ export default async function RecurringPage({ params }: PageProps<"/[locale]/rec
   const messages = getDictionary(locale);
   const currentMonth = currentMonthKey();
 
-  const [definitions, categories, methods] = await Promise.all([getRecurringDefinitions(userId), getActiveCategories(userId), getActivePaymentMethods(userId)]);
+  const [definitions, items, categories, methods] = await Promise.all([
+    getRecurringDefinitions(userId),
+    getActiveItems(userId),
+    getActiveCategories(userId),
+    getActivePaymentMethods(userId),
+  ]);
   const active = definitions.filter((definition) => !definition.endMonth || monthKeyOf(definition.endMonth) >= currentMonth);
   const ended = definitions.filter((definition) => definition.endMonth && monthKeyOf(definition.endMonth) < currentMonth);
 
@@ -41,10 +46,10 @@ export default async function RecurringPage({ params }: PageProps<"/[locale]/rec
               <li className="flex items-center gap-3 py-3 pl-4 pr-2" key={definition.id}>
                 <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: definition.paymentMethod.color }} />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{definition.name}</p>
+                  <p className="truncate font-medium">{definition.item.name}</p>
                   <p className="truncate text-sm text-muted-foreground">
                     {[
-                      categoryLabel(definition.category, messages.categories),
+                      categoryLabel(definition.item.category, messages.categories),
                       format(messages.recurring.summary, { day: definition.dayOfMonth, method: paymentMethodLabel(definition.paymentMethod, messages.common.cash) }),
                     ].join(" · ")}
                   </p>
@@ -58,6 +63,7 @@ export default async function RecurringPage({ params }: PageProps<"/[locale]/rec
         <details className="border-t border-border" open={active.length === 0}>
           <summary className="flex min-h-12 cursor-pointer items-center px-4 font-medium text-primary">{messages.recurring.add}</summary>
           <RecurringForm
+            items={items}
             categories={categories.map((category) => ({ id: category.id, key: category.key, label: categoryLabel(category, messages.categories) }))}
             currentMonth={currentMonth}
             locale={locale}
@@ -73,7 +79,7 @@ export default async function RecurringPage({ params }: PageProps<"/[locale]/rec
             <ul className="divide-y divide-border">
               {ended.map((definition) => (
                 <li className="flex items-center justify-between gap-3 px-4 py-3 text-muted-foreground" key={definition.id}>
-                  <span className="truncate">{definition.name}</span>
+                  <span className="truncate">{definition.item.name}</span>
                   <span className="text-sm">{format(messages.recurring.ended, { month: formatMonth(monthKeyOf(definition.endMonth!), locale) })}</span>
                 </li>
               ))}

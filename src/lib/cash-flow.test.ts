@@ -13,13 +13,13 @@ const nu = { id: "nu", kind: "CARD" as const, name: "Nu", color: "#8b5cf6" };
 const nuCycle = { id: "nu", closingDay: 5, dueDay: 25 };
 
 const definitions: RecurringDefinition[] = [
-  { id: "rent", name: "Renta", amountCents: 800000, dayOfMonth: 1, startMonth: dateFromKey("2026-10-01"), endMonth: null, category: fixed, paymentMethod: cash },
-  { id: "netflix", name: "Netflix", amountCents: 21900, dayOfMonth: 3, startMonth: dateFromKey("2026-10-01"), endMonth: null, category: fixed, paymentMethod: nu },
+  { id: "rent", item: { id: "rent", name: "Renta", category: fixed }, amountCents: 800000, dayOfMonth: 1, startMonth: dateFromKey("2026-10-01"), endMonth: null, paymentMethod: cash },
+  { id: "netflix", item: { id: "netflix", name: "Netflix", category: fixed }, amountCents: 21900, dayOfMonth: 3, startMonth: dateFromKey("2026-10-01"), endMonth: null, paymentMethod: nu },
 ];
 
 const purchases: LedgerPurchase[] = [
-  { id: "gas", date: dateFromKey("2026-10-02"), amountCents: 41000, description: "Gasolina", installmentCount: 1, category: car, paymentMethod: cash },
-  { id: "tires", date: dateFromKey("2026-10-04"), amountCents: 300000, description: "Llantas", installmentCount: 1, category: car, paymentMethod: nu },
+  { id: "gas", date: dateFromKey("2026-10-02"), amountCents: 41000, note: null, installmentCount: 1, item: { id: "gasolina", name: "Gasolina", category: car }, paymentMethod: cash },
+  { id: "tires", date: dateFromKey("2026-10-04"), amountCents: 300000, note: null, installmentCount: 1, item: { id: "llantas", name: "Llantas", category: car }, paymentMethod: nu },
 ];
 
 test("cash spending, cash bills, and statements due make up the month's total to pay", () => {
@@ -27,7 +27,7 @@ test("cash spending, cash bills, and statements due make up the month's total to
   const netflix = occurrences.find((occurrence) => occurrence.recurring.id === "netflix")!;
   const statements = buildStatements(
     nuCycle,
-    purchases.filter((purchase) => purchase.paymentMethod.kind === "CARD"),
+    purchases.filter((purchase) => purchase.paymentMethod.kind === "CARD").map((purchase) => ({ ...purchase, description: purchase.item.name })),
     [{ id: recurringChargeId(netflix), description: "Netflix", date: netflix.date, amountCents: netflix.amountCents }],
     new Set(),
   );

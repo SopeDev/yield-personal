@@ -1,5 +1,5 @@
 import { monthCashFlow } from "./cash-flow";
-import { monthSpendingEntries, spendingItemsOf, summarizeIncome, summarizeSpending, type LedgerCategory, type LedgerIncome, type LedgerPurchase } from "./ledger";
+import { monthSpendingEntries, spendingAmountsOf, summarizeIncome, summarizeSpending, type LedgerCategory, type LedgerIncome, type LedgerPurchase } from "./ledger";
 import { monthKeyOf, type MonthKey } from "./months";
 import { occurrencesForMonth, type OccurrenceOverride, type RecurringDefinition } from "./recurring";
 import { netSavingsInMonth, type SavingsMovementRecord } from "./savings";
@@ -20,7 +20,7 @@ export function summarizeMonth(data: LedgerData, month: MonthKey) {
   const entries = monthSpendingEntries(data.purchases, month);
   const occurrences = occurrencesForMonth(data.definitions, data.overrides, month);
   const spending = summarizeSpending(
-    [...spendingItemsOf(entries), ...occurrences.map((occurrence) => ({ categoryId: occurrence.recurring.category.id, amountCents: occurrence.amountCents }))],
+    [...spendingAmountsOf(entries), ...occurrences.map((occurrence) => ({ item: occurrence.recurring.item, amountCents: occurrence.amountCents }))],
     data.categories,
   );
   const incomes = data.incomes.filter((income) => monthKeyOf(income.date) === month);

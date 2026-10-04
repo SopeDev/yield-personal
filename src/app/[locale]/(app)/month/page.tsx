@@ -46,9 +46,10 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
   function purchaseRow(entry: MonthSpendingEntry) {
     const { purchase } = entry;
     const details = [
-      categoryLabel(purchase.category, messages.categories),
+      categoryLabel(purchase.item.category, messages.categories),
       paymentMethodLabel(purchase.paymentMethod, messages.common.cash),
       purchase.installmentCount > 1 ? format(messages.month.installment, { number: entry.installmentNumber, count: purchase.installmentCount }) : null,
+      purchase.note,
     ].filter(Boolean).join(" · ");
     return (
       <EntryRow
@@ -56,7 +57,7 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
         color={purchase.paymentMethod.color}
         details={details}
         key={purchase.id}
-        title={purchase.description}
+        title={purchase.item.name}
         trailing={<DeleteButton action={deletePurchase} confirmMessage={messages.month.confirmDeletePurchase} id={purchase.id} label={messages.common.delete} locale={locale} />}
       />
     );
@@ -123,7 +124,7 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
                       <summary className="flex cursor-pointer list-none items-center gap-3 py-3 pl-4 pr-3">
                         <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: recurring.paymentMethod.color }} />
                         <div className="min-w-0 flex-1">
-                          <p className="truncate font-medium">{recurring.name}</p>
+                          <p className="truncate font-medium">{recurring.item.name}</p>
                           <p className="truncate text-sm text-muted-foreground">{occurrence.amountChanged ? `${details} · ${messages.month.changedAmount}` : details}</p>
                         </div>
                         <Money cents={occurrence.amountCents} />

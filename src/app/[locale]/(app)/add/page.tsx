@@ -7,7 +7,7 @@ import { getDictionary } from "@/i18n/dictionaries";
 import { requireUserId } from "@/lib/auth-user";
 import { categoryLabel } from "@/lib/categories";
 import { paymentMethodLabel } from "@/lib/payment-methods";
-import { getActiveIncomeSources, getActivePaymentMethods, getActiveCategories } from "@/lib/queries";
+import { getActiveIncomeSources, getActivePaymentMethods, getActiveCategories, getActiveItems } from "@/lib/queries";
 import { todayKey } from "@/lib/today";
 import { cn } from "@/lib/cn";
 
@@ -18,7 +18,8 @@ export default async function AddPage({ params, searchParams }: PageProps<"/[loc
   const type = (await searchParams).type === "income" ? "income" : "expense";
   const messages = getDictionary(locale);
   const today = todayKey();
-  const [categories, methods, sources] = await Promise.all([
+  const [items, categories, methods, sources] = await Promise.all([
+    getActiveItems(userId),
     getActiveCategories(userId),
     getActivePaymentMethods(userId),
     getActiveIncomeSources(userId),
@@ -47,6 +48,7 @@ export default async function AddPage({ params, searchParams }: PageProps<"/[loc
 
       {type === "expense" ? (
         <ExpenseForm
+          items={items}
           categories={categories.map((category) => ({ id: category.id, key: category.key, label: categoryLabel(category, messages.categories) }))}
           locale={locale}
           messages={messages}

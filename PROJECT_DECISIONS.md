@@ -13,9 +13,10 @@ Last updated: 2026-10-03
 
 - **Payment method**: Cash, or a credit card with name, color, statement closing day, and payment due day.
 - **Category**: Fixed, Food (Despensa / Comida / Café), Car, and Extras to start; categories are user-editable.
-- **Purchase**: amount, date, category, description, and payment method. A card purchase may be split into interest-free monthly installments (MSI).
+- **Expense item**: a reusable expense concept such as "Gasolina" or "Renta" (the spreadsheet's rows), belonging to one category. Spending is tracked per item across time. Item names are unique per user ignoring case and repeated spaces; typing an existing name reuses the item, and a new name creates one in the chosen category.
+- **Purchase**: amount, date, expense item (which sets the category), optional note, and payment method. A card purchase may be split into interest-free monthly installments (MSI).
 - **Installment plan**: created from a card purchase split into installments; each installment is assigned to the correct card statement automatically.
-- **Recurring payment**: name, amount, category, day of month, and default payment method. It produces one occurrence per month that is tracked as paid or unpaid.
+- **Recurring payment**: expense item (its name and category), amount, day of month, and default payment method. It produces one occurrence per month that is tracked as paid or unpaid.
 - **Card statement**: derived from the card's billing cycle. It contains every charge and installment falling in that cycle, has a due date, and is marked paid or unpaid.
 - **Income**: date, source, and amount, recorded daily. Sources are user-defined; Uber, Didi, and any other driving app belong to a **Rideshare** source group.
 - **Savings fund**: the emergency fund, with a target and contributions.
@@ -68,6 +69,8 @@ Last updated: 2026-10-03
 - Built-in categories are identified by a stable `key` (`fixed`, `food`, `car`, `extras`) and labelled through translations; custom categories store a `name`.
 - Installment amounts split evenly, with leftover centavos assigned to the earliest installments. Purchases support 1–48 installments, and more than one only when paid by card.
 - Cards, income sources, categories, and goal funds are archived rather than deleted so past records keep them. New entries require active ones; edits may keep archived ones already in use.
+- Moving an item to another category moves its whole history. Two items are combined only by an explicit merge, which moves every purchase and recurring payment to the remaining item. Archived items leave suggestions but keep their history; typing an archived item's name restores it.
+- Existing purchase descriptions and recurring payment names were migrated into items by normalized name: the most recent purchase's category and the most-used spelling win.
 - A custom category name takes precedence over the translated built-in label.
 - Editing a recurring payment applies from the current month: if it already ran in earlier months, the old version ends last month and a new version starts this month, carrying over this month's and later per-month changes.
 - Editing a card's billing cycle applies to all of its statements, past ones included.

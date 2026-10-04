@@ -5,12 +5,12 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/db/client";
 import { MAX_INSTALLMENTS } from "@/lib/installments";
+import { resolveItem } from "@/lib/item-resolution";
 import { parseAmountToCents } from "@/lib/money";
 import { dateFromKey, isDateKey } from "@/lib/months";
 import { localeFromForm, requireActionUserId } from "./action-user";
 import type { FormState } from "./form-state";
 
-const MAX_DESCRIPTION_LENGTH = 120;
 const MAX_NOTE_LENGTH = 200;
 
 function readText(formData: FormData, name: string) {
@@ -32,32 +32,38 @@ function readClientId(formData: FormData) {
 
 async function parsePurchase(userId: string, formData: FormData, { isEdit }: { isEdit: boolean }) {
   const amountCents = parseAmountToCents(readText(formData, "amount"));
-  const description = readText(formData, "description");
+  const note = readText(formData, "note");
   const date = readText(formData, "date");
-  const categoryId = readText(formData, "categoryId");
   const paymentMethodId = readText(formData, "paymentMethodId");
   const installmentCount = Number(readText(formData, "installments") || "1");
 
   const fieldErrors: FormState["fieldErrors"] = {};
   if (!amountCents) fieldErrors.amount = "amount";
-  if (!description || description.length > MAX_DESCRIPTION_LENGTH) fieldErrors.description = "description";
+  if (note.length > MAX_NOTE_LENGTH) fieldErrors.note = "generic";
   if (!isDateKey(date)) fieldErrors.date = "date";
-  if (!isUuid(categoryId)) fieldErrors.categoryId = "category";
   if (!isUuid(paymentMethodId)) fieldErrors.paymentMethodId = "paymentMethod";
   if (!Number.isInteger(installmentCount) || installmentCount < 1 || installmentCount > MAX_INSTALLMENTS) fieldErrors.installments = "installments";
   if (Object.keys(fieldErrors).length > 0) return { fieldErrors };
 
-  // New entries need an active category and payment method; edits may keep archived ones they already use.
-  const activeOnly = isEdit ? {} : { archivedAt: null };
-  const [category, paymentMethod] = await Promise.all([
-    db.category.findFirst({ where: { id: categoryId, userId, ...activeOnly }, select: { id: true } }),
-    db.paymentMethod.findFirst({ where: { id: paymentMethodId, userId, ...activeOnly }, select: { kind: true } }),
-  ]);
-  if (!category) return { fieldErrors: { categoryId: "category" } as FormState["fieldErrors"] };
+  // New entries need an active payment method; edits may keep an archived one they already use.
+  const paymentMethod = await db.paymentMethod.findFirst({
+    where: { id: paymentMethodId, userId, ...(isEdit ? {} : { archivedAt: null }) },
+    select: { kind: true },
+  });
   if (!paymentMethod) return { fieldErrors: { paymentMethodId: "paymentMethod" } as FormState["fieldErrors"] };
   if (installmentCount > 1 && paymentMethod.kind !== "CARD") return { fieldErrors: { installments: "installments" } as FormState["fieldErrors"] };
 
-  return { data: { categoryId, paymentMethodId, date: dateFromKey(date), amountCents: amountCents!, description, installmentCount }, month: date.slice(0, 7) };
+  const item = await resolveItem(userId, {
+    itemId: readText(formData, "itemId"),
+    itemName: readText(formData, "itemName"),
+    categoryId: readText(formData, "categoryId"),
+  });
+  if ("error" in item) return { fieldErrors: (item.error === "item" ? { itemName: "item" } : { categoryId: "category" }) as FormState["fieldErrors"] };
+
+  return {
+    data: { itemId: item.itemId, paymentMethodId, date: dateFromKey(date), amountCents: amountCents!, note: note || null, installmentCount },
+    month: date.slice(0, 7),
+  };
 }
 
 async function parseIncome(userId: string, formData: FormData, { isEdit }: { isEdit: boolean }) {

@@ -4,7 +4,7 @@ import { occurrencesForMonth, type OccurrenceOverride, type RecurringDefinition,
 import { buildStatements, type Statement } from "./statements";
 
 type Card = { id: string; closingDay: number | null; dueDay: number | null };
-type CardPurchase = { id: string; description: string; date: Date; amountCents: number; installmentCount: number; paymentMethod: { id: string } };
+type CardPurchase = { id: string; date: Date; amountCents: number; installmentCount: number; note: string | null; item: { name: string }; paymentMethod: { id: string } };
 
 /**
  * Statements for every card from card purchases and from recurring card charges in `recurringFrom`..`recurringTo`.
@@ -29,10 +29,12 @@ export function statementsForCards({ cards, purchases, definitions, overrides, r
     if (card.closingDay == null || card.dueDay == null) return [];
     return buildStatements(
       { id: card.id, closingDay: card.closingDay, dueDay: card.dueDay },
-      purchases.filter((purchase) => purchase.paymentMethod.id === card.id),
+      purchases
+        .filter((purchase) => purchase.paymentMethod.id === card.id)
+        .map((purchase) => ({ ...purchase, description: purchase.item.name })),
       occurrences
         .filter((occurrence) => occurrence.recurring.paymentMethod.id === card.id)
-        .map((occurrence) => ({ id: recurringChargeId(occurrence), description: occurrence.recurring.name, date: occurrence.date, amountCents: occurrence.amountCents })),
+        .map((occurrence) => ({ id: recurringChargeId(occurrence), description: occurrence.recurring.item.name, date: occurrence.date, amountCents: occurrence.amountCents })),
       new Set(paidStatements.filter((paid) => paid.paymentMethodId === card.id).map((paid) => monthKeyOf(paid.statementMonth))),
     );
   });

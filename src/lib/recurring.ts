@@ -1,14 +1,14 @@
-import type { LedgerCategory, LedgerPaymentMethod } from "./ledger";
+import type { LedgerItem, LedgerPaymentMethod } from "./ledger";
 import { dateInMonth, monthKeyOf, type MonthKey } from "./months";
 
 export type RecurringDefinition = {
   id: string;
-  name: string;
+  /** Its expense item gives the bill its name and category. */
+  item: LedgerItem;
   amountCents: number;
   dayOfMonth: number;
   startMonth: Date;
   endMonth: Date | null;
-  category: LedgerCategory;
   paymentMethod: LedgerPaymentMethod;
 };
 
@@ -47,5 +47,5 @@ export function occurrencesForMonth(definitions: RecurringDefinition[], override
         cashPaidAt: override?.paidAt ?? null,
       };
     })
-    .sort((a, b) => a.recurring.dayOfMonth - b.recurring.dayOfMonth);
+    .sort((a, b) => a.recurring.dayOfMonth - b.recurring.dayOfMonth || a.recurring.item.name.localeCompare(b.recurring.item.name));
 }

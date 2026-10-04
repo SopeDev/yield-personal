@@ -32,7 +32,13 @@ Last updated: 2026-10-03
   - One range loader (`loadLedgerRange`) with view loaders for month, year (12 months plus averages), and savings.
   - Server actions: edit purchases, incomes, recurring payments (preserving past months), cards, and income sources; create, rename, reorder, and archive categories; savings deposits, withdrawals, goals, and emergency fund months; idempotent creates via client ids.
 
+- Expense items (reusable concepts like "Gasolina"):
+  - Migration creating items from existing purchase descriptions and recurring payment names, linking every purchase and recurring payment, then dropping the old columns; verified by running all migrations against an embedded Postgres (PGlite) with seeded data.
+  - Spending is summarized per item as well as per category.
+  - Expense and recurring forms: an item field suggesting existing items; a new name asks for its category. Purchases gained an optional note.
+  - Actions to rename or recategorize, archive, and merge items.
+
 ## Next
 
-- Screens on top of the new structure: year view as home, savings screen, edit forms for entries/recurring payments/cards/income sources, and category management in Settings.
+- Screens on top of the new structure: year view as home (categories with their items as rows, like the spreadsheet), savings screen, edit forms for entries/recurring payments/cards/income sources, and item and category management in Settings.
 - Offline entry: service worker plus a local queue that replays creates with their client ids.

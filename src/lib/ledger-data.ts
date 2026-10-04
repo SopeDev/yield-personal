@@ -9,13 +9,14 @@ import type { OccurrenceOverride, RecurringDefinition } from "@/lib/recurring";
 
 const categorySelect = { id: true, key: true, name: true, sortOrder: true, includeInAverage: true } as const;
 const paymentMethodSelect = { id: true, kind: true, name: true, color: true } as const;
+const itemSelect = { id: true, name: true, category: { select: categorySelect } } as const;
 const purchaseSelect = {
   id: true,
   date: true,
   amountCents: true,
-  description: true,
+  note: true,
   installmentCount: true,
-  category: { select: categorySelect },
+  item: { select: itemSelect },
   paymentMethod: { select: paymentMethodSelect },
 } as const;
 
@@ -27,11 +28,11 @@ export function getRecurringDefinitions(userId: string): Promise<RecurringDefini
   return db.recurringPayment.findMany({
     where: { userId },
     select: {
-      id: true, name: true, amountCents: true, dayOfMonth: true, startMonth: true, endMonth: true,
-      category: { select: categorySelect },
+      id: true, amountCents: true, dayOfMonth: true, startMonth: true, endMonth: true,
+      item: { select: itemSelect },
       paymentMethod: { select: paymentMethodSelect },
     },
-    orderBy: [{ dayOfMonth: "asc" }, { name: "asc" }],
+    orderBy: [{ dayOfMonth: "asc" }, { item: { name: "asc" } }],
   });
 }
 
