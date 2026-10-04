@@ -23,15 +23,17 @@ export function occurrencePaymentStatus(occurrence: RecurringOccurrence, stateme
  * Money moved into savings leaves spending money too, so it is part of the total to pay.
  *
  * With `carryFrom`, unpaid statements that closed from that month up to the previous month are carried into
- * this month separately, so nothing unpaid drops out of view when the month changes.
+ * this month separately, as are `carriedOccurrences` (unpaid cash bills from those months), so nothing unpaid
+ * drops out of view when the month changes.
  */
-export function monthCashFlow({ month, purchases, occurrences, statements, savingsNetCents = 0, carryFrom }: {
+export function monthCashFlow({ month, purchases, occurrences, statements, savingsNetCents = 0, carryFrom, carriedOccurrences = [] }: {
   month: MonthKey;
   purchases: LedgerPurchase[];
   occurrences: RecurringOccurrence[];
   statements: Statement[];
   savingsNetCents?: number;
   carryFrom?: MonthKey;
+  carriedOccurrences?: RecurringOccurrence[];
 }) {
   const cashPurchasesCents = purchases
     .filter((purchase) => purchase.paymentMethod.kind === "CASH" && monthKeyOf(purchase.date) === month)
@@ -52,10 +54,12 @@ export function monthCashFlow({ month, purchases, occurrences, statements, savin
       cashPurchasesCents + sum(cashOccurrences.map((occurrence) => occurrence.amountCents)) + sum(statementsClosing.map((statement) => statement.totalCents)),
     /** Unpaid items belonging to this month. */
     outstandingCents: sum(unpaidOccurrences.map((occurrence) => occurrence.amountCents)) + sum(unpaidStatements.map((statement) => statement.totalCents)),
-    /** Unpaid statements from earlier months, counted in their own month's totals and shown here as a reminder. */
-    carriedOutstandingCents: sum(carriedStatements.map((statement) => statement.totalCents)),
+    /** Unpaid statements and cash bills from earlier months, counted in their own month's totals and shown here as a reminder. */
+    carriedOutstandingCents:
+      sum(carriedStatements.map((statement) => statement.totalCents)) + sum(carriedOccurrences.map((occurrence) => occurrence.amountCents)),
     statementsClosing,
     carriedStatements,
+    carriedOccurrences,
     unpaidOccurrences,
     unpaidStatements,
   };

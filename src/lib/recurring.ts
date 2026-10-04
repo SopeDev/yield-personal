@@ -14,6 +14,8 @@ export type RecurringDefinition = {
   startMonth: Date;
   endMonth: Date | null;
   paymentMethod: LedgerPaymentMethod;
+  /** The month it was added to the app. Earlier months were paid before it was tracked, so they are never carried as unpaid. */
+  addedMonth?: MonthKey;
 };
 
 export type OccurrenceOverride = { recurringPaymentId: string; month: Date; amountCents: number | null; paidAt: Date | null };
@@ -94,4 +96,23 @@ export function occurrencesForMonth(
       };
     })
     .sort((a, b) => a.recurring.dayOfMonth - b.recurring.dayOfMonth || a.recurring.item.name.localeCompare(b.recurring.item.name));
+}
+
+/**
+ * Cash occurrences from `from` up to (not including) `to` that are still unpaid, oldest first. Card occurrences
+ * are carried through their statements instead, and months before a bill was added to the app are skipped.
+ */
+export function unpaidCashOccurrences(
+  definitions: RecurringDefinition[],
+  overrides: OccurrenceOverride[],
+  from: MonthKey,
+  to: MonthKey,
+  history: ConfirmedAmount[] = [],
+): RecurringOccurrence[] {
+  const cashDefinitions = definitions.filter((recurring) => recurring.paymentMethod.kind === "CASH");
+  return Array.from({ length: Math.max(0, monthDifference(from, to)) }, (_, index) => addMonths(from, index)).flatMap((month) =>
+    occurrencesForMonth(cashDefinitions, overrides, month, history).filter(
+      (occurrence) => occurrence.cashPaidAt === null && (!occurrence.recurring.addedMonth || month >= occurrence.recurring.addedMonth),
+    ),
+  );
 }

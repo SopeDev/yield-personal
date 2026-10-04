@@ -1,6 +1,6 @@
 # Project Progress
 
-Last updated: 2026-10-03
+Last updated: 2026-10-04
 
 ## Completed
 
@@ -51,8 +51,10 @@ Last updated: 2026-10-03
 - Savings screen: emergency fund goal breakdown and progress, average spending by category, deposits/withdrawals, goals, and movement history.
 - Settings: categories (rename, include in average, reorder, archive/restore, add) and an Items page (rename, recategorize, merge, archive/restore).
 
+- Faster quick add: choosing an item fills in its usual payment method and amount from its recent purchases.
+- Unpaid cash recurring bills from earlier months carry into the current month (with paid toggles and confirm forms); the Year view marks estimated amounts with "≈".
+- Card days to pay is a plain number input (no presets); expense and income amounts fill from the right, digits only, starting at 0.00.
+
 ## Next
 
-- Faster quick add (remember each item's usual payment method and amount).
-- Carry unpaid cash recurring bills forward like card statements; mark estimated amounts in the Year view.
-- Offline entry: service worker plus a local queue that replays creates with their client ids.
+- No slice planned. Offline entry (service worker plus a replay queue) was dropped as unnecessary.

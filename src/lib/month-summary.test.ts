@@ -81,3 +81,16 @@ test("carries unpaid statements from earlier months into the current month witho
   const paid = { ...data, statements: statements.map((statement) => (statement.month === "2026-10" ? { ...statement, paid: true } : statement)) };
   assert.equal(summarizeMonth(paid, "2026-11", { carryFrom: "2026-01" }).cashFlow.carriedStatements.length, 0);
 });
+
+test("the current month carries unpaid cash bills from earlier months as outstanding", () => {
+  const data: LedgerData = {
+    categories: [fixed], purchases: [], incomes: [], definitions: definitions.map((item) => ({ ...item, addedMonth: "2026-10" as const })),
+    overrides: [{ recurringPaymentId: "rent", month: dateFromKey("2026-11-01"), amountCents: null, paidAt: dateFromKey("2026-11-02") }],
+    recurringHistory: [], statements: [], savingsMovements: [],
+  };
+  const december = summarizeMonth(data, "2026-12", { carryFrom: "2025-12" });
+  assert.deepEqual(december.cashFlow.carriedOccurrences.map((occurrence) => occurrence.month), ["2026-10"]);
+  assert.equal(december.cashFlow.carriedOutstandingCents, 800000);
+  assert.equal(december.cashFlow.outstandingCents, 800000);
+  assert.equal(summarizeMonth(data, "2026-12").cashFlow.carriedOccurrences.length, 0);
+});

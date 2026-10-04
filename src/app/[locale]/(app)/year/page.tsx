@@ -35,8 +35,10 @@ export default async function YearPage({ params, searchParams }: PageProps<"/[lo
   const grid = buildYearGrid(months, categories);
   const startMonth = grid.monthKeys[0];
 
-  function amount(cents: number, className?: string) {
-    return cents === 0 ? <span className="text-subtle">–</span> : <span className={className}>{formatWholePesos(cents)}</span>;
+  /** An estimated amount (it includes an unconfirmed variable bill) shows "≈" in the warning color. */
+  function amount(cents: number, className?: string, estimated = false) {
+    if (cents === 0) return <span className="text-subtle">–</span>;
+    return <span className={estimated ? "text-warning" : className}>{estimated ? "≈ " : null}{formatWholePesos(cents)}</span>;
   }
 
   function columnClass(index: number) {
@@ -48,7 +50,7 @@ export default async function YearPage({ params, searchParams }: PageProps<"/[lo
       <tr className={options.strong ? "font-semibold" : undefined}>
         <th className={cn(stickyClass, "bg-background font-medium", options.strong && "font-semibold")} scope="row">{label}</th>
         {row.totalsCents.map((cents, index) => (
-          <td className={cn(cellClass, columnClass(index))} key={grid.monthKeys[index]}>{amount(cents, options.tone?.(cents))}</td>
+          <td className={cn(cellClass, columnClass(index))} key={grid.monthKeys[index]}>{amount(cents, options.tone?.(cents), row.estimated[index])}</td>
         ))}
         <td className={cn(cellClass, "border-l border-border")}>{amount(row.yearCents, options.tone?.(row.yearCents))}</td>
       </tr>
@@ -96,7 +98,7 @@ export default async function YearPage({ params, searchParams }: PageProps<"/[lo
               <tr className="bg-surface font-semibold">
                 <th className={cn(stickyClass, "border-t bg-surface")} scope="rowgroup">{categoryLabel(group.category, messages.categories)}</th>
                 {group.totalsCents.map((cents, index) => (
-                  <td className={cn(cellClass, "border-t border-border", columnClass(index))} key={grid.monthKeys[index]}>{amount(cents)}</td>
+                  <td className={cn(cellClass, "border-t border-border", columnClass(index))} key={grid.monthKeys[index]}>{amount(cents, undefined, group.estimated[index])}</td>
                 ))}
                 <td className={cn(cellClass, "border-l border-t border-border")}>{amount(group.yearCents)}</td>
               </tr>
@@ -112,7 +114,7 @@ export default async function YearPage({ params, searchParams }: PageProps<"/[lo
                     {row.totalsCents.map((cents, index) => (
                       <td className={cn(cellClass, columnClass(index))} key={grid.monthKeys[index]}>
                         {cents === 0 ? amount(0) : (
-                          <Link className="hover:text-primary" href={`/${locale}/month?m=${grid.monthKeys[index]}&item=${row.item.id}`}>{formatWholePesos(cents)}</Link>
+                          <Link className="hover:text-primary" href={`/${locale}/month?m=${grid.monthKeys[index]}&item=${row.item.id}`}>{amount(cents, undefined, row.estimated[index])}</Link>
                         )}
                       </td>
                     ))}

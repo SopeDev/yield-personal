@@ -6,6 +6,7 @@ import type { FormState } from "@/app/actions/form-state";
 import { format, type Messages } from "@/i18n/dictionaries";
 import { splitInstallments, MAX_INSTALLMENTS } from "@/lib/installments";
 import { formatCents, parseAmountToCents } from "@/lib/money";
+import type { UsualPurchase } from "@/lib/usual-purchase";
 import { AmountInput } from "./amount-input";
 import { Chip, Field, inputClass, SubmitButton, submitWithoutReset, useClientId } from "./form-controls";
 import { ItemField, type CategoryOption, type ItemOption } from "./item-field";
@@ -25,8 +26,11 @@ export type PurchaseInitial = {
 
 const DEFAULT_CATEGORY_KEY = "food";
 
-/** Records a new expense, or edits one when `initial` is given. */
-export function ExpenseForm({ locale, today, items, categories, methods, messages, initial }: {
+/**
+ * Records a new expense, or edits one when `initial` is given. Choosing an item with `usual` purchases fills in
+ * its usual payment method (unless one was picked) and amount (unless one was typed).
+ */
+export function ExpenseForm({ locale, today, items, categories, methods, messages, initial, usual = {} }: {
   locale: string;
   today: string;
   items: ItemOption[];
@@ -34,10 +38,15 @@ export function ExpenseForm({ locale, today, items, categories, methods, message
   methods: MethodOption[];
   messages: Messages;
   initial?: PurchaseInitial;
+  usual?: Record<string, UsualPurchase>;
 }) {
   const [state, formAction, pending] = useActionState<FormState, FormData>(initial ? updatePurchase : createPurchase, {});
-  const [methodId, setMethodId] = useState(initial?.paymentMethodId ?? methods[0]?.id ?? "");
+  const defaultMethodId = initial?.paymentMethodId ?? methods[0]?.id ?? "";
+  const [methodId, setMethodId] = useState(defaultMethodId);
+  const [methodPicked, setMethodPicked] = useState(false);
   const [amount, setAmount] = useState(initial?.amount ?? "");
+  // The amount last filled from an item's usual purchase, replaced again only while it is left untouched.
+  const [filledAmount, setFilledAmount] = useState<string | null>(null);
   const [installments, setInstallments] = useState(String(initial?.installments ?? 1));
   const clientId = useClientId();
   const errors = state.fieldErrors ?? {};
@@ -49,20 +58,40 @@ export function ExpenseForm({ locale, today, items, categories, methods, message
     ? format(messages.add.monthlyInstallment, { count: installmentCount, amount: formatCents(splitInstallments(amountCents, installmentCount)[0]) })
     : messages.add.singlePayment;
 
+  function applyUsual(itemId: string | null) {
+    const match = itemId ? usual[itemId] : undefined;
+    if (!methodPicked) {
+      setMethodId(match && methods.some((method) => method.id === match.paymentMethodId) ? match.paymentMethodId : defaultMethodId);
+    }
+    if (!parseAmountToCents(amount) || amount === filledAmount) {
+      const next = match ? (match.amountCents / 100).toFixed(2) : "";
+      setAmount(next);
+      setFilledAmount(next || null);
+    }
+  }
+
   return (
     <form className="space-y-6" onSubmit={(event) => submitWithoutReset(event, formAction, initial ? undefined : clientId())}>
       <input name="locale" type="hidden" value={locale} />
       {initial ? <input name="id" type="hidden" value={initial.id} /> : null}
       <Field error={errors.amount} errors={messages.errors} htmlFor="amount" label={messages.add.amount}>
-        <AmountInput autoFocus={!initial} defaultValue={initial?.amount} onChange={setAmount} />
+        <AmountInput autoFocus={!initial} onChange={setAmount} value={amount} />
       </Field>
 
-      <ItemField categories={categories} defaultCategoryKey={DEFAULT_CATEGORY_KEY} defaultName={initial?.itemName} errors={errors} items={items} messages={messages} />
+      <ItemField
+        categories={categories}
+        defaultCategoryKey={DEFAULT_CATEGORY_KEY}
+        defaultName={initial?.itemName}
+        errors={errors}
+        items={items}
+        messages={messages}
+        onMatchChange={initial ? undefined : applyUsual}
+      />
 
       <Field error={errors.paymentMethodId} errors={messages.errors} label={messages.add.paidWith}>
         <div className="flex flex-wrap gap-2">
           {methods.map((method) => (
-            <Chip checked={method.id === methodId} color={method.color} key={method.id} label={method.label} name="paymentMethodId" onChange={() => setMethodId(method.id)} value={method.id} />
+            <Chip checked={method.id === methodId} color={method.color} key={method.id} label={method.label} name="paymentMethodId" onChange={() => { setMethodId(method.id); setMethodPicked(true); }} value={method.id} />
           ))}
         </div>
       </Field>

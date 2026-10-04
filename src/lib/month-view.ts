@@ -10,10 +10,10 @@ import { installmentsOwed } from "@/lib/statements";
 /** The year view and averages cover the last 12 months, ending with the given month. */
 export const YEAR_MONTHS = 12;
 
-/** How far back unpaid card statements are carried into the current month. */
+/** How far back unpaid card statements and cash bills are carried into the current month. */
 const CARRY_UNPAID_MONTHS = 12;
 
-/** The current month also carries unpaid statements from earlier months; other months show only their own. */
+/** The current month also carries unpaid statements and cash bills from earlier months; other months show only their own. */
 export async function loadMonthView(userId: string, month: MonthKey, currentMonth: MonthKey) {
   const carryFrom = month === currentMonth ? addMonths(month, -CARRY_UNPAID_MONTHS) : undefined;
   const { data, cards } = await loadLedgerRange(userId, month, month, { statementsFrom: carryFrom });

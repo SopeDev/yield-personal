@@ -7,7 +7,7 @@ import { getDictionary } from "@/i18n/dictionaries";
 import { requireUserId } from "@/lib/auth-user";
 import { categoryLabel } from "@/lib/categories";
 import { paymentMethodLabel } from "@/lib/payment-methods";
-import { getActiveIncomeSources, getActivePaymentMethods, getActiveCategories, getActiveItems } from "@/lib/queries";
+import { getActiveIncomeSources, getActivePaymentMethods, getActiveCategories, getActiveItems, getUsualPurchases } from "@/lib/queries";
 import { todayKey } from "@/lib/today";
 import { cn } from "@/lib/cn";
 
@@ -18,11 +18,12 @@ export default async function AddPage({ params, searchParams }: PageProps<"/[loc
   const type = (await searchParams).type === "income" ? "income" : "expense";
   const messages = getDictionary(locale);
   const today = todayKey();
-  const [items, categories, methods, sources] = await Promise.all([
+  const [items, categories, methods, sources, usual] = await Promise.all([
     getActiveItems(userId),
     getActiveCategories(userId),
     getActivePaymentMethods(userId),
     getActiveIncomeSources(userId),
+    type === "expense" ? getUsualPurchases(userId) : {},
   ]);
 
   const tabs = [
@@ -54,6 +55,7 @@ export default async function AddPage({ params, searchParams }: PageProps<"/[loc
           messages={messages}
           methods={methods.map((method) => ({ id: method.id, label: paymentMethodLabel(method, messages.common.cash), color: method.color, isCard: method.kind === "CARD" }))}
           today={today}
+          usual={usual}
         />
       ) : sources.length > 0 ? (
         <IncomeForm locale={locale} messages={messages} sources={sources} today={today} />

@@ -6,6 +6,7 @@ import { earliestContributingMonth } from "@/lib/installments";
 import type { LedgerData } from "@/lib/month-summary";
 import { addMonths, monthRange, type MonthKey } from "@/lib/months";
 import type { ConfirmedAmount, OccurrenceOverride, RecurringDefinition } from "@/lib/recurring";
+import { monthKeyInAppZone } from "@/lib/today";
 
 const categorySelect = { id: true, key: true, name: true, sortOrder: true, includeInAverage: true } as const;
 const paymentMethodSelect = { id: true, kind: true, name: true, color: true } as const;
@@ -24,16 +25,17 @@ const purchaseSelect = {
 const STATEMENT_LOOKBACK_MONTHS = 1;
 
 /** All recurring payments, including stopped ones, so past months still show what was due. */
-export function getRecurringDefinitions(userId: string): Promise<RecurringDefinition[]> {
-  return db.recurringPayment.findMany({
+export async function getRecurringDefinitions(userId: string): Promise<RecurringDefinition[]> {
+  const rows = await db.recurringPayment.findMany({
     where: { userId },
     select: {
-      id: true, amountCents: true, isVariable: true, intervalMonths: true, dayOfMonth: true, startMonth: true, endMonth: true,
+      id: true, amountCents: true, isVariable: true, intervalMonths: true, dayOfMonth: true, startMonth: true, endMonth: true, createdAt: true,
       item: { select: itemSelect },
       paymentMethod: { select: paymentMethodSelect },
     },
     orderBy: [{ dayOfMonth: "asc" }, { item: { name: "asc" } }],
   });
+  return rows.map(({ createdAt, ...recurring }) => ({ ...recurring, addedMonth: monthKeyInAppZone(createdAt) }));
 }
 
 /** Every confirmed or changed recurring amount, by item, for estimating variable bills. */

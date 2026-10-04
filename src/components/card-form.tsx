@@ -1,15 +1,12 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState } from "react";
 import { createCard, updateCard } from "@/app/actions/settings";
 import type { FormState } from "@/app/actions/form-state";
-import { format, type Messages } from "@/i18n/dictionaries";
-import { cn } from "@/lib/cn";
+import type { Messages } from "@/i18n/dictionaries";
 import { DEFAULT_PAYMENT_DAYS, MAX_PAYMENT_DAYS } from "@/lib/statements";
 import { CARD_COLORS, MAX_STATEMENT_DAY } from "@/lib/payment-methods";
 import { Field, inputClass, SubmitButton } from "./form-controls";
-
-const PAYMENT_DAY_PRESETS = [15, 20, 30] as const;
 
 /** Values of an existing card being edited. */
 export type CardInitial = { id: string; name: string; color: string; closingDay: number; paymentDays: number };
@@ -17,7 +14,6 @@ export type CardInitial = { id: string; name: string; color: string; closingDay:
 /** Adds a card, or edits one when `initial` is given. */
 export function CardForm({ locale, messages, usedColors, initial }: { locale: string; messages: Messages; usedColors: string[]; initial?: CardInitial }) {
   const [state, formAction, pending] = useActionState<FormState, FormData>(initial ? updateCard : createCard, {});
-  const [paymentDays, setPaymentDays] = useState(String(initial?.paymentDays ?? DEFAULT_PAYMENT_DAYS));
   const errors = state.fieldErrors ?? {};
   const selectedColor = initial?.color ?? CARD_COLORS.find((color) => !usedColors.includes(color)) ?? CARD_COLORS[0];
   const idPrefix = initial ? `card-${initial.id}` : "card-new";
@@ -50,35 +46,18 @@ export function CardForm({ locale, messages, usedColors, initial }: { locale: st
       </Field>
 
       <Field error={errors.paymentDays} errors={messages.errors} htmlFor={`${idPrefix}-days`} label={messages.settings.paymentDays}>
-        <div className="flex flex-wrap items-center gap-2">
-          {PAYMENT_DAY_PRESETS.map((days) => (
-            <button
-              aria-pressed={paymentDays === String(days)}
-              className={cn(
-                "min-h-11 rounded-full border px-4 text-sm font-medium transition",
-                paymentDays === String(days) ? "border-primary bg-primary/15 text-foreground" : "border-border bg-surface",
-              )}
-              key={days}
-              onClick={() => setPaymentDays(String(days))}
-              type="button"
-            >
-              {format(messages.settings.daysOption, { days })}
-            </button>
-          ))}
-          <input
-            aria-label={messages.settings.paymentDays}
-            className={`${inputClass} w-24 text-center font-mono`}
-            id={`${idPrefix}-days`}
-            inputMode="numeric"
-            max={MAX_PAYMENT_DAYS}
-            min={1}
-            name="paymentDays"
-            onChange={(event) => setPaymentDays(event.target.value)}
-            required
-            type="number"
-            value={paymentDays}
-          />
-        </div>
+        <input
+          className={`${inputClass} w-28 font-mono`}
+          defaultValue={initial?.paymentDays}
+          id={`${idPrefix}-days`}
+          inputMode="numeric"
+          max={MAX_PAYMENT_DAYS}
+          min={1}
+          name="paymentDays"
+          placeholder={String(DEFAULT_PAYMENT_DAYS)}
+          required
+          type="number"
+        />
         <p className="text-sm text-muted-foreground">{messages.settings.paymentDaysHint}</p>
       </Field>
 

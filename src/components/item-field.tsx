@@ -11,9 +11,9 @@ export type CategoryOption = { id: string; key: string | null; label: string };
 
 /**
  * Item entry: typing suggests existing items. A matching name reuses that item (and its category); a new name
- * asks for the category the new item belongs to.
+ * asks for the category the new item belongs to. `onMatchChange` reports the matched item's id (or null) as it changes.
  */
-export function ItemField({ items, categories, defaultCategoryKey, defaultName = "", messages, errors, autoFocus }: {
+export function ItemField({ items, categories, defaultCategoryKey, defaultName = "", messages, errors, autoFocus, onMatchChange }: {
   items: ItemOption[];
   defaultName?: string;
   categories: CategoryOption[];
@@ -21,10 +21,12 @@ export function ItemField({ items, categories, defaultCategoryKey, defaultName =
   messages: Messages;
   errors: { itemName?: ErrorKey; categoryId?: ErrorKey };
   autoFocus?: boolean;
+  onMatchChange?: (itemId: string | null) => void;
 }) {
   const listId = useId();
   const [name, setName] = useState(defaultName);
-  const match = name.trim() ? items.find((item) => normalizeItemName(item.name) === normalizeItemName(name)) : undefined;
+  const findMatch = (value: string) => (value.trim() ? items.find((item) => normalizeItemName(item.name) === normalizeItemName(value)) : undefined);
+  const match = findMatch(name);
   const matchCategory = match ? categories.find((category) => category.id === match.categoryId) : undefined;
   const defaultCategoryId = (categories.find((category) => category.key === defaultCategoryKey) ?? categories[0])?.id;
 
@@ -40,7 +42,11 @@ export function ItemField({ items, categories, defaultCategoryKey, defaultName =
           list={listId}
           maxLength={60}
           name="itemName"
-          onChange={(event) => setName(event.target.value)}
+          onChange={(event) => {
+            const nextMatch = findMatch(event.target.value);
+            if (nextMatch?.id !== match?.id) onMatchChange?.(nextMatch?.id ?? null);
+            setName(event.target.value);
+          }}
           placeholder={messages.add.itemPlaceholder}
           required
           value={name}

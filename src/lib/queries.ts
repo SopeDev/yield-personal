@@ -1,6 +1,7 @@
 import "server-only";
 
 import { db } from "@/db/client";
+import { usualPurchases } from "@/lib/usual-purchase";
 
 const categorySelect = { id: true, key: true, name: true, sortOrder: true, includeInAverage: true } as const;
 
@@ -16,6 +17,20 @@ export function getActiveItems(userId: string) {
     select: { id: true, name: true, categoryId: true },
     orderBy: { name: "asc" },
   });
+}
+
+/** Recent purchases scanned for each item's usual payment method and amount. */
+const USUAL_PURCHASE_SCAN = 500;
+
+/** Each item's usual payment method and amount, from the latest purchases. */
+export async function getUsualPurchases(userId: string) {
+  const purchases = await db.purchase.findMany({
+    where: { userId },
+    select: { itemId: true, paymentMethodId: true, amountCents: true },
+    orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+    take: USUAL_PURCHASE_SCAN,
+  });
+  return usualPurchases(purchases);
 }
 
 /** Every item with its category and how often it is used, for managing items. */

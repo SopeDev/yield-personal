@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { dateFromKey, dateKeyOf } from "./months";
-import { estimateFromHistory, isActiveInMonth, nextActiveMonth, occurrencesForMonth, type RecurringDefinition } from "./recurring";
+import { estimateFromHistory, isActiveInMonth, nextActiveMonth, occurrencesForMonth, unpaidCashOccurrences, type RecurringDefinition } from "./recurring";
 
 const fixed = { id: "fixed", key: "fixed", name: null, sortOrder: 0, includeInAverage: true };
 const cash = { id: "cash", kind: "CASH" as const, name: "Cash", color: "#00c896" };
@@ -67,4 +67,16 @@ test("variable bills are estimated from recent confirmed amounts until confirmed
   assert.equal(confirmed.amountCents, 81200);
   assert.ok(!confirmed.estimated);
   assert.ok(!confirmed.amountChanged);
+});
+
+test("unpaid cash bills from earlier months are carried, skipping paid months and months before the bill was added", () => {
+  const card = { id: "nu", kind: "CARD" as const, name: "Nu", color: "#8b5cf6" };
+  const gym: RecurringDefinition = { ...rent, id: "gym", item: { id: "gym", name: "Gym", category: fixed }, startMonth: dateFromKey("2026-07-01"), addedMonth: "2026-08" };
+  const netflix: RecurringDefinition = { ...rent, id: "netflix", item: { id: "netflix", name: "Netflix", category: fixed }, paymentMethod: card };
+  const overrides = [{ recurringPaymentId: "rent", month: dateFromKey("2026-11-01"), amountCents: null, paidAt: dateFromKey("2026-11-01") }];
+
+  const carried = unpaidCashOccurrences([rent, gym, netflix], overrides, "2026-06", "2027-01");
+  assert.deepEqual(carried.map((occurrence) => `${occurrence.recurring.id} ${occurrence.month}`), [
+    "gym 2026-08", "gym 2026-09", "gym 2026-10", "rent 2026-10", "gym 2026-11", "gym 2026-12", "rent 2026-12",
+  ]);
 });

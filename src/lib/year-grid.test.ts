@@ -48,3 +48,24 @@ test("builds category groups with item rows and monthly totals", () => {
   assert.deepEqual(grid.spending.totalsCents, [82000, 856000]);
   assert.deepEqual(grid.balance.totalsCents, [-82000, -856000]);
 });
+
+test("marks months whose spending includes an unconfirmed variable bill", () => {
+  const luz = { id: "luz", item: { id: "luz", name: "Luz", category: fixed }, amountCents: 60000, isVariable: true, intervalMonths: 1, dayOfMonth: 5, startMonth: dateFromKey("2026-10-01"), endMonth: null, paymentMethod: cash };
+  const data: LedgerData = {
+    categories: [car, fixed],
+    purchases: [purchase("g1", "2026-10-02", 41000, gasolina)],
+    incomes: [],
+    definitions: [luz],
+    overrides: [{ recurringPaymentId: "luz", month: dateFromKey("2026-10-01"), amountCents: 58000, paidAt: null }],
+    recurringHistory: [],
+    statements: [],
+    savingsMovements: [],
+  };
+  const grid = buildYearGrid([summarizeMonth(data, "2026-10"), summarizeMonth(data, "2026-11")], data.categories);
+  const [fixedGroup, carGroup] = grid.groups;
+
+  assert.deepEqual(fixedGroup.items[0].estimated, [false, true]);
+  assert.deepEqual(fixedGroup.estimated, [false, true]);
+  assert.deepEqual(carGroup.estimated, [false, false]);
+  assert.deepEqual(grid.spending.estimated, [false, true]);
+});

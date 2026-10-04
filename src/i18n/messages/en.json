@@ -134,8 +134,7 @@
     "confirmRemove": "Remove this from your lists? Past records keep it.",
     "recurringLink": "Recurring payments",
     "paymentDays": "Days to pay after closing",
-    "paymentDaysHint": "The payment is due this many days after the statement closes.",
-    "daysOption": "{days} days"
+    "paymentDaysHint": "The payment is due this many days after the statement closes."
   },
   "errors": {
     "amount": "Enter an amount greater than zero, with up to two decimals.",

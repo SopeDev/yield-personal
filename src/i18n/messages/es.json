@@ -134,8 +134,7 @@
     "confirmRemove": "¿Quitar de tus listas? Los registros anteriores la conservan.",
     "recurringLink": "Pagos recurrentes",
     "paymentDays": "Días para pagar después del corte",
-    "paymentDaysHint": "El pago vence esta cantidad de días después del corte.",
-    "daysOption": "{days} días"
+    "paymentDaysHint": "El pago vence esta cantidad de días después del corte."
   },
   "errors": {
     "amount": "Ingresa un monto mayor a cero, con hasta dos decimales.",

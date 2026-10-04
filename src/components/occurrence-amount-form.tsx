@@ -21,7 +21,7 @@ export function OccurrenceAmountForm({ locale, recurringPaymentId, month, amount
 }) {
   const [state, formAction, pending] = useActionState<FormState, FormData>(setOccurrenceAmount, {});
   const error = state.fieldErrors?.amount;
-  const inputId = `amount-${recurringPaymentId}`;
+  const inputId = `amount-${recurringPaymentId}-${month}`;
   const buttonClass = "min-h-10 rounded-xl px-3 text-sm font-semibold disabled:opacity-60";
 
   return (

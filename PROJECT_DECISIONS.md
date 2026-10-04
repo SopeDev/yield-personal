@@ -1,6 +1,6 @@
 # Project Decisions
 
-Last updated: 2026-10-03
+Last updated: 2026-10-04
 
 ## Product scope
 
@@ -25,11 +25,11 @@ Last updated: 2026-10-03
 
 - A purchase counts toward spending (consumption) in the month it was made, at its full amount; an installment purchase counts toward consumption as its monthly installments.
 - Cash outflow ("total to pay") for a month is cash purchases, recurring payments paid in cash, money moved into savings, and card statements that close that month. Statements belong to their closing month (not their due month) to encourage paying them as soon as they are issued; each shows its due date and days remaining.
-- Unpaid card statements from up to 12 earlier months are carried into the current month's view as a reminder (overdue ones in red). They count only in their own month's totals; the current month's outstanding shows them as an addition, and other months and the year view show only their own items. Card-paid purchases are never counted both as spending and inside a card payment in the same total.
+- Unpaid card statements and unpaid cash recurring bills from up to 12 earlier months are carried into the current month's view as a reminder (overdue ones in red), and can be paid or confirmed from there. Months before a recurring payment was added to the app are never carried, since they were paid before it was tracked. They count only in their own month's totals; the current month's outstanding shows them as an addition, and other months and the year view show only their own items. Card-paid purchases are never counted both as spending and inside a card payment in the same total.
 - A card charge belongs to the statement whose cycle contains its date (for example, with a closing day of 25, a purchase on Oct 28 falls on the November statement).
 - A recurring payment assigned to a card is considered paid when the statement containing it is paid; it is never marked paid twice.
 - "Por pagar" (outstanding) is the set of unpaid cash recurring occurrences and unpaid card statements belonging to the month.
-- A statement is due a fixed number of days after it closes (`paymentDays`, 1–60, default 15), so the due date follows real month lengths. A closing day past a month's end falls on its last day. Fixed due days were migrated to days after closing, counting a due day on or before the closing day as 30 days later.
+- A statement is due a fixed number of days after it closes (`paymentDays`, 1–60, typed per card), so the due date follows real month lengths. A closing day past a month's end falls on its last day. Fixed due days were migrated to days after closing, counting a due day on or before the closing day as 30 days later.
 - A charge belongs to the statement closing on or after its date; each installment of a card purchase lands on the next consecutive statement.
 - Recurring payments repeat every `intervalMonths` months (1–12) counted from their start month, between their start and end months; bimonthly bills like CFE use 2.
 - A recurring payment can be variable. Each month starts as an estimate (the average of the item's last 3 confirmed amounts, else the usual amount) shown with "≈" and counted in totals; confirming the real amount replaces it, and a cash bill can be confirmed and marked paid in one step. The month view notes how much of its spending is still estimated.
@@ -44,9 +44,9 @@ Last updated: 2026-10-03
 
 ## Screens
 
-- **Year view**: categories with their items as rows, the last 12 months ending with the current month as columns (navigable by 12 months), a yearly total column, then spending, total to pay, outstanding, income, and balance. Amounts are whole pesos to fit; on phones the item column stays pinned and the grid opens scrolled to the current month. Tapping an item's cell opens that month filtered to the item.
+- **Year view**: categories with their items as rows, the last 12 months ending with the current month as columns (navigable by 12 months), a yearly total column, then spending, total to pay, outstanding, income, and balance. Amounts are whole pesos to fit; on phones the item column stays pinned and the grid opens scrolled to the current month. Tapping an item's cell opens that month filtered to the item. Amounts that include an unconfirmed variable bill show "≈" in the warning color (item, category, and spending rows).
 - The app opens on the Month view; the Year view is a tab. Navigation: Month, Year, Add, Income, Cards, with Settings in the header.
-- **Quick add**: always-available entry for an expense or income. Expense flow: amount → category → payment method → date (defaults to today) → installments when paid by card.
+- **Quick add**: always-available entry for an expense or income. Expense flow: amount → category → payment method → date (defaults to today) → installments when paid by card. Choosing an existing item fills in its usual payment method and amount (the most frequent among its last 5 purchases, else the latest), without overriding a method already picked or an amount already typed; derived from purchases, not stored.
 - **Month view**: all records for the month, recurring payments with paid/unpaid state, and card statements due.
 - **Cards**: current statement, next due date, and upcoming installments per card.
 - **Income**: daily log with monthly totals per source and net rideshare income.
@@ -71,6 +71,7 @@ Last updated: 2026-10-03
 ## Data conventions
 
 - Money is stored as integer centavos in Mexican pesos and displayed as `$1,230.00` in both languages, always in DM Mono with tabular figures.
+- Amount entry for expenses and income accepts digits only and fills from the right like a cash register, starting at 0.00 (typing 1, 2, 3 shows 0.01, 0.12, 1.23); backspace removes the last digit.
 - Purchase and income dates are calendar dates (`@db.Date`) with no time of day. "Today" is decided in `APP_TIME_ZONE` (default `America/Tijuana`).
 - Built-in categories are identified by a stable `key` (`fixed`, `food`, `car`, `extras`) and labelled through translations; custom categories store a `name`.
 - Installment amounts split evenly, with leftover centavos assigned to the earliest installments. Purchases support 1–48 installments, and more than one only when paid by card.
