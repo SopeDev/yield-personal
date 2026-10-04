@@ -11,7 +11,7 @@ Last updated: 2026-10-03
 
 ## Domain model
 
-- **Payment method**: Cash, or a credit card with name, color, statement closing day, and payment due day.
+- **Payment method**: Cash, or a credit card with name, color, statement closing day, and days to pay after closing (for example 15 or 30).
 - **Category**: Fixed, Food (Despensa / Comida / Café), Car, and Extras to start; categories are user-editable.
 - **Expense item**: a reusable expense concept such as "Gasolina" or "Renta" (the spreadsheet's rows), belonging to one category. Spending is tracked per item across time. Item names are unique per user ignoring case and repeated spaces; typing an existing name reuses the item, and a new name creates one in the chosen category.
 - **Purchase**: amount, date, expense item (which sets the category), optional note, and payment method. A card purchase may be split into interest-free monthly installments (MSI).
@@ -24,11 +24,12 @@ Last updated: 2026-10-03
 ## Financial rules
 
 - A purchase counts toward spending (consumption) in the month it was made, at its full amount; an installment purchase counts toward consumption as its monthly installments.
-- Cash outflow ("total to pay") for a month is cash purchases, recurring payments paid in cash, and card statements due that month. Card-paid purchases are never counted both as spending and inside a card payment in the same total.
+- Cash outflow ("total to pay") for a month is cash purchases, recurring payments paid in cash, money moved into savings, and card statements that close that month. Statements belong to their closing month (not their due month) to encourage paying them as soon as they are issued; each shows its due date and days remaining.
+- Unpaid card statements from up to 12 earlier months are carried into the current month's view as a reminder (overdue ones in red). They count only in their own month's totals; the current month's outstanding shows them as an addition, and other months and the year view show only their own items. Card-paid purchases are never counted both as spending and inside a card payment in the same total.
 - A card charge belongs to the statement whose cycle contains its date (for example, with a closing day of 25, a purchase on Oct 28 falls on the November statement).
 - A recurring payment assigned to a card is considered paid when the statement containing it is paid; it is never marked paid twice.
-- "Por pagar" (outstanding) is the set of unpaid recurring occurrences, unpaid cash items, and unpaid card statements for the month.
-- A statement's payment is due in the month it closes when the due day comes after the closing day; when the due day is the same as or before the closing day, it is due the following month (a card closing and due on the 15th is due on the 15th of the next month). Closing and due days past a month's end fall on its last day.
+- "Por pagar" (outstanding) is the set of unpaid cash recurring occurrences and unpaid card statements belonging to the month.
+- A statement is due a fixed number of days after it closes (`paymentDays`, 1–60, default 15), so the due date follows real month lengths. A closing day past a month's end falls on its last day. Fixed due days were migrated to days after closing, counting a due day on or before the closing day as 30 days later.
 - A charge belongs to the statement closing on or after its date; each installment of a card purchase lands on the next consecutive statement.
 - Recurring payments generate one occurrence per month between their start and end months. Occurrence rows are stored only when a month differs from the default (a changed amount, or a cash payment marked paid); a card-paid occurrence is paid when its statement is paid.
 - Stopping a recurring payment keeps it through the current month only if that month was already paid or changed; a payment that never applied to a past month is deleted instead.

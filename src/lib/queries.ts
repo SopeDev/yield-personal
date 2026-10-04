@@ -36,7 +36,7 @@ export function getActiveCategories(userId: string) {
 export function getActivePaymentMethods(userId: string) {
   return db.paymentMethod.findMany({
     where: { userId, archivedAt: null },
-    select: { id: true, kind: true, name: true, color: true, closingDay: true, dueDay: true },
+    select: { id: true, kind: true, name: true, color: true, closingDay: true, paymentDays: true },
     orderBy: [{ kind: "asc" }, { createdAt: "asc" }],
   });
 }

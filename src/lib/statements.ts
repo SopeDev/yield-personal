@@ -1,7 +1,11 @@
 import { splitInstallments } from "./installments";
 import { addMonths, dateInMonth, daysInMonth, monthKeyOf, type MonthKey } from "./months";
 
-export type BillingCycle = { closingDay: number; dueDay: number };
+/** A card closes on `closingDay` each month and is due `paymentDays` days later. */
+export type BillingCycle = { closingDay: number; paymentDays: number };
+
+export const DEFAULT_PAYMENT_DAYS = 15;
+export const MAX_PAYMENT_DAYS = 60;
 
 /** The month whose statement includes a charge made on `date`: charges after the closing day roll to the next statement. */
 export function statementMonthOf(date: Date, closingDay: number): MonthKey {
@@ -9,17 +13,12 @@ export function statementMonthOf(date: Date, closingDay: number): MonthKey {
   return date.getUTCDate() <= Math.min(closingDay, daysInMonth(month)) ? month : addMonths(month, 1);
 }
 
-/**
- * Closing and due dates of the statement that closes in `statementMonth`. Payment is due in the same month
- * when the due day comes after the closing day; otherwise (including the same day) it is due the next month.
- */
+/** Closing and due dates of the statement that closes in `statementMonth`: due `paymentDays` after closing. */
 export function statementDates(cycle: BillingCycle, statementMonth: MonthKey) {
-  const dueMonth = cycle.dueDay > cycle.closingDay ? statementMonth : addMonths(statementMonth, 1);
-  return {
-    closingDate: dateInMonth(statementMonth, cycle.closingDay),
-    dueDate: dateInMonth(dueMonth, cycle.dueDay),
-    dueMonth,
-  };
+  const closingDate = dateInMonth(statementMonth, cycle.closingDay);
+  const dueDate = new Date(closingDate);
+  dueDate.setUTCDate(dueDate.getUTCDate() + cycle.paymentDays);
+  return { closingDate, dueDate, dueMonth: monthKeyOf(dueDate) };
 }
 
 export type StatementCharge = {

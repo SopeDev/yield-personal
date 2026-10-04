@@ -7,6 +7,7 @@ import { z } from "zod";
 import { db } from "@/db/client";
 import { LOCALE_COOKIE } from "@/i18n/config";
 import { CARD_COLORS, MAX_STATEMENT_DAY } from "@/lib/payment-methods";
+import { MAX_PAYMENT_DAYS } from "@/lib/statements";
 import { localeFromForm, requireActionUserId } from "./action-user";
 import type { FormState } from "./form-state";
 
@@ -26,15 +27,15 @@ function parseCard(formData: FormData) {
   const name = readText(formData, "name");
   const color = readText(formData, "color");
   const closingDay = readDay(formData, "closingDay");
-  const dueDay = readDay(formData, "dueDay");
+  const paymentDays = Number(readText(formData, "paymentDays"));
 
   const fieldErrors: FormState["fieldErrors"] = {};
   if (!name || name.length > MAX_NAME_LENGTH) fieldErrors.name = "name";
   if (!(CARD_COLORS as readonly string[]).includes(color)) fieldErrors.color = "color";
   if (!closingDay) fieldErrors.closingDay = "day";
-  if (!dueDay) fieldErrors.dueDay = "day";
+  if (!Number.isInteger(paymentDays) || paymentDays < 1 || paymentDays > MAX_PAYMENT_DAYS) fieldErrors.paymentDays = "paymentDays";
   if (Object.keys(fieldErrors).length > 0) return { fieldErrors };
-  return { data: { name, color, closingDay: closingDay!, dueDay: dueDay! } };
+  return { data: { name, color, closingDay: closingDay!, paymentDays } };
 }
 
 export async function createCard(_state: FormState, formData: FormData): Promise<FormState> {

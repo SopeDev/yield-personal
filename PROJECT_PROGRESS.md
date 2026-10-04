@@ -41,6 +41,10 @@ Last updated: 2026-10-03
 - Year view: spreadsheet-style 12-month grid (categories, item rows, yearly totals, spending/to pay/outstanding/income/balance), month view filtering by item, Year tab in navigation with Settings moved to the header.
 - Prisma migrations always use the direct (non-pooled) connection, after a pooled session kept the migration lock and blocked deploys.
 
+- Card statements now belong to the month they close, with due date and days remaining; unpaid statements carry into the current month until paid.
+
+- Cards are due a number of days after closing (15 / 20 / 30 presets or any 1–60) instead of a fixed due day; migration converts existing cards (Nu, Klar, DiDi → 15 days; Plata → 30), verified on an embedded Postgres.
+
 ## Next
 
 - Editing entries, recurring payments, cards, and income sources.

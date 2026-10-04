@@ -22,7 +22,7 @@ export default async function IncomePage({ params, searchParams }: PageProps<"/[
   const month = monthFromSearchParam((await searchParams).m, currentMonthKey());
   const messages = getDictionary(locale);
 
-  const [{ incomes, spending, income }, sources] = await Promise.all([loadMonthView(userId, month), getActiveIncomeSources(userId)]);
+  const [{ incomes, spending, income }, sources] = await Promise.all([loadMonthView(userId, month, currentMonthKey()), getActiveIncomeSources(userId)]);
   const hasRideshare = sources.some((source) => source.isRideshare) || income.rideshareGrossCents > 0;
   const today = todayKey();
 

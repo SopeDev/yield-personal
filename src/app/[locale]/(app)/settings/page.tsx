@@ -65,7 +65,7 @@ export default async function SettingsPage({ params }: PageProps<"/[locale]/sett
                   <span aria-hidden="true" className="size-3 shrink-0 rounded-full" style={{ backgroundColor: card.color }} />
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium">{card.name}</p>
-                    <p className="text-sm text-muted-foreground">{format(messages.settings.cardDays, { closing: card.closingDay ?? "–", due: card.dueDay ?? "–" })}</p>
+                    <p className="text-sm text-muted-foreground">{format(messages.settings.cardDays, { closing: card.closingDay ?? "–", days: card.paymentDays ?? "–" })}</p>
                   </div>
                   <DeleteButton action={archiveCard} confirmMessage={messages.settings.confirmRemove} id={card.id} label={messages.settings.remove} locale={locale} />
                 </li>

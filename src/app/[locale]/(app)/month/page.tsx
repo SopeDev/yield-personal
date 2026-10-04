@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { deleteIncome, deletePurchase } from "@/app/actions/entries";
-import { setOccurrencePaid, setStatementPaid } from "@/app/actions/recurring";
+import { setOccurrencePaid } from "@/app/actions/recurring";
 import { DeleteButton } from "@/components/delete-button";
 import { EntryRow } from "@/components/entry-row";
 import { Money } from "@/components/money";
+import { StatementRow } from "@/components/statement-row";
+import { formatCents } from "@/lib/money";
 import { MonthNav } from "@/components/month-nav";
 import { OccurrenceAmountForm } from "@/components/occurrence-amount-form";
 import { PaidToggle, StatusBadge } from "@/components/paid-toggle";
@@ -28,11 +30,12 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
   if (!isLocale(locale)) return null;
   const userId = await requireUserId(locale);
   const query = await searchParams;
-  const month = monthFromSearchParam(query.m, currentMonthKey());
+  const currentMonth = currentMonthKey();
+  const month = monthFromSearchParam(query.m, currentMonth);
   // Opening a cell of the year view filters the month's entries and recurring payments to one item.
   const itemFilter = typeof query.item === "string" ? query.item : null;
   const messages = getDictionary(locale);
-  const { cards, entries, incomes, occurrences, statements, spending, income, cashFlow } = await loadMonthView(userId, month);
+  const { cards, entries, incomes, occurrences, statements, spending, income, cashFlow } = await loadMonthView(userId, month, currentMonth);
 
   const balanceCents = income.totalCents - cashFlow.toPayCents;
   const statementCards = new Map(cards.map((card) => [card.id, card]));
@@ -89,28 +92,34 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
           <Stat label={messages.month.spending}><Money cents={spending.totalCents} /></Stat>
           <Stat label={messages.month.income}><Money cents={income.totalCents} /></Stat>
           <Stat label={messages.month.toPay}><Money cents={cashFlow.toPayCents} /></Stat>
-          <Stat label={messages.month.outstanding}><Money cents={cashFlow.outstandingCents} className={cashFlow.outstandingCents > 0 ? "text-warning" : undefined} /></Stat>
+          <Stat label={messages.month.outstanding}>
+            <Money cents={cashFlow.outstandingCents} className={cashFlow.outstandingCents > 0 ? "text-warning" : undefined} />
+            {cashFlow.carriedOutstandingCents > 0 ? (
+              <span className="mt-0.5 block text-xs font-normal text-loss">{format(messages.month.includesCarried, { amount: formatCents(cashFlow.carriedOutstandingCents) })}</span>
+            ) : null}
+          </Stat>
         </div>
       </Card>
 
-      {cashFlow.statementsDue.length > 0 ? (
-        <Section title={messages.cards.title}>
+      {cashFlow.carriedStatements.length > 0 ? (
+        <Section title={messages.month.carriedTitle}>
+          <Card className="border-loss/40">
+            <ul className="divide-y divide-border">
+              {cashFlow.carriedStatements.map((statement) => (
+                <StatementRow card={statementCards.get(statement.paymentMethodId)} key={`${statement.paymentMethodId}-${statement.month}`} locale={locale} messages={messages} statement={statement} today={today} />
+              ))}
+            </ul>
+          </Card>
+        </Section>
+      ) : null}
+
+      {cashFlow.statementsClosing.length > 0 ? (
+        <Section title={messages.month.statements}>
           <Card>
             <ul className="divide-y divide-border">
-              {cashFlow.statementsDue.map((statement) => {
-                const card = statementCards.get(statement.paymentMethodId);
-                return (
-                  <li className="flex items-center gap-3 py-3 pl-4 pr-3" key={`${statement.paymentMethodId}-${statement.month}`}>
-                    <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: card?.color }} />
-                    <Link className="min-w-0 flex-1" href={`/${locale}/cards`}>
-                      <p className="truncate font-medium">{format(messages.month.statementDue, { card: card?.name ?? "" })}</p>
-                      <p className="text-sm text-muted-foreground">{format(messages.month.dueOn, { date: formatShortDate(statement.dueDate, locale) })}</p>
-                    </Link>
-                    <Money cents={statement.totalCents} />
-                    <PaidToggle action={setStatementPaid} fields={{ locale, paymentMethodId: statement.paymentMethodId, statementMonth: statement.month }} labels={toggleLabels} paid={statement.paid} />
-                  </li>
-                );
-              })}
+              {cashFlow.statementsClosing.map((statement) => (
+                <StatementRow card={statementCards.get(statement.paymentMethodId)} key={`${statement.paymentMethodId}-${statement.month}`} locale={locale} messages={messages} statement={statement} today={today} />
+              ))}
             </ul>
           </Card>
         </Section>

@@ -57,10 +57,18 @@
     "recurringEmpty": "No recurring payments yet.",
     "addRecurring": "Add recurring payments",
     "statementDue": "{card} statement",
-    "dueOn": "Due {date}",
     "onStatement": "On {card} statement · due {date}",
     "changedAmount": "Changed this month",
-    "day": "Day {day}"
+    "day": "Day {day}",
+    "closes": "Closes {date}",
+    "closed": "Closed {date}",
+    "dueIn": "Due in {days} days",
+    "dueTomorrow": "Due tomorrow",
+    "dueToday": "Due today",
+    "overdueBy": "{days} days overdue",
+    "statements": "Card statements",
+    "carriedTitle": "Unpaid from earlier months",
+    "includesCarried": "+ {amount} from earlier"
   },
   "income": {
     "title": "Income",
@@ -106,8 +114,7 @@
     "cardNamePlaceholder": "e.g. Nu, Klar",
     "color": "Color",
     "closingDay": "Statement closing day",
-    "dueDay": "Payment due day",
-    "cardDays": "Closes day {closing} · Due day {due}",
+    "cardDays": "Closes day {closing} · Due {days} days later",
     "incomeSources": "Income sources",
     "sourcesEmpty": "No income sources yet.",
     "addSource": "Add source",
@@ -117,7 +124,10 @@
     "rideshareBadge": "Rideshare",
     "remove": "Remove",
     "confirmRemove": "Remove this from your lists? Past records keep it.",
-    "recurringLink": "Recurring payments"
+    "recurringLink": "Recurring payments",
+    "paymentDays": "Days to pay after closing",
+    "paymentDaysHint": "The payment is due this many days after the statement closes.",
+    "daysOption": "{days} days"
   },
   "errors": {
     "amount": "Enter an amount greater than zero, with up to two decimals.",
@@ -135,7 +145,8 @@
     "coverMonths": "Use a whole number of months from 1 to 24.",
     "recurringEnded": "This recurring payment has ended and can't be edited.",
     "item": "Choose an item or type a new one.",
-    "itemExists": "Another item already has this name. Merge them instead."
+    "itemExists": "Another item already has this name. Merge them instead.",
+    "paymentDays": "Use a whole number of days from 1 to 60."
   },
   "recurring": {
     "title": "Recurring payments",

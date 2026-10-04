@@ -57,10 +57,18 @@
     "recurringEmpty": "Todavía no hay pagos recurrentes.",
     "addRecurring": "Agregar pagos recurrentes",
     "statementDue": "Estado de cuenta {card}",
-    "dueOn": "Vence {date}",
     "onStatement": "En el estado de cuenta {card} · vence {date}",
     "changedAmount": "Cambiado este mes",
-    "day": "Día {day}"
+    "day": "Día {day}",
+    "closes": "Corta el {date}",
+    "closed": "Cortó el {date}",
+    "dueIn": "Vence en {days} días",
+    "dueTomorrow": "Vence mañana",
+    "dueToday": "Vence hoy",
+    "overdueBy": "{days} días vencido",
+    "statements": "Estados de cuenta",
+    "carriedTitle": "Pendientes de meses anteriores",
+    "includesCarried": "+ {amount} de meses anteriores"
   },
   "income": {
     "title": "Ingresos",
@@ -106,8 +114,7 @@
     "cardNamePlaceholder": "p. ej. Nu, Klar",
     "color": "Color",
     "closingDay": "Día de corte",
-    "dueDay": "Día límite de pago",
-    "cardDays": "Corte el día {closing} · Pago el día {due}",
+    "cardDays": "Corte el día {closing} · Pago {days} días después",
     "incomeSources": "Fuentes de ingreso",
     "sourcesEmpty": "Todavía no hay fuentes de ingreso.",
     "addSource": "Agregar fuente",
@@ -117,7 +124,10 @@
     "rideshareBadge": "Plataforma",
     "remove": "Quitar",
     "confirmRemove": "¿Quitar de tus listas? Los registros anteriores la conservan.",
-    "recurringLink": "Pagos recurrentes"
+    "recurringLink": "Pagos recurrentes",
+    "paymentDays": "Días para pagar después del corte",
+    "paymentDaysHint": "El pago vence esta cantidad de días después del corte.",
+    "daysOption": "{days} días"
   },
   "errors": {
     "amount": "Ingresa un monto mayor a cero, con hasta dos decimales.",
@@ -135,7 +145,8 @@
     "coverMonths": "Usa un número entero de meses entre 1 y 24.",
     "recurringEnded": "Este pago recurrente ya terminó y no se puede editar.",
     "item": "Elige un concepto o escribe uno nuevo.",
-    "itemExists": "Ya existe otro concepto con este nombre. Mejor combínalos."
+    "itemExists": "Ya existe otro concepto con este nombre. Mejor combínalos.",
+    "paymentDays": "Usa un número entero de días entre 1 y 60."
   },
   "recurring": {
     "title": "Pagos recurrentes",

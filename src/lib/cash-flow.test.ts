@@ -10,7 +10,7 @@ const fixed = { id: "fixed", key: "fixed", name: null, sortOrder: 0, includeInAv
 const car = { id: "car", key: "car", name: null, sortOrder: 2, includeInAverage: true };
 const cash = { id: "cash", kind: "CASH" as const, name: "Cash", color: "#00c896" };
 const nu = { id: "nu", kind: "CARD" as const, name: "Nu", color: "#8b5cf6" };
-const nuCycle = { id: "nu", closingDay: 5, dueDay: 25 };
+const nuCycle = { id: "nu", closingDay: 5, paymentDays: 20 };
 
 const definitions: RecurringDefinition[] = [
   { id: "rent", item: { id: "rent", name: "Renta", category: fixed }, amountCents: 800000, dayOfMonth: 1, startMonth: dateFromKey("2026-10-01"), endMonth: null, paymentMethod: cash },

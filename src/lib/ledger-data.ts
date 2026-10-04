@@ -20,8 +20,8 @@ const purchaseSelect = {
   paymentMethod: { select: paymentMethodSelect },
 } as const;
 
-/** Statements due in a month close that month or the month before, and their recurring charges can date from one month earlier. */
-const STATEMENT_LOOKBACK_MONTHS = 2;
+/** A statement closing in a month can include recurring charges from the month before (after the previous closing). */
+const STATEMENT_LOOKBACK_MONTHS = 1;
 
 /** All recurring payments, including stopped ones, so past months still show what was due. */
 export function getRecurringDefinitions(userId: string): Promise<RecurringDefinition[]> {
@@ -47,7 +47,7 @@ function getOccurrenceOverrides(userId: string, from: MonthKey, to: MonthKey): P
 export function getCards(userId: string) {
   return db.paymentMethod.findMany({
     where: { userId, kind: "CARD" },
-    select: { ...paymentMethodSelect, closingDay: true, dueDay: true, archivedAt: true },
+    select: { ...paymentMethodSelect, closingDay: true, paymentDays: true, archivedAt: true },
     orderBy: { createdAt: "asc" },
   });
 }
@@ -62,10 +62,11 @@ export function getSavingsFunds(userId: string) {
 
 /**
  * Loads everything needed to summarize each month from `from` through `to` (spending, income, recurring
- * payments, card statements due, savings), with lookbacks for installments and statements.
+ * payments, card statements, savings), with lookbacks for installments and statements. `statementsFrom`
+ * extends complete statements further back, for carrying unpaid ones forward.
  */
-export async function loadLedgerRange(userId: string, from: MonthKey, to: MonthKey) {
-  const statementsFrom = addMonths(from, -STATEMENT_LOOKBACK_MONTHS);
+export async function loadLedgerRange(userId: string, from: MonthKey, to: MonthKey, { statementsFrom: statementsStart = from }: { statementsFrom?: MonthKey } = {}) {
+  const statementsFrom = addMonths(statementsStart < from ? statementsStart : from, -STATEMENT_LOOKBACK_MONTHS);
   const [categories, definitions, cards, purchases, incomes, overrides, paidStatements, savingsMovements] = await Promise.all([
     db.category.findMany({ where: { userId }, select: categorySelect, orderBy: { sortOrder: "asc" } }),
     getRecurringDefinitions(userId),

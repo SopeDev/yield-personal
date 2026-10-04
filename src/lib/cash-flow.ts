@@ -18,32 +18,44 @@ export function occurrencePaymentStatus(occurrence: RecurringOccurrence, stateme
 
 /**
  * Cash leaving in a month ("total to pay") and what is still unpaid ("outstanding"). Card purchases and
- * card-paid recurring payments are counted only through the statement due that month, never twice.
+ * card-paid recurring payments are counted only through their card statement, never twice. A statement
+ * belongs to the month it closes, so it can be paid as soon as it is issued; its due date is shown with it.
  * Money moved into savings leaves spending money too, so it is part of the total to pay.
+ *
+ * With `carryFrom`, unpaid statements that closed from that month up to the previous month are carried into
+ * this month separately, so nothing unpaid drops out of view when the month changes.
  */
-export function monthCashFlow({ month, purchases, occurrences, statements, savingsNetCents = 0 }: {
+export function monthCashFlow({ month, purchases, occurrences, statements, savingsNetCents = 0, carryFrom }: {
   month: MonthKey;
   purchases: LedgerPurchase[];
   occurrences: RecurringOccurrence[];
   statements: Statement[];
   savingsNetCents?: number;
+  carryFrom?: MonthKey;
 }) {
   const cashPurchasesCents = purchases
     .filter((purchase) => purchase.paymentMethod.kind === "CASH" && monthKeyOf(purchase.date) === month)
     .reduce((sum, purchase) => sum + purchase.amountCents, 0);
   const cashOccurrences = occurrences.filter((occurrence) => occurrence.recurring.paymentMethod.kind === "CASH");
-  const statementsDue = statements.filter((statement) => statement.dueMonth === month && statement.totalCents > 0);
+  const statementsClosing = statements.filter((statement) => statement.month === month && statement.totalCents > 0);
+  const carriedStatements = carryFrom
+    ? statements.filter((statement) => !statement.paid && statement.totalCents > 0 && statement.month >= carryFrom && statement.month < month)
+    : [];
 
   const unpaidOccurrences = cashOccurrences.filter((occurrence) => occurrence.cashPaidAt === null);
-  const unpaidStatements = statementsDue.filter((statement) => !statement.paid);
+  const unpaidStatements = statementsClosing.filter((statement) => !statement.paid);
   const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
 
   return {
     toPayCents:
       savingsNetCents +
-      cashPurchasesCents + sum(cashOccurrences.map((occurrence) => occurrence.amountCents)) + sum(statementsDue.map((statement) => statement.totalCents)),
+      cashPurchasesCents + sum(cashOccurrences.map((occurrence) => occurrence.amountCents)) + sum(statementsClosing.map((statement) => statement.totalCents)),
+    /** Unpaid items belonging to this month. */
     outstandingCents: sum(unpaidOccurrences.map((occurrence) => occurrence.amountCents)) + sum(unpaidStatements.map((statement) => statement.totalCents)),
-    statementsDue,
+    /** Unpaid statements from earlier months, counted in their own month's totals and shown here as a reminder. */
+    carriedOutstandingCents: sum(carriedStatements.map((statement) => statement.totalCents)),
+    statementsClosing,
+    carriedStatements,
     unpaidOccurrences,
     unpaidStatements,
   };

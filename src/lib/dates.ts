@@ -34,3 +34,9 @@ export function groupByDay<T>(items: T[], dateOf: (item: T) => Date) {
 export function formatShortDate(date: Date, locale: Locale) {
   return new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", timeZone: "UTC" }).format(date);
 }
+
+/** Whole days from one calendar date ("YYYY-MM-DD") to another; negative when `to` is earlier. */
+export function daysBetween(fromKey: string, toKey: string) {
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  return Math.round((new Date(`${toKey}T00:00:00Z`).getTime() - new Date(`${fromKey}T00:00:00Z`).getTime()) / DAY_MS);
+}

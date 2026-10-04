@@ -16,7 +16,7 @@ export type LedgerData = {
   savingsMovements: SavingsMovementRecord[];
 };
 
-export function summarizeMonth(data: LedgerData, month: MonthKey) {
+export function summarizeMonth(data: LedgerData, month: MonthKey, { carryFrom }: { carryFrom?: MonthKey } = {}) {
   const entries = monthSpendingEntries(data.purchases, month);
   const occurrences = occurrencesForMonth(data.definitions, data.overrides, month);
   const spending = summarizeSpending(
@@ -26,7 +26,7 @@ export function summarizeMonth(data: LedgerData, month: MonthKey) {
   const incomes = data.incomes.filter((income) => monthKeyOf(income.date) === month);
   const income = summarizeIncome(incomes, spending.carCents);
   const savingsNetCents = netSavingsInMonth(data.savingsMovements, month);
-  const cashFlow = monthCashFlow({ month, purchases: data.purchases, occurrences, statements: data.statements, savingsNetCents });
+  const cashFlow = monthCashFlow({ month, purchases: data.purchases, occurrences, statements: data.statements, savingsNetCents, carryFrom });
 
   return {
     month,

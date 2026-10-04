@@ -79,7 +79,7 @@ model VerificationToken {
   @@map("verification_tokens")
 }
 
-/// Cash, or a credit card. Closing and due days only apply to cards.
+/// Cash, or a credit card. Cards close on `closingDay` each month and are due `paymentDays` days after closing.
 model PaymentMethod {
   id                String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId            String             @map("user_id") @db.Uuid
@@ -87,7 +87,7 @@ model PaymentMethod {
   name              String
   color             String
   closingDay        Int?               @map("closing_day")
-  dueDay            Int?               @map("due_day")
+  paymentDays       Int?               @map("payment_days")
   archivedAt        DateTime?          @map("archived_at") @db.Timestamptz(6)
   createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
   user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
