@@ -11,7 +11,7 @@ import { formatMonth } from "@/lib/dates";
 import { getRecurringDefinitions } from "@/lib/ledger-data";
 import { monthKeyOf } from "@/lib/months";
 import { paymentMethodLabel } from "@/lib/payment-methods";
-import { getActivePaymentMethods, getCategories } from "@/lib/queries";
+import { getActivePaymentMethods, getActiveCategories } from "@/lib/queries";
 import { currentMonthKey } from "@/lib/today";
 
 export default async function RecurringPage({ params }: PageProps<"/[locale]/recurring">) {
@@ -21,7 +21,7 @@ export default async function RecurringPage({ params }: PageProps<"/[locale]/rec
   const messages = getDictionary(locale);
   const currentMonth = currentMonthKey();
 
-  const [definitions, categories, methods] = await Promise.all([getRecurringDefinitions(userId), getCategories(userId), getActivePaymentMethods(userId)]);
+  const [definitions, categories, methods] = await Promise.all([getRecurringDefinitions(userId), getActiveCategories(userId), getActivePaymentMethods(userId)]);
   const active = definitions.filter((definition) => !definition.endMonth || monthKeyOf(definition.endMonth) >= currentMonth);
   const ended = definitions.filter((definition) => definition.endMonth && monthKeyOf(definition.endMonth) < currentMonth);
 

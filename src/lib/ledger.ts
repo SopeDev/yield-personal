@@ -2,7 +2,7 @@ import { CAR_CATEGORY_KEY } from "./categories";
 import { consumptionInMonth } from "./installments";
 import type { MonthKey } from "./months";
 
-export type LedgerCategory = { id: string; key: string | null; name: string | null; sortOrder: number };
+export type LedgerCategory = { id: string; key: string | null; name: string | null; sortOrder: number; includeInAverage: boolean };
 export type LedgerPaymentMethod = { id: string; kind: "CASH" | "CARD"; name: string; color: string };
 export type LedgerPurchase = {
   id: string;

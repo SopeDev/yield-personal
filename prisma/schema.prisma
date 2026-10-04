@@ -32,6 +32,8 @@ model User {
   recurringPayments    RecurringPayment[]
   recurringOccurrences RecurringOccurrence[]
   statementPayments    StatementPayment[]
+  savingsFunds         SavingsFund[]
+  savingsMovements     SavingsMovement[]
 
   @@map("users")
 }
@@ -97,12 +99,15 @@ model PaymentMethod {
 }
 
 /// Built-in categories have a `key` and are labelled through i18n; custom ones use `name`.
+/// `includeInAverage` marks everyday categories counted in average monthly spending (one-off extras are not).
 model Category {
   id                String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId            String             @map("user_id") @db.Uuid
   key               String?
   name              String?
   sortOrder         Int                @default(0) @map("sort_order")
+  includeInAverage  Boolean            @default(true) @map("include_in_average")
+  archivedAt        DateTime?          @map("archived_at") @db.Timestamptz(6)
   createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
   user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   purchases         Purchase[]
@@ -217,4 +222,46 @@ model StatementPayment {
   @@unique([paymentMethodId, statementMonth])
   @@index([userId])
   @@map("statement_payments")
+}
+
+enum SavingsFundKind {
+  EMERGENCY
+  GOAL
+
+  @@map("savings_fund_kind")
+}
+
+/// A pot of saved money. The emergency fund's target is derived (months of average spending plus installments
+/// owed); other goals have a fixed `targetCents`.
+model SavingsFund {
+  id          String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String            @map("user_id") @db.Uuid
+  kind        SavingsFundKind
+  name        String?
+  targetCents Int?              @map("target_cents")
+  coverMonths Int               @default(3) @map("cover_months")
+  archivedAt  DateTime?         @map("archived_at") @db.Timestamptz(6)
+  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  movements   SavingsMovement[]
+
+  @@index([userId])
+  @@map("savings_funds")
+}
+
+/// Money moved into (positive) or out of (negative) a savings fund, in centavos.
+model SavingsMovement {
+  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String      @map("user_id") @db.Uuid
+  fundId      String      @map("fund_id") @db.Uuid
+  date        DateTime    @db.Date
+  amountCents Int         @map("amount_cents")
+  note        String?
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fund        SavingsFund @relation(fields: [fundId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+  @@index([fundId])
+  @@map("savings_movements")
 }

@@ -19,12 +19,14 @@ export function occurrencePaymentStatus(occurrence: RecurringOccurrence, stateme
 /**
  * Cash leaving in a month ("total to pay") and what is still unpaid ("outstanding"). Card purchases and
  * card-paid recurring payments are counted only through the statement due that month, never twice.
+ * Money moved into savings leaves spending money too, so it is part of the total to pay.
  */
-export function monthCashFlow({ month, purchases, occurrences, statements }: {
+export function monthCashFlow({ month, purchases, occurrences, statements, savingsNetCents = 0 }: {
   month: MonthKey;
   purchases: LedgerPurchase[];
   occurrences: RecurringOccurrence[];
   statements: Statement[];
+  savingsNetCents?: number;
 }) {
   const cashPurchasesCents = purchases
     .filter((purchase) => purchase.paymentMethod.kind === "CASH" && monthKeyOf(purchase.date) === month)
@@ -38,6 +40,7 @@ export function monthCashFlow({ month, purchases, occurrences, statements }: {
 
   return {
     toPayCents:
+      savingsNetCents +
       cashPurchasesCents + sum(cashOccurrences.map((occurrence) => occurrence.amountCents)) + sum(statementsDue.map((statement) => statement.totalCents)),
     outstandingCents: sum(unpaidOccurrences.map((occurrence) => occurrence.amountCents)) + sum(unpaidStatements.map((statement) => statement.totalCents)),
     statementsDue,

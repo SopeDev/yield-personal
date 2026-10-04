@@ -90,3 +90,12 @@ export function buildStatements(
       paid: paidMonths.has(month),
     }));
 }
+
+/** Installment ("MSI") amounts still owed: installment charges on statements not yet paid. */
+export function installmentsOwed(statements: Statement[]) {
+  return statements
+    .filter((statement) => !statement.paid)
+    .flatMap((statement) => statement.charges)
+    .filter((charge) => charge.installmentCount > 1)
+    .reduce((sum, charge) => sum + charge.amountCents, 0);
+}

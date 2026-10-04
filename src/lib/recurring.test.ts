@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { dateFromKey, dateKeyOf } from "./months";
 import { isActiveInMonth, occurrencesForMonth, type RecurringDefinition } from "./recurring";
 
-const fixed = { id: "fixed", key: "fixed", name: null, sortOrder: 0 };
+const fixed = { id: "fixed", key: "fixed", name: null, sortOrder: 0, includeInAverage: true };
 const cash = { id: "cash", kind: "CASH" as const, name: "Cash", color: "#00c896" };
 
 const rent: RecurringDefinition = {

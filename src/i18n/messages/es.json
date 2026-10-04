@@ -128,7 +128,9 @@
     "day": "Usa un día entre 1 y 31.",
     "color": "Elige un color.",
     "generic": "Algo salió mal. Inténtalo de nuevo.",
-    "month": "Elige un mes válido."
+    "month": "Elige un mes válido.",
+    "coverMonths": "Usa un número entero de meses entre 1 y 24.",
+    "recurringEnded": "Este pago recurrente ya terminó y no se puede editar."
   },
   "recurring": {
     "title": "Pagos recurrentes",

@@ -26,8 +26,13 @@ Last updated: 2026-10-03
   - Recurring car costs now count toward net rideshare income.
   - Tests for billing cycles (including closing and due on the same day), recurring occurrences, and month cash flow.
 
+- Structure for the remaining screens (no new screens yet):
+  - Migration: savings funds and movements, category `includeInAverage` and `archivedAt`; backfills Extras as excluded from the average and an emergency fund per existing user.
+  - Pure logic with tests: average monthly spending, savings balances and emergency fund goal (reproducing the spreadsheet's 15,235 and 48,893), installments owed, and a shared month summary including savings in total to pay.
+  - One range loader (`loadLedgerRange`) with view loaders for month, year (12 months plus averages), and savings.
+  - Server actions: edit purchases, incomes, recurring payments (preserving past months), cards, and income sources; create, rename, reorder, and archive categories; savings deposits, withdrawals, goals, and emergency fund months; idempotent creates via client ids.
+
 ## Next
 
-- Exercise slice 2 on a phone with real cards and recurring payments.
-- Slice 3: year view (last 12 months) as the home screen, and the savings screen (average monthly spending, emergency fund, installments owed).
-- Later: editing entries and recurring payments, managing custom categories, offline entry.
+- Screens on top of the new structure: year view as home, savings screen, edit forms for entries/recurring payments/cards/income sources, and category management in Settings.
+- Offline entry: service worker plus a local queue that replays creates with their client ids.

@@ -1,13 +1,26 @@
 import "server-only";
 
 import { db } from "@/db/client";
-import { recurringChargeId } from "@/lib/cash-flow";
-import { addMonths, monthKeyOf, monthRange, type MonthKey } from "@/lib/months";
-import { occurrencesForMonth, type OccurrenceOverride, type RecurringDefinition } from "@/lib/recurring";
-import { buildStatements, type Statement } from "@/lib/statements";
+import { statementsForCards } from "@/lib/card-statements";
+import { earliestContributingMonth } from "@/lib/installments";
+import type { LedgerData } from "@/lib/month-summary";
+import { addMonths, monthRange, type MonthKey } from "@/lib/months";
+import type { OccurrenceOverride, RecurringDefinition } from "@/lib/recurring";
 
-const categorySelect = { id: true, key: true, name: true, sortOrder: true } as const;
+const categorySelect = { id: true, key: true, name: true, sortOrder: true, includeInAverage: true } as const;
 const paymentMethodSelect = { id: true, kind: true, name: true, color: true } as const;
+const purchaseSelect = {
+  id: true,
+  date: true,
+  amountCents: true,
+  description: true,
+  installmentCount: true,
+  category: { select: categorySelect },
+  paymentMethod: { select: paymentMethodSelect },
+} as const;
+
+/** Statements due in a month close that month or the month before, and their recurring charges can date from one month earlier. */
+const STATEMENT_LOOKBACK_MONTHS = 2;
 
 /** All recurring payments, including stopped ones, so past months still show what was due. */
 export function getRecurringDefinitions(userId: string): Promise<RecurringDefinition[]> {
@@ -22,7 +35,7 @@ export function getRecurringDefinitions(userId: string): Promise<RecurringDefini
   });
 }
 
-export function getOccurrenceOverrides(userId: string, from: MonthKey, to: MonthKey): Promise<OccurrenceOverride[]> {
+function getOccurrenceOverrides(userId: string, from: MonthKey, to: MonthKey): Promise<OccurrenceOverride[]> {
   return db.recurringOccurrence.findMany({
     where: { userId, month: { gte: monthRange(from).start, lt: monthRange(to).end } },
     select: { recurringPaymentId: true, month: true, amountCents: true, paidAt: true },
@@ -38,44 +51,49 @@ export function getCards(userId: string) {
   });
 }
 
+export function getSavingsFunds(userId: string) {
+  return db.savingsFund.findMany({
+    where: { userId, archivedAt: null },
+    select: { id: true, kind: true, name: true, targetCents: true, coverMonths: true },
+    orderBy: [{ kind: "asc" }, { createdAt: "asc" }],
+  });
+}
+
 /**
- * Builds card statements from card purchases made since `purchasesFrom` and recurring card charges in
- * `recurringFrom`..`recurringTo`. Statements outside those windows may be incomplete, so callers only use
- * statements the windows fully cover.
+ * Loads everything needed to summarize each month from `from` through `to` (spending, income, recurring
+ * payments, card statements due, savings), with lookbacks for installments and statements.
  */
-export async function getStatements(userId: string, { purchasesFrom, recurringFrom, recurringTo, definitions }: {
-  purchasesFrom: MonthKey;
-  recurringFrom: MonthKey;
-  recurringTo: MonthKey;
-  definitions: RecurringDefinition[];
-}) {
-  const [cards, purchases, overrides, payments] = await Promise.all([
+export async function loadLedgerRange(userId: string, from: MonthKey, to: MonthKey) {
+  const statementsFrom = addMonths(from, -STATEMENT_LOOKBACK_MONTHS);
+  const [categories, definitions, cards, purchases, incomes, overrides, paidStatements, savingsMovements] = await Promise.all([
+    db.category.findMany({ where: { userId }, select: categorySelect, orderBy: { sortOrder: "asc" } }),
+    getRecurringDefinitions(userId),
     getCards(userId),
     db.purchase.findMany({
-      where: { userId, paymentMethod: { kind: "CARD" }, date: { gte: monthRange(purchasesFrom).start } },
-      select: { id: true, description: true, date: true, amountCents: true, installmentCount: true, paymentMethodId: true },
+      where: { userId, date: { gte: monthRange(earliestContributingMonth(statementsFrom)).start, lt: monthRange(to).end } },
+      select: purchaseSelect,
+      orderBy: [{ date: "desc" }, { createdAt: "desc" }],
     }),
-    getOccurrenceOverrides(userId, recurringFrom, recurringTo),
+    db.income.findMany({
+      where: { userId, date: { gte: monthRange(from).start, lt: monthRange(to).end } },
+      select: { id: true, date: true, amountCents: true, note: true, source: { select: { id: true, name: true, isRideshare: true } } },
+      orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+    }),
+    getOccurrenceOverrides(userId, statementsFrom, addMonths(to, 1)),
     db.statementPayment.findMany({ where: { userId }, select: { paymentMethodId: true, statementMonth: true } }),
+    db.savingsMovement.findMany({ where: { userId }, select: { id: true, fundId: true, date: true, amountCents: true, note: true }, orderBy: { date: "desc" } }),
   ]);
 
-  const recurringMonths: MonthKey[] = [];
-  for (let month = recurringFrom; month <= recurringTo; month = addMonths(month, 1)) recurringMonths.push(month);
-  const cardOccurrences = recurringMonths.flatMap((month) =>
-    occurrencesForMonth(definitions.filter((definition) => definition.paymentMethod.kind === "CARD"), overrides, month),
-  );
-
-  const statements: Statement[] = cards.flatMap((card) => {
-    if (card.closingDay == null || card.dueDay == null) return [];
-    return buildStatements(
-      { id: card.id, closingDay: card.closingDay, dueDay: card.dueDay },
-      purchases.filter((purchase) => purchase.paymentMethodId === card.id),
-      cardOccurrences
-        .filter((occurrence) => occurrence.recurring.paymentMethod.id === card.id)
-        .map((occurrence) => ({ id: recurringChargeId(occurrence), description: occurrence.recurring.name, date: occurrence.date, amountCents: occurrence.amountCents })),
-      new Set(payments.filter((payment) => payment.paymentMethodId === card.id).map((payment) => monthKeyOf(payment.statementMonth))),
-    );
+  const statements = statementsForCards({
+    cards,
+    purchases: purchases.filter((purchase) => purchase.paymentMethod.kind === "CARD"),
+    definitions,
+    overrides,
+    recurringFrom: statementsFrom,
+    recurringTo: addMonths(to, 1),
+    paidStatements,
   });
 
-  return { cards, statements };
+  const data: LedgerData = { categories, purchases, incomes, definitions, overrides, statements, savingsMovements };
+  return { data, cards };
 }

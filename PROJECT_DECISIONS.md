@@ -34,8 +34,9 @@ Last updated: 2026-10-03
 - Statements are derived, never stored; only "statement paid" is persisted per card and closing month. Archived cards keep showing while they have unpaid statements.
 - Month balance follows the spreadsheet: income − total to pay.
 - Net rideshare income = rideshare-group income − all Car category spending for the same month. Income is entered gross.
-- Average monthly spending is the average of fixed costs (excluding savings contributions) plus the averages of Food and Car over months that have data, so empty months do not lower the average.
-- Emergency fund target = 3 × average monthly spending. Savings goal = emergency fund target + MSI still owed across all cards. Pending = savings goal − current fund.
+- Average monthly spending covers the last 12 months including the current one: for each category marked "include in average", the mean over the months in which it had spending, summed. Extras are excluded by default; custom categories choose when created.
+- Savings are their own records (deposits and withdrawals into a savings fund), not purchases. Money moved into savings counts in the month's total to pay but never as spending.
+- Every user has one emergency fund whose target is `coverMonths` (default 3) × average monthly spending, plus installments still owed on unpaid statements. Pending = target − fund balance. Additional goal funds have a fixed target.
 
 ## Screens
 
@@ -66,7 +67,12 @@ Last updated: 2026-10-03
 - Purchase and income dates are calendar dates (`@db.Date`) with no time of day. "Today" is decided in `APP_TIME_ZONE` (default `America/Tijuana`).
 - Built-in categories are identified by a stable `key` (`fixed`, `food`, `car`, `extras`) and labelled through translations; custom categories store a `name`.
 - Installment amounts split evenly, with leftover centavos assigned to the earliest installments. Purchases support 1–48 installments, and more than one only when paid by card.
-- Cards and income sources are archived rather than deleted so past records keep them.
+- Cards, income sources, categories, and goal funds are archived rather than deleted so past records keep them. New entries require active ones; edits may keep archived ones already in use.
+- A custom category name takes precedence over the translated built-in label.
+- Editing a recurring payment applies from the current month: if it already ran in earlier months, the old version ends last month and a new version starts this month, carrying over this month's and later per-month changes.
+- Editing a card's billing cycle applies to all of its statements, past ones included.
+- New purchases, incomes, and savings movements may carry a client-generated UUID; repeating a create with the same id does nothing, so retried submissions (such as a future offline queue) never duplicate entries.
+- All month figures come from one range loader plus pure summaries (`loadLedgerRange` + `summarizeMonth`), shared by the month, year, income, cards, and savings screens.
 - Cash is shown in Yield Green, keeping the spreadsheet's convention. Card colors come from a fixed palette that excludes green and red so they never read as a status.
 
 ## Language

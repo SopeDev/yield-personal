@@ -128,7 +128,9 @@
     "day": "Use a day between 1 and 31.",
     "color": "Choose a color.",
     "generic": "Something went wrong. Please try again.",
-    "month": "Choose a valid month."
+    "month": "Choose a valid month.",
+    "coverMonths": "Use a whole number of months from 1 to 24.",
+    "recurringEnded": "This recurring payment has ended and can't be edited."
   },
   "recurring": {
     "title": "Recurring payments",

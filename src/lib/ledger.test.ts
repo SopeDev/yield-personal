@@ -4,10 +4,10 @@ import { monthSpendingEntries, spendingItemsOf, summarizeIncome, summarizeSpendi
 import { dateFromKey } from "./months";
 
 const categories: LedgerCategory[] = [
-  { id: "fixed", key: "fixed", name: null, sortOrder: 0 },
-  { id: "food", key: "food", name: null, sortOrder: 1 },
-  { id: "car", key: "car", name: null, sortOrder: 2 },
-  { id: "extras", key: "extras", name: null, sortOrder: 3 },
+  { id: "fixed", key: "fixed", name: null, sortOrder: 0, includeInAverage: true },
+  { id: "food", key: "food", name: null, sortOrder: 1, includeInAverage: true },
+  { id: "car", key: "car", name: null, sortOrder: 2, includeInAverage: true },
+  { id: "extras", key: "extras", name: null, sortOrder: 3, includeInAverage: false },
 ];
 const cash = { id: "cash", kind: "CASH" as const, name: "Cash", color: "#00c896" };
 const klar = { id: "klar", kind: "CARD" as const, name: "Klar", color: "#14b8a6" };

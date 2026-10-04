@@ -1,3 +1,4 @@
+import type { LedgerCategory, LedgerPaymentMethod } from "./ledger";
 import { dateInMonth, monthKeyOf, type MonthKey } from "./months";
 
 export type RecurringDefinition = {
@@ -7,8 +8,8 @@ export type RecurringDefinition = {
   dayOfMonth: number;
   startMonth: Date;
   endMonth: Date | null;
-  category: { id: string; key: string | null; name: string | null; sortOrder: number };
-  paymentMethod: { id: string; kind: "CASH" | "CARD"; name: string; color: string };
+  category: LedgerCategory;
+  paymentMethod: LedgerPaymentMethod;
 };
 
 export type OccurrenceOverride = { recurringPaymentId: string; month: Date; amountCents: number | null; paidAt: Date | null };

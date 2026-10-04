@@ -20,14 +20,12 @@ function isUuid(value: string) {
   return z.uuid().safeParse(value).success;
 }
 
-export async function createRecurringPayment(_state: FormState, formData: FormData): Promise<FormState> {
-  const userId = await requireActionUserId();
+async function parseRecurring(userId: string, formData: FormData) {
   const name = readText(formData, "name");
   const amountCents = parseAmountToCents(readText(formData, "amount"));
   const categoryId = readText(formData, "categoryId");
   const paymentMethodId = readText(formData, "paymentMethodId");
   const dayOfMonth = Number(readText(formData, "dayOfMonth"));
-  const startMonth = readText(formData, "startMonth");
 
   const fieldErrors: FormState["fieldErrors"] = {};
   if (!name || name.length > MAX_NAME_LENGTH) fieldErrors.name = "name";
@@ -35,22 +33,64 @@ export async function createRecurringPayment(_state: FormState, formData: FormDa
   if (!isUuid(categoryId)) fieldErrors.categoryId = "category";
   if (!isUuid(paymentMethodId)) fieldErrors.paymentMethodId = "paymentMethod";
   if (!Number.isInteger(dayOfMonth) || dayOfMonth < 1 || dayOfMonth > MAX_STATEMENT_DAY) fieldErrors.dayOfMonth = "day";
-  if (!isMonthKey(startMonth)) fieldErrors.startMonth = "month";
   if (Object.keys(fieldErrors).length > 0) return { fieldErrors };
 
   const [category, paymentMethod] = await Promise.all([
-    db.category.findFirst({ where: { id: categoryId, userId }, select: { id: true } }),
+    db.category.findFirst({ where: { id: categoryId, userId, archivedAt: null }, select: { id: true } }),
     db.paymentMethod.findFirst({ where: { id: paymentMethodId, userId, archivedAt: null }, select: { id: true } }),
   ]);
-  if (!category) return { fieldErrors: { categoryId: "category" } };
-  if (!paymentMethod) return { fieldErrors: { paymentMethodId: "paymentMethod" } };
+  if (!category) return { fieldErrors: { categoryId: "category" } as FormState["fieldErrors"] };
+  if (!paymentMethod) return { fieldErrors: { paymentMethodId: "paymentMethod" } as FormState["fieldErrors"] };
 
-  await db.recurringPayment.create({
-    data: { userId, name, amountCents: amountCents!, categoryId, paymentMethodId, dayOfMonth, startMonth: dateFromKey(`${startMonth}-01`) },
-  });
+  return { data: { name, amountCents: amountCents!, categoryId, paymentMethodId, dayOfMonth } };
+}
+
+export async function createRecurringPayment(_state: FormState, formData: FormData): Promise<FormState> {
+  const userId = await requireActionUserId();
+  const startMonth = readText(formData, "startMonth");
+  const parsed = await parseRecurring(userId, formData);
+  const fieldErrors = { ...parsed.fieldErrors, ...(isMonthKey(startMonth) ? {} : { startMonth: "month" as const }) };
+  if (!parsed.data || Object.keys(fieldErrors).length > 0) return { fieldErrors };
+
+  await db.recurringPayment.create({ data: { userId, ...parsed.data, startMonth: dateFromKey(`${startMonth}-01`) } });
   revalidatePath(`/${localeFromForm(formData)}`, "layout");
   return {};
 }
+
+/**
+ * Edits apply from the current month on. A payment that already ran in earlier months is split: the old
+ * version ends last month and a new version starts this month, so past months keep what was actually due.
+ */
+export async function updateRecurringPayment(_state: FormState, formData: FormData): Promise<FormState> {
+  const userId = await requireActionUserId();
+  const id = readText(formData, "id");
+  if (!isUuid(id)) return { error: "generic" };
+  const recurring = await db.recurringPayment.findFirst({ where: { id, userId }, select: { startMonth: true, endMonth: true } });
+  if (!recurring) return { error: "generic" };
+
+  const month = currentMonthKey();
+  if (recurring.endMonth && monthKeyOf(recurring.endMonth) < month) return { error: "recurringEnded" };
+  const parsed = await parseRecurring(userId, formData);
+  if (!parsed.data) return { fieldErrors: parsed.fieldErrors };
+
+  if (monthKeyOf(recurring.startMonth) >= month) {
+    await db.recurringPayment.update({ where: { id }, data: parsed.data });
+  } else {
+    const thisMonth = dateFromKey(`${month}-01`);
+    await db.$transaction(async (tx) => {
+      await tx.recurringPayment.update({ where: { id }, data: { endMonth: dateFromKey(`${addMonths(month, -1)}-01`) } });
+      const next = await tx.recurringPayment.create({
+        data: { userId, ...parsed.data, startMonth: thisMonth, endMonth: recurring.endMonth },
+        select: { id: true },
+      });
+      await tx.recurringOccurrence.updateMany({ where: { recurringPaymentId: id, month: { gte: thisMonth } }, data: { recurringPaymentId: next.id } });
+    });
+  }
+
+  revalidatePath(`/${localeFromForm(formData)}`, "layout");
+  return {};
+}
+
 
 /**
  * Stops a recurring payment. It stays in months already paid or changed, including this one;

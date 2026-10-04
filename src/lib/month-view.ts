@@ -1,39 +1,48 @@
 import "server-only";
 
-import { monthCashFlow } from "@/lib/cash-flow";
-import { earliestContributingMonth } from "@/lib/installments";
-import { getOccurrenceOverrides, getRecurringDefinitions, getStatements } from "@/lib/ledger-data";
-import { monthSpendingEntries, spendingItemsOf, summarizeIncome, summarizeSpending } from "@/lib/ledger";
+import { averageMonthlySpending } from "@/lib/averages";
+import { getSavingsFunds, loadLedgerRange } from "@/lib/ledger-data";
+import { summarizeMonth } from "@/lib/month-summary";
 import { addMonths, type MonthKey } from "@/lib/months";
-import { getCategories, getMonthIncomes, getPurchasesReachingMonth } from "@/lib/queries";
-import { occurrencesForMonth } from "@/lib/recurring";
+import { emergencyFundGoal, fundBalance } from "@/lib/savings";
+import { installmentsOwed } from "@/lib/statements";
 
-/** Statements due in a month close that month or the month before; their purchases reach back one installment span further. */
-const STATEMENT_LOOKBACK_MONTHS = 2;
+/** The year view and averages cover the last 12 months, ending with the given month. */
+export const YEAR_MONTHS = 12;
 
 export async function loadMonthView(userId: string, month: MonthKey) {
-  const definitions = await getRecurringDefinitions(userId);
-  const [categories, purchases, incomes, overrides, { cards, statements }] = await Promise.all([
-    getCategories(userId),
-    getPurchasesReachingMonth(userId, month),
-    getMonthIncomes(userId, month),
-    getOccurrenceOverrides(userId, month, month),
-    getStatements(userId, {
-      purchasesFrom: earliestContributingMonth(addMonths(month, -STATEMENT_LOOKBACK_MONTHS)),
-      recurringFrom: addMonths(month, -STATEMENT_LOOKBACK_MONTHS),
-      recurringTo: addMonths(month, 1),
-      definitions,
+  const { data, cards } = await loadLedgerRange(userId, month, month);
+  return { ...summarizeMonth(data, month), cards, statements: data.statements };
+}
+
+export async function loadYearView(userId: string, endMonth: MonthKey) {
+  const startMonth = addMonths(endMonth, -(YEAR_MONTHS - 1));
+  const { data } = await loadLedgerRange(userId, startMonth, endMonth);
+  const months = Array.from({ length: YEAR_MONTHS }, (_, index) => summarizeMonth(data, addMonths(startMonth, index)));
+  return {
+    data,
+    categories: data.categories,
+    months,
+    average: averageMonthlySpending(months.map((month) => ({ month: month.month, byCategory: month.spending.byCategory }))),
+  };
+}
+
+/** Savings funds with balances, and the emergency fund goal from average spending and installments owed. */
+export async function loadSavingsView(userId: string, currentMonth: MonthKey) {
+  const [{ data, months, average }, funds] = await Promise.all([loadYearView(userId, currentMonth), getSavingsFunds(userId)]);
+  const installmentsOwedCents = installmentsOwed(data.statements);
+
+  return {
+    average,
+    months,
+    installmentsOwedCents,
+    movements: data.savingsMovements,
+    funds: funds.map((fund) => {
+      const balanceCents = fundBalance(data.savingsMovements, fund.id);
+      const goal = fund.kind === "EMERGENCY"
+        ? emergencyFundGoal({ averageMonthlyCents: average.totalCents, coverMonths: fund.coverMonths, installmentsOwedCents, balanceCents })
+        : { emergencyCents: 0, goalCents: fund.targetCents ?? 0, pendingCents: Math.max(0, (fund.targetCents ?? 0) - balanceCents) };
+      return { ...fund, balanceCents, ...goal };
     }),
-  ]);
-
-  const entries = monthSpendingEntries(purchases, month);
-  const occurrences = occurrencesForMonth(definitions, overrides, month);
-  const spending = summarizeSpending(
-    [...spendingItemsOf(entries), ...occurrences.map((occurrence) => ({ categoryId: occurrence.recurring.category.id, amountCents: occurrence.amountCents }))],
-    categories,
-  );
-  const income = summarizeIncome(incomes, spending.carCents);
-  const cashFlow = monthCashFlow({ month, purchases, occurrences, statements });
-
-  return { categories, cards, entries, incomes, occurrences, statements, spending, income, cashFlow };
+  };
 }

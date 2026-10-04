@@ -7,7 +7,7 @@ import { getDictionary } from "@/i18n/dictionaries";
 import { requireUserId } from "@/lib/auth-user";
 import { categoryLabel } from "@/lib/categories";
 import { paymentMethodLabel } from "@/lib/payment-methods";
-import { getActiveIncomeSources, getActivePaymentMethods, getCategories } from "@/lib/queries";
+import { getActiveIncomeSources, getActivePaymentMethods, getActiveCategories } from "@/lib/queries";
 import { todayKey } from "@/lib/today";
 import { cn } from "@/lib/cn";
 
@@ -19,7 +19,7 @@ export default async function AddPage({ params, searchParams }: PageProps<"/[loc
   const messages = getDictionary(locale);
   const today = todayKey();
   const [categories, methods, sources] = await Promise.all([
-    getCategories(userId),
+    getActiveCategories(userId),
     getActivePaymentMethods(userId),
     getActiveIncomeSources(userId),
   ]);

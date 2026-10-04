@@ -7,16 +7,14 @@ import { isLocale } from "@/i18n/config";
 import { format, getDictionary } from "@/i18n/dictionaries";
 import { requireUserId } from "@/lib/auth-user";
 import { formatShortDate } from "@/lib/dates";
-import { getRecurringDefinitions, getStatements } from "@/lib/ledger-data";
+import { loadLedgerRange } from "@/lib/ledger-data";
 import { addMonths, dateKeyOf } from "@/lib/months";
-import type { Statement } from "@/lib/statements";
+import { installmentsOwed, type Statement } from "@/lib/statements";
 import { currentMonthKey, todayKey } from "@/lib/today";
 import { cn } from "@/lib/cn";
 
 /** Statements shown start this many months back; older ones are history. */
 const HISTORY_MONTHS = 3;
-/** A purchase's installments can reach a statement up to 48 months after the one it starts on. */
-const PURCHASE_LOOKBACK_MONTHS = HISTORY_MONTHS + 48;
 
 type StatementState = "paid" | "open" | "upcoming" | "overdue" | "due";
 
@@ -29,13 +27,7 @@ export default async function CardsPage({ params }: PageProps<"/[locale]/cards">
   const today = todayKey();
   const firstMonth = addMonths(currentMonth, -HISTORY_MONTHS);
 
-  const definitions = await getRecurringDefinitions(userId);
-  const { cards, statements } = await getStatements(userId, {
-    purchasesFrom: addMonths(currentMonth, -PURCHASE_LOOKBACK_MONTHS),
-    recurringFrom: addMonths(firstMonth, -1),
-    recurringTo: currentMonth,
-    definitions,
-  });
+  const { data: { statements }, cards } = await loadLedgerRange(userId, firstMonth, currentMonth);
 
   const visibleCards = cards.filter((card) => !card.archivedAt || statements.some((statement) => statement.paymentMethodId === card.id && !statement.paid));
   const toggleLabels = { paid: messages.common.paid, markPaid: messages.common.markPaid, markUnpaid: messages.common.markUnpaid };
@@ -74,11 +66,7 @@ export default async function CardsPage({ params }: PageProps<"/[locale]/cards">
       {visibleCards.map((card) => {
         const cardStatements = statements.filter((statement) => statement.paymentMethodId === card.id && statement.month >= firstMonth);
         const firstOpenMonth = cardStatements.find((statement) => dateKeyOf(statement.closingDate) >= today)?.month;
-        const installmentsOwedCents = cardStatements
-          .filter((statement) => !statement.paid)
-          .flatMap((statement) => statement.charges)
-          .filter((charge) => charge.installmentCount > 1)
-          .reduce((sum, charge) => sum + charge.amountCents, 0);
+        const installmentsOwedCents = installmentsOwed(cardStatements);
 
         return (
           <section className="space-y-3" key={card.id}>
