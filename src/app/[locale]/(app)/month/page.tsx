@@ -27,7 +27,10 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
   const { locale } = await params;
   if (!isLocale(locale)) return null;
   const userId = await requireUserId(locale);
-  const month = monthFromSearchParam((await searchParams).m, currentMonthKey());
+  const query = await searchParams;
+  const month = monthFromSearchParam(query.m, currentMonthKey());
+  // Opening a cell of the year view filters the month's entries and recurring payments to one item.
+  const itemFilter = typeof query.item === "string" ? query.item : null;
   const messages = getDictionary(locale);
   const { cards, entries, incomes, occurrences, statements, spending, income, cashFlow } = await loadMonthView(userId, month);
 
@@ -36,10 +39,13 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
   const toggleLabels = { paid: messages.common.paid, markPaid: messages.common.markPaid, markUnpaid: messages.common.markUnpaid };
 
   // Installments of purchases made in earlier months are listed apart from this month's days.
-  const carriedInstallments = entries.filter((entry) => entry.installmentNumber > 1);
+  const visibleEntries = itemFilter ? entries.filter((entry) => entry.purchase.item.id === itemFilter) : entries;
+  const visibleOccurrences = itemFilter ? occurrences.filter((occurrence) => occurrence.recurring.item.id === itemFilter) : occurrences;
+  const filteredItemName = visibleEntries[0]?.purchase.item.name ?? visibleOccurrences[0]?.recurring.item.name;
+  const carriedInstallments = visibleEntries.filter((entry) => entry.installmentNumber > 1);
   const dayItems: DayItem[] = [
-    ...entries.filter((entry) => entry.installmentNumber === 1).map((entry) => ({ kind: "purchase" as const, entry, date: entry.purchase.date })),
-    ...incomes.map((item) => ({ kind: "income" as const, income: item, date: item.date })),
+    ...visibleEntries.filter((entry) => entry.installmentNumber === 1).map((entry) => ({ kind: "purchase" as const, entry, date: entry.purchase.date })),
+    ...(itemFilter ? [] : incomes).map((item) => ({ kind: "income" as const, income: item, date: item.date })),
   ].sort((a, b) => b.date.getTime() - a.date.getTime());
   const today = todayKey();
 
@@ -66,6 +72,13 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
   return (
     <div className="space-y-7">
       <MonthNav labels={messages.common} locale={locale} month={month} path={`/${locale}/month`} />
+
+      {itemFilter ? (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/40 bg-primary/10 px-4 py-3 text-sm">
+          <span className="font-medium">{filteredItemName ? format(messages.year.filteredBy, { item: filteredItemName }) : messages.month.empty}</span>
+          <Link className="shrink-0 font-semibold text-primary" href={`/${locale}/month?m=${month}`}>{messages.year.clearFilter}</Link>
+        </div>
+      ) : null}
 
       <Card>
         <div className="border-b border-border px-4 py-4 text-center">
@@ -103,54 +116,56 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
         </Section>
       ) : null}
 
-      <Section action={<Link className="text-sm font-medium text-primary" href={`/${locale}/recurring`}>{messages.common.manage}</Link>} title={messages.month.recurring}>
-        {occurrences.length === 0 ? (
-          <Card className="px-4 py-6 text-center">
-            <p className="text-muted-foreground">{messages.month.recurringEmpty}</p>
-            <Link className="mt-3 inline-flex min-h-11 items-center font-semibold text-primary" href={`/${locale}/recurring`}>{messages.month.addRecurring}</Link>
-          </Card>
-        ) : (
-          <Card>
-            <ul className="divide-y divide-border">
-              {occurrences.map((occurrence) => {
-                const { recurring } = occurrence;
-                const status = occurrencePaymentStatus(occurrence, statements);
-                const details = status.statement
-                  ? format(messages.month.onStatement, { card: recurring.paymentMethod.name, date: formatShortDate(status.statement.dueDate, locale) })
-                  : [format(messages.month.day, { day: occurrence.date.getUTCDate() }), paymentMethodLabel(recurring.paymentMethod, messages.common.cash)].join(" · ");
-                return (
-                  <li key={recurring.id}>
-                    <details className="group">
-                      <summary className="flex cursor-pointer list-none items-center gap-3 py-3 pl-4 pr-3">
-                        <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: recurring.paymentMethod.color }} />
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate font-medium">{recurring.item.name}</p>
-                          <p className="truncate text-sm text-muted-foreground">{occurrence.amountChanged ? `${details} · ${messages.month.changedAmount}` : details}</p>
-                        </div>
-                        <Money cents={occurrence.amountCents} />
-                      </summary>
-                      <OccurrenceAmountForm
-                        amount={(occurrence.amountCents / 100).toFixed(2)}
-                        locale={locale}
-                        messages={messages}
-                        month={month}
-                        recurringPaymentId={recurring.id}
-                      />
-                    </details>
-                    <div className="flex justify-end px-3 pb-3 -mt-1">
-                      {recurring.paymentMethod.kind === "CASH" ? (
-                        <PaidToggle action={setOccurrencePaid} fields={{ locale, recurringPaymentId: recurring.id, month }} labels={toggleLabels} paid={status.paid} />
-                      ) : (
-                        <StatusBadge labels={messages.common} paid={status.paid} />
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          </Card>
-        )}
-      </Section>
+      {itemFilter && visibleOccurrences.length === 0 ? null : (
+        <Section action={<Link className="text-sm font-medium text-primary" href={`/${locale}/recurring`}>{messages.common.manage}</Link>} title={messages.month.recurring}>
+          {visibleOccurrences.length === 0 ? (
+            <Card className="px-4 py-6 text-center">
+              <p className="text-muted-foreground">{messages.month.recurringEmpty}</p>
+              <Link className="mt-3 inline-flex min-h-11 items-center font-semibold text-primary" href={`/${locale}/recurring`}>{messages.month.addRecurring}</Link>
+            </Card>
+          ) : (
+            <Card>
+              <ul className="divide-y divide-border">
+                {visibleOccurrences.map((occurrence) => {
+                  const { recurring } = occurrence;
+                  const status = occurrencePaymentStatus(occurrence, statements);
+                  const details = status.statement
+                    ? format(messages.month.onStatement, { card: recurring.paymentMethod.name, date: formatShortDate(status.statement.dueDate, locale) })
+                    : [format(messages.month.day, { day: occurrence.date.getUTCDate() }), paymentMethodLabel(recurring.paymentMethod, messages.common.cash)].join(" · ");
+                  return (
+                    <li key={recurring.id}>
+                      <details className="group">
+                        <summary className="flex cursor-pointer list-none items-center gap-3 py-3 pl-4 pr-3">
+                          <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: recurring.paymentMethod.color }} />
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate font-medium">{recurring.item.name}</p>
+                            <p className="truncate text-sm text-muted-foreground">{occurrence.amountChanged ? `${details} · ${messages.month.changedAmount}` : details}</p>
+                          </div>
+                          <Money cents={occurrence.amountCents} />
+                        </summary>
+                        <OccurrenceAmountForm
+                          amount={(occurrence.amountCents / 100).toFixed(2)}
+                          locale={locale}
+                          messages={messages}
+                          month={month}
+                          recurringPaymentId={recurring.id}
+                        />
+                      </details>
+                      <div className="flex justify-end px-3 pb-3 -mt-1">
+                        {recurring.paymentMethod.kind === "CASH" ? (
+                          <PaidToggle action={setOccurrencePaid} fields={{ locale, recurringPaymentId: recurring.id, month }} labels={toggleLabels} paid={status.paid} />
+                        ) : (
+                          <StatusBadge labels={messages.common} paid={status.paid} />
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </Card>
+          )}
+        </Section>
+      )}
 
       <Section title={messages.month.byCategory}>
         <Card>

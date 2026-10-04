@@ -41,7 +41,8 @@ Last updated: 2026-10-03
 
 ## Screens
 
-- **Year view (home)**: categories as rows, the last 12 months ending with the current month as columns, with subtotals, consumption, total to pay, outstanding, income, and balance. Tapping a cell opens that month's records for that category.
+- **Year view**: categories with their items as rows, the last 12 months ending with the current month as columns (navigable by 12 months), a yearly total column, then spending, total to pay, outstanding, income, and balance. Amounts are whole pesos to fit; on phones the item column stays pinned and the grid opens scrolled to the current month. Tapping an item's cell opens that month filtered to the item.
+- The app opens on the Month view; the Year view is a tab. Navigation: Month, Year, Add, Income, Cards, with Settings in the header.
 - **Quick add**: always-available entry for an expense or income. Expense flow: amount → category → payment method → date (defaults to today) → installments when paid by card.
 - **Month view**: all records for the month, recurring payments with paid/unpaid state, and card statements due.
 - **Cards**: current statement, next due date, and upcoming installments per card.

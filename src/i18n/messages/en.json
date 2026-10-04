@@ -13,7 +13,8 @@
     "income": "Income",
     "add": "Add",
     "settings": "Settings",
-    "cards": "Cards"
+    "cards": "Cards",
+    "year": "Year"
   },
   "categories": {
     "fixed": "Fixed",
@@ -165,5 +166,20 @@
     "charges": "Charges",
     "installment": "{number} of {count}",
     "recurringCharge": "Recurring"
+  },
+  "year": {
+    "title": "Year",
+    "total": "Total",
+    "spending": "Spending",
+    "toPay": "To pay",
+    "outstanding": "Outstanding",
+    "income": "Income",
+    "balance": "Balance",
+    "previous": "Previous 12 months",
+    "next": "Next 12 months",
+    "item": "Item",
+    "noItems": "No spending",
+    "filteredBy": "Showing {item}",
+    "clearFilter": "Show all"
   }
 }

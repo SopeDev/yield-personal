@@ -13,3 +13,10 @@ export function parseAmountToCents(input: string): number | null {
 export function formatCents(cents: number) {
   return pesoFormat.format(cents / 100);
 }
+
+const wholePesoFormat = new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 });
+
+/** Whole pesos ("$1,230"), for dense grids where centavos don't fit. */
+export function formatWholePesos(cents: number) {
+  return wholePesoFormat.format(Math.round(cents / 100));
+}

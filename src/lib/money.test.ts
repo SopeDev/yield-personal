@@ -18,3 +18,9 @@ test("formats centavos as pesos", () => {
   assert.equal(formatCents(123000), "$1,230.00");
   assert.equal(formatCents(-1756060), "-$17,560.60");
 });
+
+test("formats whole pesos for dense grids", async () => {
+  const { formatWholePesos } = await import("./money");
+  assert.equal(formatWholePesos(123050), "$1,231");
+  assert.equal(formatWholePesos(-1756060), "-$17,561");
+});

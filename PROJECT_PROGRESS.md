@@ -38,7 +38,13 @@ Last updated: 2026-10-03
   - Expense and recurring forms: an item field suggesting existing items; a new name asks for its category. Purchases gained an optional note.
   - Actions to rename or recategorize, archive, and merge items.
 
+- Year view: spreadsheet-style 12-month grid (categories, item rows, yearly totals, spending/to pay/outstanding/income/balance), month view filtering by item, Year tab in navigation with Settings moved to the header.
+- Prisma migrations always use the direct (non-pooled) connection, after a pooled session kept the migration lock and blocked deploys.
+
 ## Next
 
-- Screens on top of the new structure: year view as home (categories with their items as rows, like the spreadsheet), savings screen, edit forms for entries/recurring payments/cards/income sources, and item and category management in Settings.
+- Editing entries, recurring payments, cards, and income sources.
+- Savings screen.
+- Item and category management in Settings (rename, recategorize, merge, archive, reorder).
+- Faster quick add (remember each item's usual payment method and amount).
 - Offline entry: service worker plus a local queue that replays creates with their client ids.

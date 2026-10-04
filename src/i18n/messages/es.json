@@ -13,7 +13,8 @@
     "income": "Ingresos",
     "add": "Agregar",
     "settings": "Ajustes",
-    "cards": "Tarjetas"
+    "cards": "Tarjetas",
+    "year": "Año"
   },
   "categories": {
     "fixed": "Fijos",
@@ -165,5 +166,20 @@
     "charges": "Cargos",
     "installment": "{number} de {count}",
     "recurringCharge": "Recurrente"
+  },
+  "year": {
+    "title": "Año",
+    "total": "Total",
+    "spending": "Consumo real",
+    "toPay": "Total a pagar",
+    "outstanding": "Por pagar",
+    "income": "Ingreso total",
+    "balance": "Balance",
+    "previous": "12 meses anteriores",
+    "next": "12 meses siguientes",
+    "item": "Concepto",
+    "noItems": "Sin gastos",
+    "filteredBy": "Mostrando {item}",
+    "clearFilter": "Ver todo"
   }
 }
