@@ -1,3 +1,4 @@
 import type { ErrorKey } from "@/i18n/dictionaries";
 
-export type FormState = { error?: ErrorKey; fieldErrors?: Partial<Record<string, ErrorKey>> };
+/** Result of a form action. `savedAt` marks a success for forms that stay on the page after saving. */
+export type FormState = { error?: ErrorKey; fieldErrors?: Partial<Record<string, ErrorKey>>; savedAt?: number };

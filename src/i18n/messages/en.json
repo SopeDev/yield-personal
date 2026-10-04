@@ -14,7 +14,8 @@
     "add": "Add",
     "settings": "Settings",
     "cards": "Cards",
-    "year": "Year"
+    "year": "Year",
+    "savings": "Savings"
   },
   "categories": {
     "fixed": "Fixed",
@@ -37,7 +38,9 @@
     "markUnpaid": "Mark unpaid",
     "change": "Change",
     "cancel": "Cancel",
-    "manage": "Manage"
+    "manage": "Manage",
+    "saveChanges": "Save changes",
+    "edit": "Edit"
   },
   "month": {
     "spending": "Spending",
@@ -210,5 +213,71 @@
     "noItems": "No spending",
     "filteredBy": "Showing {item}",
     "clearFilter": "Show all"
+  },
+  "edit": {
+    "purchaseTitle": "Edit expense",
+    "incomeTitle": "Edit income"
+  },
+  "savings": {
+    "title": "Savings",
+    "emergencyFund": "Emergency fund",
+    "balance": "Saved",
+    "goal": "Goal",
+    "pending": "Still to save",
+    "reached": "Goal reached",
+    "averageSpending": "Average monthly spending",
+    "timesMonths": "× {months} months",
+    "installmentsOwed": "Installments owed",
+    "coverMonths": "Months of spending to cover",
+    "averageBreakdown": "Average monthly spending",
+    "monthsWithData": "{months} months with data",
+    "averageEmpty": "Record a few months of spending to calculate your average.",
+    "move": "Add or withdraw",
+    "deposit": "Deposit",
+    "withdraw": "Withdraw",
+    "saveDeposit": "Save deposit",
+    "saveWithdrawal": "Save withdrawal",
+    "fund": "Fund",
+    "history": "Recent movements",
+    "historyEmpty": "No savings recorded yet.",
+    "confirmDelete": "Delete this movement?",
+    "goals": "Goals",
+    "addGoal": "Add goal",
+    "goalName": "Goal name",
+    "goalNamePlaceholder": "e.g. Trip, New laptop",
+    "target": "Target amount",
+    "archiveGoal": "Archive goal",
+    "confirmArchiveGoal": "Archive this goal? Its movements stay in your history.",
+    "settings": "Settings",
+    "excludedNote": "Categories set to not count in the average (like Extras) are left out."
+  },
+  "manage": {
+    "categories": "Categories",
+    "categoryName": "Name",
+    "categoryNamePlaceholder": "e.g. Health, Pets",
+    "builtInNameHint": "Leave empty to keep the default name.",
+    "includeInAverage": "Count in average monthly spending",
+    "includeInAverageHint": "Turn off for one-off spending, like Extras.",
+    "addCategory": "Add category",
+    "excludedBadge": "Not in average",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "archiveCategory": "Archive category",
+    "confirmArchiveCategory": "Archive this category? Its items and history stay; it just won't be offered for new entries.",
+    "archivedCategories": "Archived categories",
+    "restore": "Restore",
+    "items": "Items",
+    "itemsLink": "Items",
+    "itemsDescription": "Reusable expenses grouped by category. Moving an item moves its whole history.",
+    "itemUses": "{count} entries",
+    "moveHint": "Moving an item to another category moves all its history.",
+    "mergeInto": "Merge into",
+    "chooseItem": "Choose an item",
+    "merge": "Merge",
+    "confirmMerge": "Merge “{source}” into “{target}”? All its entries and recurring payments move to “{target}” and “{source}” is removed.",
+    "archiveItem": "Archive item",
+    "confirmArchiveItem": "Archive this item? Its history stays; typing its name again brings it back.",
+    "archivedItems": "Archived items",
+    "itemsEmpty": "No items yet. They're created when you record an expense."
   }
 }

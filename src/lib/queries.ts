@@ -48,3 +48,30 @@ export function getActiveIncomeSources(userId: string) {
     orderBy: { createdAt: "asc" },
   });
 }
+
+export function getOwnedPurchase(userId: string, id: string) {
+  return db.purchase.findFirst({
+    where: { id, userId },
+    select: {
+      id: true, date: true, amountCents: true, note: true, installmentCount: true, paymentMethodId: true,
+      item: { select: { name: true } },
+      paymentMethod: { select: { id: true, kind: true, name: true, color: true } },
+    },
+  });
+}
+
+export function getOwnedIncome(userId: string, id: string) {
+  return db.income.findFirst({
+    where: { id, userId },
+    select: { id: true, date: true, amountCents: true, note: true, source: { select: { id: true, name: true } } },
+  });
+}
+
+/** Every category with whether it is archived, for managing categories. */
+export function getCategoriesForManagement(userId: string) {
+  return db.category.findMany({
+    where: { userId },
+    select: { ...categorySelect, archivedAt: true },
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+  });
+}

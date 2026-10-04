@@ -4,14 +4,14 @@ import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, CreditCard, Plus, Settings, Table2, Wallet } from "lucide-react";
+import { CalendarDays, CreditCard, PiggyBank, Plus, Settings, Table2, Wallet } from "lucide-react";
 import type { Locale } from "@/i18n/config";
 import { cn } from "@/lib/cn";
 
 export function AppShell({ children, locale, labels }: {
   children: ReactNode;
   locale: Locale;
-  labels: { month: string; year: string; income: string; add: string; cards: string; settings: string };
+  labels: { month: string; year: string; income: string; add: string; cards: string; settings: string; savings: string };
 }) {
   const pathname = usePathname();
   const navigation = [
@@ -21,6 +21,7 @@ export function AppShell({ children, locale, labels }: {
     { href: `/${locale}/cards`, label: labels.cards, icon: CreditCard },
   ];
   const settingsHref = `/${locale}/settings`;
+  const savingsHref = `/${locale}/savings`;
   const addActive = pathname === `/${locale}/add`;
 
   return (
@@ -30,14 +31,24 @@ export function AppShell({ children, locale, labels }: {
           <Link href={`/${locale}/month`}>
             <Image alt="Yield" height={24} priority src="/brand/yield-logo.svg" width={80} />
           </Link>
-          <Link
-            aria-current={pathname === settingsHref ? "page" : undefined}
-            aria-label={labels.settings}
-            className={cn("flex size-10 items-center justify-center rounded-full transition hover:bg-surface", pathname === settingsHref ? "text-primary" : "text-muted-foreground")}
-            href={settingsHref}
-          >
-            <Settings aria-hidden="true" className="size-5" />
-          </Link>
+          <div className="flex items-center gap-1">
+            <Link
+              aria-current={pathname === savingsHref ? "page" : undefined}
+              aria-label={labels.savings}
+              className={cn("flex size-10 items-center justify-center rounded-full transition hover:bg-surface", pathname === savingsHref ? "text-primary" : "text-muted-foreground")}
+              href={savingsHref}
+            >
+              <PiggyBank aria-hidden="true" className="size-5" />
+            </Link>
+            <Link
+              aria-current={pathname === settingsHref ? "page" : undefined}
+              aria-label={labels.settings}
+              className={cn("flex size-10 items-center justify-center rounded-full transition hover:bg-surface", pathname === settingsHref ? "text-primary" : "text-muted-foreground")}
+              href={settingsHref}
+            >
+              <Settings aria-hidden="true" className="size-5" />
+            </Link>
+          </div>
         </div>
       </header>
 

@@ -1,31 +1,45 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { createPurchase } from "@/app/actions/entries";
+import { createPurchase, updatePurchase } from "@/app/actions/entries";
 import type { FormState } from "@/app/actions/form-state";
 import { format, type Messages } from "@/i18n/dictionaries";
 import { splitInstallments, MAX_INSTALLMENTS } from "@/lib/installments";
 import { formatCents, parseAmountToCents } from "@/lib/money";
 import { AmountInput } from "./amount-input";
-import { Chip, Field, inputClass, SubmitButton, submitWithoutReset } from "./form-controls";
+import { Chip, Field, inputClass, SubmitButton, submitWithoutReset, useClientId } from "./form-controls";
 import { ItemField, type CategoryOption, type ItemOption } from "./item-field";
 
 type MethodOption = { id: string; label: string; color?: string; isCard: boolean };
 
+/** Values of an existing purchase being edited. */
+export type PurchaseInitial = {
+  id: string;
+  amount: string;
+  itemName: string;
+  paymentMethodId: string;
+  installments: number;
+  date: string;
+  note: string;
+};
+
 const DEFAULT_CATEGORY_KEY = "food";
 
-export function ExpenseForm({ locale, today, items, categories, methods, messages }: {
+/** Records a new expense, or edits one when `initial` is given. */
+export function ExpenseForm({ locale, today, items, categories, methods, messages, initial }: {
   locale: string;
   today: string;
   items: ItemOption[];
   categories: CategoryOption[];
   methods: MethodOption[];
   messages: Messages;
+  initial?: PurchaseInitial;
 }) {
-  const [state, formAction, pending] = useActionState<FormState, FormData>(createPurchase, {});
-  const [methodId, setMethodId] = useState(methods[0]?.id ?? "");
-  const [amount, setAmount] = useState("");
-  const [installments, setInstallments] = useState("1");
+  const [state, formAction, pending] = useActionState<FormState, FormData>(initial ? updatePurchase : createPurchase, {});
+  const [methodId, setMethodId] = useState(initial?.paymentMethodId ?? methods[0]?.id ?? "");
+  const [amount, setAmount] = useState(initial?.amount ?? "");
+  const [installments, setInstallments] = useState(String(initial?.installments ?? 1));
+  const clientId = useClientId();
   const errors = state.fieldErrors ?? {};
   const isCard = methods.find((method) => method.id === methodId)?.isCard ?? false;
 
@@ -36,13 +50,14 @@ export function ExpenseForm({ locale, today, items, categories, methods, message
     : messages.add.singlePayment;
 
   return (
-    <form className="space-y-6" onSubmit={(event) => submitWithoutReset(event, formAction)}>
+    <form className="space-y-6" onSubmit={(event) => submitWithoutReset(event, formAction, initial ? undefined : clientId())}>
       <input name="locale" type="hidden" value={locale} />
+      {initial ? <input name="id" type="hidden" value={initial.id} /> : null}
       <Field error={errors.amount} errors={messages.errors} htmlFor="amount" label={messages.add.amount}>
-        <AmountInput autoFocus onChange={setAmount} />
+        <AmountInput autoFocus={!initial} defaultValue={initial?.amount} onChange={setAmount} />
       </Field>
 
-      <ItemField categories={categories} defaultCategoryKey={DEFAULT_CATEGORY_KEY} errors={errors} items={items} messages={messages} />
+      <ItemField categories={categories} defaultCategoryKey={DEFAULT_CATEGORY_KEY} defaultName={initial?.itemName} errors={errors} items={items} messages={messages} />
 
       <Field error={errors.paymentMethodId} errors={messages.errors} label={messages.add.paidWith}>
         <div className="flex flex-wrap gap-2">
@@ -72,15 +87,15 @@ export function ExpenseForm({ locale, today, items, categories, methods, message
       ) : null}
 
       <Field error={errors.date} errors={messages.errors} htmlFor="date" label={messages.add.date}>
-        <input className={inputClass} defaultValue={today} id="date" name="date" required type="date" />
+        <input className={inputClass} defaultValue={initial?.date ?? today} id="date" name="date" required type="date" />
       </Field>
 
       <Field error={errors.note} errors={messages.errors} htmlFor="note" label={messages.add.note}>
-        <input className={inputClass} id="note" maxLength={200} name="note" placeholder={messages.add.notePlaceholder} />
+        <input className={inputClass} defaultValue={initial?.note} id="note" maxLength={200} name="note" placeholder={messages.add.notePlaceholder} />
       </Field>
 
       {state.error ? <p className="text-sm text-loss" role="alert">{messages.errors[state.error]}</p> : null}
-      <SubmitButton label={messages.add.saveExpense} pending={pending} pendingLabel={messages.common.saving} />
+      <SubmitButton label={initial ? messages.common.saveChanges : messages.add.saveExpense} pending={pending} pendingLabel={messages.common.saving} />
     </form>
   );
 }

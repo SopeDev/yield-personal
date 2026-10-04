@@ -50,7 +50,9 @@ Last updated: 2026-10-03
 - **Month view**: all records for the month, recurring payments with paid/unpaid state, and card statements due.
 - **Cards**: current statement, next due date, and upcoming installments per card.
 - **Income**: daily log with monthly totals per source and net rideshare income.
-- **Savings**: average monthly spending, emergency fund target, MSI owed, current fund, and pending amount.
+- **Savings** (header icon): emergency fund balance and progress toward its goal (average monthly spending × months to cover + installments owed), average spending by category, deposits and withdrawals, other goals with targets, and recent movements.
+- **Editing**: purchases and income open in the same form used to add them (tap an entry); cards, income sources, categories, and recurring payments open in place in their lists. Items are managed on their own page from Settings (rename, change category, merge, archive, restore).
+- New purchases, incomes, and savings movements send a client-generated id, so a double tap or retry never records an entry twice; forms that stay on the page get a fresh id after each save.
 
 ## Brand
 

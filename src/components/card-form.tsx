@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { createCard } from "@/app/actions/settings";
+import { createCard, updateCard } from "@/app/actions/settings";
 import type { FormState } from "@/app/actions/form-state";
 import { format, type Messages } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
@@ -11,24 +11,30 @@ import { Field, inputClass, SubmitButton } from "./form-controls";
 
 const PAYMENT_DAY_PRESETS = [15, 20, 30] as const;
 
-export function CardForm({ locale, messages, usedColors }: { locale: string; messages: Messages; usedColors: string[] }) {
-  const [state, formAction, pending] = useActionState<FormState, FormData>(createCard, {});
-  const [paymentDays, setPaymentDays] = useState(String(DEFAULT_PAYMENT_DAYS));
+/** Values of an existing card being edited. */
+export type CardInitial = { id: string; name: string; color: string; closingDay: number; paymentDays: number };
+
+/** Adds a card, or edits one when `initial` is given. */
+export function CardForm({ locale, messages, usedColors, initial }: { locale: string; messages: Messages; usedColors: string[]; initial?: CardInitial }) {
+  const [state, formAction, pending] = useActionState<FormState, FormData>(initial ? updateCard : createCard, {});
+  const [paymentDays, setPaymentDays] = useState(String(initial?.paymentDays ?? DEFAULT_PAYMENT_DAYS));
   const errors = state.fieldErrors ?? {};
-  const firstFreeColor = CARD_COLORS.find((color) => !usedColors.includes(color)) ?? CARD_COLORS[0];
+  const selectedColor = initial?.color ?? CARD_COLORS.find((color) => !usedColors.includes(color)) ?? CARD_COLORS[0];
+  const idPrefix = initial ? `card-${initial.id}` : "card-new";
 
   return (
     <form action={formAction} className="space-y-5 p-4">
       <input name="locale" type="hidden" value={locale} />
-      <Field error={errors.name} errors={messages.errors} htmlFor="card-name" label={messages.settings.cardName}>
-        <input className={inputClass} id="card-name" maxLength={40} name="name" placeholder={messages.settings.cardNamePlaceholder} required />
+      {initial ? <input name="id" type="hidden" value={initial.id} /> : null}
+      <Field error={errors.name} errors={messages.errors} htmlFor={`${idPrefix}-name`} label={messages.settings.cardName}>
+        <input className={inputClass} defaultValue={initial?.name} id={`${idPrefix}-name`} maxLength={40} name="name" placeholder={messages.settings.cardNamePlaceholder} required />
       </Field>
 
       <Field error={errors.color} errors={messages.errors} label={messages.settings.color}>
         <div className="flex flex-wrap gap-3">
           {CARD_COLORS.map((color) => (
             <label className="cursor-pointer" key={color}>
-              <input className="peer sr-only" defaultChecked={color === firstFreeColor} name="color" type="radio" value={color} />
+              <input className="peer sr-only" defaultChecked={color === selectedColor} name="color" type="radio" value={color} />
               <span
                 aria-label={color}
                 className="block size-9 rounded-full ring-offset-2 ring-offset-surface transition peer-checked:ring-2 peer-checked:ring-foreground peer-focus-visible:ring-2 peer-focus-visible:ring-primary"
@@ -39,11 +45,11 @@ export function CardForm({ locale, messages, usedColors }: { locale: string; mes
         </div>
       </Field>
 
-      <Field error={errors.closingDay} errors={messages.errors} htmlFor="closing-day" label={messages.settings.closingDay}>
-        <input className={`${inputClass} w-28 font-mono`} id="closing-day" inputMode="numeric" max={MAX_STATEMENT_DAY} min={1} name="closingDay" required type="number" />
+      <Field error={errors.closingDay} errors={messages.errors} htmlFor={`${idPrefix}-closing`} label={messages.settings.closingDay}>
+        <input className={`${inputClass} w-28 font-mono`} defaultValue={initial?.closingDay} id={`${idPrefix}-closing`} inputMode="numeric" max={MAX_STATEMENT_DAY} min={1} name="closingDay" required type="number" />
       </Field>
 
-      <Field error={errors.paymentDays} errors={messages.errors} htmlFor="payment-days" label={messages.settings.paymentDays}>
+      <Field error={errors.paymentDays} errors={messages.errors} htmlFor={`${idPrefix}-days`} label={messages.settings.paymentDays}>
         <div className="flex flex-wrap items-center gap-2">
           {PAYMENT_DAY_PRESETS.map((days) => (
             <button
@@ -62,7 +68,7 @@ export function CardForm({ locale, messages, usedColors }: { locale: string; mes
           <input
             aria-label={messages.settings.paymentDays}
             className={`${inputClass} w-24 text-center font-mono`}
-            id="payment-days"
+            id={`${idPrefix}-days`}
             inputMode="numeric"
             max={MAX_PAYMENT_DAYS}
             min={1}
@@ -76,7 +82,8 @@ export function CardForm({ locale, messages, usedColors }: { locale: string; mes
         <p className="text-sm text-muted-foreground">{messages.settings.paymentDaysHint}</p>
       </Field>
 
-      <SubmitButton label={messages.settings.addCard} pending={pending} pendingLabel={messages.common.saving} />
+      {state.error ? <p className="text-sm text-loss" role="alert">{messages.errors[state.error]}</p> : null}
+      <SubmitButton label={initial ? messages.common.saveChanges : messages.settings.addCard} pending={pending} pendingLabel={messages.common.saving} />
     </form>
   );
 }

@@ -70,3 +70,11 @@ export async function mergeItems(formData: FormData) {
   ]);
   revalidatePath(`/${localeFromForm(formData)}`, "layout");
 }
+
+export async function restoreItem(formData: FormData) {
+  const userId = await requireActionUserId();
+  const id = readText(formData, "id");
+  if (!isUuid(id)) return;
+  await db.expenseItem.updateMany({ where: { id, userId }, data: { archivedAt: null } });
+  revalidatePath(`/${localeFromForm(formData)}`, "layout");
+}

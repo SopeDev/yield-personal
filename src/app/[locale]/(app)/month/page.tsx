@@ -65,6 +65,7 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
         cents={entry.amountCents}
         color={purchase.paymentMethod.color}
         details={details}
+        href={`/${locale}/edit/purchase/${purchase.id}`}
         key={purchase.id}
         title={purchase.item.name}
         trailing={<DeleteButton action={deletePurchase} confirmMessage={messages.month.confirmDeletePurchase} id={purchase.id} label={messages.common.delete} locale={locale} />}
@@ -238,6 +239,7 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
                           cents={item.income.amountCents}
                           color="var(--color-gain)"
                           details={[messages.month.income, item.income.note].filter(Boolean).join(" · ")}
+                          href={`/${locale}/edit/income/${item.income.id}`}
                           key={item.income.id}
                           signed
                           title={item.income.source.name}

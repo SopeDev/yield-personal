@@ -142,6 +142,14 @@ export async function archiveCategory(formData: FormData) {
   revalidatePath(`/${localeFromForm(formData)}`, "layout");
 }
 
+export async function restoreCategory(formData: FormData) {
+  const userId = await requireActionUserId();
+  const id = readText(formData, "id");
+  if (!z.uuid().safeParse(id).success) return;
+  await db.category.updateMany({ where: { id, userId }, data: { archivedAt: null } });
+  revalidatePath(`/${localeFromForm(formData)}`, "layout");
+}
+
 /** Swaps a category with its neighbor in the display order. */
 export async function moveCategory(formData: FormData) {
   const userId = await requireActionUserId();

@@ -81,6 +81,7 @@ export default async function IncomePage({ params, searchParams }: PageProps<"/[
                         cents={item.amountCents}
                         color="var(--color-gain)"
                         details={item.note ?? (item.source.isRideshare ? messages.settings.rideshareBadge : messages.month.income)}
+                        href={`/${locale}/edit/income/${item.id}`}
                         key={item.id}
                         signed
                         title={item.source.name}

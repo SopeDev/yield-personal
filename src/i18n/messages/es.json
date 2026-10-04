@@ -14,7 +14,8 @@
     "add": "Agregar",
     "settings": "Ajustes",
     "cards": "Tarjetas",
-    "year": "Año"
+    "year": "Año",
+    "savings": "Ahorro"
   },
   "categories": {
     "fixed": "Fijos",
@@ -37,7 +38,9 @@
     "markUnpaid": "Marcar sin pagar",
     "change": "Cambiar",
     "cancel": "Cancelar",
-    "manage": "Administrar"
+    "manage": "Administrar",
+    "saveChanges": "Guardar cambios",
+    "edit": "Editar"
   },
   "month": {
     "spending": "Gastos",
@@ -210,5 +213,71 @@
     "noItems": "Sin gastos",
     "filteredBy": "Mostrando {item}",
     "clearFilter": "Ver todo"
+  },
+  "edit": {
+    "purchaseTitle": "Editar gasto",
+    "incomeTitle": "Editar ingreso"
+  },
+  "savings": {
+    "title": "Ahorro",
+    "emergencyFund": "Fondo de emergencia",
+    "balance": "Ahorrado",
+    "goal": "Meta",
+    "pending": "Pendiente",
+    "reached": "Meta alcanzada",
+    "averageSpending": "Gastos mensuales promedio",
+    "timesMonths": "× {months} meses",
+    "installmentsOwed": "MSI por pagar",
+    "coverMonths": "Meses de gastos a cubrir",
+    "averageBreakdown": "Gastos mensuales promedio",
+    "monthsWithData": "{months} meses con datos",
+    "averageEmpty": "Registra algunos meses de gastos para calcular tu promedio.",
+    "move": "Depositar o retirar",
+    "deposit": "Depositar",
+    "withdraw": "Retirar",
+    "saveDeposit": "Guardar depósito",
+    "saveWithdrawal": "Guardar retiro",
+    "fund": "Fondo",
+    "history": "Movimientos recientes",
+    "historyEmpty": "Todavía no hay ahorro registrado.",
+    "confirmDelete": "¿Eliminar este movimiento?",
+    "goals": "Metas",
+    "addGoal": "Agregar meta",
+    "goalName": "Nombre de la meta",
+    "goalNamePlaceholder": "p. ej. Viaje, Laptop nueva",
+    "target": "Monto objetivo",
+    "archiveGoal": "Archivar meta",
+    "confirmArchiveGoal": "¿Archivar esta meta? Sus movimientos se conservan.",
+    "settings": "Ajustes",
+    "excludedNote": "Las categorías que no cuentan en el promedio (como Extras) quedan fuera."
+  },
+  "manage": {
+    "categories": "Categorías",
+    "categoryName": "Nombre",
+    "categoryNamePlaceholder": "p. ej. Salud, Mascotas",
+    "builtInNameHint": "Déjalo vacío para conservar el nombre predeterminado.",
+    "includeInAverage": "Contar en el gasto mensual promedio",
+    "includeInAverageHint": "Desactívalo para gastos únicos, como Extras.",
+    "addCategory": "Agregar categoría",
+    "excludedBadge": "Fuera del promedio",
+    "moveUp": "Subir",
+    "moveDown": "Bajar",
+    "archiveCategory": "Archivar categoría",
+    "confirmArchiveCategory": "¿Archivar esta categoría? Sus conceptos e historial se conservan; solo dejará de ofrecerse para nuevos registros.",
+    "archivedCategories": "Categorías archivadas",
+    "restore": "Restaurar",
+    "items": "Conceptos",
+    "itemsLink": "Conceptos",
+    "itemsDescription": "Gastos reutilizables agrupados por categoría. Mover un concepto mueve todo su historial.",
+    "itemUses": "{count} registros",
+    "moveHint": "Mover un concepto a otra categoría mueve todo su historial.",
+    "mergeInto": "Combinar con",
+    "chooseItem": "Elige un concepto",
+    "merge": "Combinar",
+    "confirmMerge": "¿Combinar “{source}” con “{target}”? Todos sus registros y pagos recurrentes pasan a “{target}” y “{source}” se elimina.",
+    "archiveItem": "Archivar concepto",
+    "confirmArchiveItem": "¿Archivar este concepto? Su historial se conserva; escribir su nombre de nuevo lo recupera.",
+    "archivedItems": "Conceptos archivados",
+    "itemsEmpty": "Todavía no hay conceptos. Se crean al registrar un gasto."
   }
 }

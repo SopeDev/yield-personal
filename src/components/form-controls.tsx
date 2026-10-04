@@ -1,4 +1,4 @@
-import { startTransition, type FormEvent, type ReactNode } from "react";
+import { startTransition, useRef, type FormEvent, type ReactNode } from "react";
 import type { ErrorKey, Messages } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
 
@@ -65,10 +65,24 @@ export function SubmitButton({ pending, label, pendingLabel }: { pending: boolea
 
 /**
  * Submits through the action without React's automatic form reset, so a rejected entry keeps what was typed.
- * Successful entries redirect away, so there is nothing to reset.
+ * Successful entries redirect away, so there is nothing to reset. A `clientId` (kept for the life of the form)
+ * makes repeated submissions of the same new entry, like a double tap, record it only once.
  */
-export function submitWithoutReset(event: FormEvent<HTMLFormElement>, formAction: (formData: FormData) => void) {
+export function submitWithoutReset(event: FormEvent<HTMLFormElement>, formAction: (formData: FormData) => void, clientId?: string) {
   event.preventDefault();
   const formData = new FormData(event.currentTarget);
+  if (clientId) formData.set("clientId", clientId);
   startTransition(() => formAction(formData));
+}
+
+/**
+ * A stable id for one new entry, created on first submit so server and client renders stay identical.
+ * Forms that stay on the page pass their last `savedAt`, so each saved entry gets a fresh id.
+ */
+export function useClientId(savedAt?: number) {
+  const ref = useRef<{ id: string; savedAt?: number } | null>(null);
+  return () => {
+    if (!ref.current || ref.current.savedAt !== savedAt) ref.current = { id: crypto.randomUUID(), savedAt };
+    return ref.current.id;
+  };
 }

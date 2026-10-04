@@ -47,10 +47,12 @@ Last updated: 2026-10-03
 
 - Recurring payments: variable amounts (estimated from recent confirmed amounts, confirm or confirm-and-pay in the month view), repeat every N months, and editing on the recurring payments page.
 
+- Editing: purchases and income (edit pages from their rows), cards and income sources (in Settings); double-submit protection on new entries.
+- Savings screen: emergency fund goal breakdown and progress, average spending by category, deposits/withdrawals, goals, and movement history.
+- Settings: categories (rename, include in average, reorder, archive/restore, add) and an Items page (rename, recategorize, merge, archive/restore).
+
 ## Next
 
-- Editing entries, cards, and income sources.
-- Savings screen.
-- Item and category management in Settings (rename, recategorize, merge, archive, reorder).
 - Faster quick add (remember each item's usual payment method and amount).
+- Carry unpaid cash recurring bills forward like card statements; mark estimated amounts in the Year view.
 - Offline entry: service worker plus a local queue that replays creates with their client ids.

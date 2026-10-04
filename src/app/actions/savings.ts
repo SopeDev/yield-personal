@@ -52,7 +52,7 @@ export async function createSavingsMovement(_state: FormState, formData: FormDat
   }
 
   revalidatePath(`/${localeFromForm(formData)}`, "layout");
-  return {};
+  return { savedAt: Date.now() };
 }
 
 export async function deleteSavingsMovement(formData: FormData) {
