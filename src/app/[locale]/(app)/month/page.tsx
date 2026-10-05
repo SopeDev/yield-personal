@@ -16,10 +16,12 @@ import { requireUserId } from "@/lib/auth-user";
 import { occurrencePaymentStatus } from "@/lib/cash-flow";
 import { categoryLabel } from "@/lib/categories";
 import { formatDayHeading, formatMonth, formatShortDate, groupByDay } from "@/lib/dates";
-import type { LedgerIncome, MonthSpendingEntry } from "@/lib/ledger";
+import type { LedgerIncome, LedgerPaymentMethod, MonthSpendingEntry } from "@/lib/ledger";
 import { paymentMethodLabel } from "@/lib/payment-methods";
 import type { RecurringOccurrence } from "@/lib/recurring";
+import { dailyNet, neededPerDay } from "@/lib/daily-balance";
 import { loadMonthView } from "@/lib/month-view";
+import { getActivePaymentMethods } from "@/lib/queries";
 import { monthFromSearchParam } from "@/lib/search-params";
 import { currentMonthKey, todayKey } from "@/lib/today";
 import { cn } from "@/lib/cn";
@@ -36,10 +38,18 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
   // Opening a cell of the year view filters the month's entries and recurring payments to one item.
   const itemFilter = typeof query.item === "string" ? query.item : null;
   const messages = getDictionary(locale);
-  const { cards, entries, incomes, occurrences, statements, spending, income, cashFlow, estimatedCents } = await loadMonthView(userId, month, currentMonth);
+  const [{ cards, entries, incomes, occurrences, statements, spending, income, cashFlow }, methods] = await Promise.all([
+    loadMonthView(userId, month, currentMonth),
+    getActivePaymentMethods(userId),
+  ]);
 
   const balanceCents = income.totalCents - cashFlow.toPayCents;
   const statementCards = new Map(cards.map((card) => [card.id, card]));
+  // Active methods to move a month's bill to, plus its current one if since archived.
+  const methodOptions = methods.map((method) => ({ id: method.id, label: paymentMethodLabel(method, messages.common.cash), color: method.color, isCard: method.kind === "CARD" }));
+  const methodOptionsFor = (current: LedgerPaymentMethod) => methodOptions.some((option) => option.id === current.id)
+    ? methodOptions
+    : [...methodOptions, { id: current.id, label: paymentMethodLabel(current, messages.common.cash), color: current.color, isCard: current.kind === "CARD" }];
   const toggleLabels = { paid: messages.common.paid, markPaid: messages.common.markPaid, markUnpaid: messages.common.markUnpaid };
 
   // Installments of purchases made in earlier months are listed apart from this month's days.
@@ -52,6 +62,8 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
     ...(itemFilter ? [] : incomes).map((item) => ({ kind: "income" as const, income: item, date: item.date })),
   ].sort((a, b) => b.date.getTime() - a.date.getTime());
   const today = todayKey();
+  const typicalDay = dailyNet({ month, today, entries, incomes });
+  const needed = neededPerDay({ month, today, toPayCents: cashFlow.toPayCents, incomeCents: income.totalCents });
 
   function purchaseRow(entry: MonthSpendingEntry) {
     const { purchase } = entry;
@@ -89,11 +101,12 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
     const amountForm = (mode: "change" | "confirm") => (
       <OccurrenceAmountForm
         amount={(occurrence.amountCents / 100).toFixed(2)}
-        isCash={recurring.paymentMethod.kind === "CASH"}
         locale={locale}
         messages={messages}
+        methods={methodOptionsFor(recurring.paymentMethod)}
         mode={mode}
         month={occurrence.month}
+        paymentMethodId={recurring.paymentMethod.id}
         recurringPaymentId={recurring.id}
       />
     );
@@ -155,19 +168,20 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
           <Money cents={balanceCents} className={cn("mt-1 block text-3xl", balanceCents < 0 ? "text-loss" : "text-gain")} />
         </div>
         <div className="grid grid-cols-2 divide-x divide-border text-center [&>*:nth-child(n+3)]:border-t [&>*:nth-child(n+3)]:border-border">
-          <Stat label={messages.month.spending}>
-            <Money cents={spending.totalCents} />
-            {estimatedCents > 0 ? (
-              <span className="mt-0.5 block text-xs font-normal text-warning">{format(messages.month.includesEstimated, { amount: formatCents(estimatedCents) })}</span>
-            ) : null}
-          </Stat>
           <Stat label={messages.month.income}><Money cents={income.totalCents} /></Stat>
           <Stat label={messages.month.toPay}><Money cents={cashFlow.toPayCents} /></Stat>
+          <Stat label={messages.month.spending}><Money cents={spending.totalCents} /></Stat>
           <Stat label={messages.month.outstanding}>
             <Money cents={cashFlow.outstandingCents} className={cashFlow.outstandingCents > 0 ? "text-warning" : undefined} />
             {cashFlow.carriedOutstandingCents > 0 ? (
               <span className="mt-0.5 block text-xs font-normal text-loss">{format(messages.month.includesCarried, { amount: formatCents(cashFlow.carriedOutstandingCents) })}</span>
             ) : null}
+          </Stat>
+          <Stat label={messages.month.neededPerDay}>
+            {needed ? <Money cents={needed.cents} className={needed.cents === 0 ? "text-gain" : undefined} /> : <span className="text-subtle">–</span>}
+          </Stat>
+          <Stat label={messages.month.dailyNet}>
+            {typicalDay ? <Money cents={typicalDay.averageCents} className={tone(typicalDay.averageCents)} /> : <span className="text-subtle">–</span>}
           </Stat>
         </div>
       </Card>
@@ -176,20 +190,8 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
         <Section title={messages.month.carriedTitle}>
           <Card className="border-loss/40">
             <ul className="divide-y divide-border">
-              {cashFlow.carriedStatements.map((statement) => (
-                <StatementRow card={statementCards.get(statement.paymentMethodId)} key={`${statement.paymentMethodId}-${statement.month}`} locale={locale} messages={messages} statement={statement} today={today} />
-              ))}
               {cashFlow.carriedOccurrences.map((occurrence) => occurrenceRow(occurrence, true))}
-            </ul>
-          </Card>
-        </Section>
-      ) : null}
-
-      {cashFlow.statementsClosing.length > 0 ? (
-        <Section title={messages.month.statements}>
-          <Card>
-            <ul className="divide-y divide-border">
-              {cashFlow.statementsClosing.map((statement) => (
+              {cashFlow.carriedStatements.map((statement) => (
                 <StatementRow card={statementCards.get(statement.paymentMethodId)} key={`${statement.paymentMethodId}-${statement.month}`} locale={locale} messages={messages} statement={statement} today={today} />
               ))}
             </ul>
@@ -213,6 +215,18 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
           )}
         </Section>
       )}
+
+      {cashFlow.statementsClosing.length > 0 ? (
+        <Section title={messages.month.statements}>
+          <Card>
+            <ul className="divide-y divide-border">
+              {cashFlow.statementsClosing.map((statement) => (
+                <StatementRow card={statementCards.get(statement.paymentMethodId)} key={`${statement.paymentMethodId}-${statement.month}`} locale={locale} messages={messages} statement={statement} today={today} />
+              ))}
+            </ul>
+          </Card>
+        </Section>
+      ) : null}
 
       <Section title={messages.month.byCategory}>
         <Card>
@@ -271,6 +285,10 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
       </Section>
     </div>
   );
+}
+
+function tone(cents: number) {
+  return cents < 0 ? "text-loss" : "text-gain";
 }
 
 function Stat({ label, children }: { label: string; children: React.ReactNode }) {

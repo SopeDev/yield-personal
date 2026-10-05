@@ -54,6 +54,13 @@ Last updated: 2026-10-04
 - Faster quick add: choosing an item fills in its usual payment method and amount from its recent purchases.
 - Unpaid cash recurring bills from earlier months carry into the current month (with paid toggles and confirm forms); the Year view marks estimated amounts with "≈".
 - Card days to pay is a plain number input (no presets); expense and income amounts fill from the right, digits only, starting at 0.00.
+- Income page: daily average gross and net (after car spending) over the days with income.
+- Month view: average daily balance (income − spending over the days passed).
+- Recurring payments: change a month's payment method from the month view (applies to later months too; earlier months keep theirs); a late switch to a card is charged on the switch day. Migration adds `charged_on` to recurring occurrences.
+- Income page summary consolidated into one card like the month balance: total income, rideshare gross / car spending / net / days with income, and the daily average (net, with gross in the hint).
+- All money inputs use the add page's digits-only, fill-from-the-right entry; quick add keeps the amount when switching between Expense and Income.
+- Month summary: always two columns (income/spending, to pay/outstanding, avg. daily balance/needed per day), adding income needed per remaining day to cover the month.
+- Month summary reordered (income/to pay, spending/outstanding, needed per day/daily net); the average daily balance became daily net, which leaves out recurring bills, earlier installments, and extras.
 
 ## Next
 

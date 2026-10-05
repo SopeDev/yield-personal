@@ -30,7 +30,7 @@ const DEFAULT_CATEGORY_KEY = "food";
  * Records a new expense, or edits one when `initial` is given. Choosing an item with `usual` purchases fills in
  * its usual payment method (unless one was picked) and amount (unless one was typed).
  */
-export function ExpenseForm({ locale, today, items, categories, methods, messages, initial, usual = {} }: {
+export function ExpenseForm({ locale, today, items, categories, methods, messages, initial, usual = {}, amount: sharedAmount, onAmountChange }: {
   locale: string;
   today: string;
   items: ItemOption[];
@@ -39,12 +39,17 @@ export function ExpenseForm({ locale, today, items, categories, methods, message
   messages: Messages;
   initial?: PurchaseInitial;
   usual?: Record<string, UsualPurchase>;
+  /** An amount kept by the parent, such as quick add sharing it between the expense and income tabs. */
+  amount?: string;
+  onAmountChange?: (amount: string) => void;
 }) {
   const [state, formAction, pending] = useActionState<FormState, FormData>(initial ? updatePurchase : createPurchase, {});
   const defaultMethodId = initial?.paymentMethodId ?? methods[0]?.id ?? "";
   const [methodId, setMethodId] = useState(defaultMethodId);
   const [methodPicked, setMethodPicked] = useState(false);
-  const [amount, setAmount] = useState(initial?.amount ?? "");
+  const [ownAmount, setOwnAmount] = useState(initial?.amount ?? "");
+  const amount = sharedAmount ?? ownAmount;
+  const setAmount = onAmountChange ?? setOwnAmount;
   // The amount last filled from an item's usual purchase, replaced again only while it is left untouched.
   const [filledAmount, setFilledAmount] = useState<string | null>(null);
   const [installments, setInstallments] = useState(String(initial?.installments ?? 1));

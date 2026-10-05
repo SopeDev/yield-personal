@@ -63,4 +63,9 @@ test("nets rideshare income against all car spending", () => {
   assert.equal(income.totalCents, 376940);
   assert.equal(income.rideshareGrossCents, 326940);
   assert.equal(income.netRideshareCents, 203940);
+  // Two days with income: all income per day, before and after car spending.
+  assert.equal(income.netCents, 253940);
+  assert.equal(income.daysWithIncome, 2);
+  assert.equal(income.dailyGrossCents, 188470);
+  assert.equal(income.dailyNetCents, 126970);
 });

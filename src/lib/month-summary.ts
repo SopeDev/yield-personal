@@ -39,8 +39,6 @@ export function summarizeMonth(data: LedgerData, month: MonthKey, { carryFrom }:
     spending,
     income,
     savingsNetCents,
-    /** Part of this month's spending that is still an estimate (unconfirmed variable bills). */
-    estimatedCents: occurrences.filter((occurrence) => occurrence.estimated).reduce((sum, occurrence) => sum + occurrence.amountCents, 0),
     cashFlow,
     /** As in the spreadsheet: income minus everything paid out this month. */
     balanceCents: income.totalCents - cashFlow.toPayCents,

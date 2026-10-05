@@ -11,12 +11,15 @@ import { Chip, Field, inputClass, SubmitButton, submitWithoutReset, useClientId 
 export type IncomeInitial = { id: string; amount: string; sourceId: string; date: string; note: string };
 
 /** Records new income, or edits an entry when `initial` is given. */
-export function IncomeForm({ locale, today, sources, messages, initial }: {
+export function IncomeForm({ locale, today, sources, messages, initial, amount, onAmountChange }: {
   locale: string;
   today: string;
   sources: { id: string; name: string }[];
   messages: Messages;
   initial?: IncomeInitial;
+  /** An amount kept by the parent, such as quick add sharing it between the expense and income tabs. */
+  amount?: string;
+  onAmountChange?: (amount: string) => void;
 }) {
   const [state, formAction, pending] = useActionState<FormState, FormData>(initial ? updateIncome : createIncome, {});
   const clientId = useClientId();
@@ -27,7 +30,7 @@ export function IncomeForm({ locale, today, sources, messages, initial }: {
       <input name="locale" type="hidden" value={locale} />
       {initial ? <input name="id" type="hidden" value={initial.id} /> : null}
       <Field error={errors.amount} errors={messages.errors} htmlFor="amount" label={messages.add.amount}>
-        <AmountInput autoFocus={!initial} defaultValue={initial?.amount} />
+        <AmountInput autoFocus={!initial} defaultValue={initial?.amount} onChange={onAmountChange} value={amount} />
       </Field>
 
       <Field error={errors.sourceId} errors={messages.errors} label={messages.add.source}>

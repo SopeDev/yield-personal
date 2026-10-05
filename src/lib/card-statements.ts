@@ -35,7 +35,7 @@ export function statementsForCards({ cards, purchases, definitions, overrides, r
         .map((purchase) => ({ ...purchase, description: purchase.item.name })),
       occurrences
         .filter((occurrence) => occurrence.recurring.paymentMethod.id === card.id)
-        .map((occurrence) => ({ id: recurringChargeId(occurrence), description: occurrence.recurring.item.name, date: occurrence.date, amountCents: occurrence.amountCents })),
+        .map((occurrence) => ({ id: recurringChargeId(occurrence), description: occurrence.recurring.item.name, date: occurrence.chargeDate, amountCents: occurrence.amountCents })),
       new Set(paidStatements.filter((paid) => paid.paymentMethodId === card.id).map((paid) => monthKeyOf(paid.statementMonth))),
     );
   });

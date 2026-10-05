@@ -6,14 +6,12 @@ import { Money } from "@/components/money";
 import { MonthNav } from "@/components/month-nav";
 import { Card, Section } from "@/components/section";
 import { isLocale } from "@/i18n/config";
-import { getDictionary } from "@/i18n/dictionaries";
+import { format, getDictionary } from "@/i18n/dictionaries";
 import { requireUserId } from "@/lib/auth-user";
 import { formatDayHeading, groupByDay } from "@/lib/dates";
 import { loadMonthView } from "@/lib/month-view";
-import { getActiveIncomeSources } from "@/lib/queries";
 import { monthFromSearchParam } from "@/lib/search-params";
 import { currentMonthKey, todayKey } from "@/lib/today";
-import { cn } from "@/lib/cn";
 
 export default async function IncomePage({ params, searchParams }: PageProps<"/[locale]/income">) {
   const { locale } = await params;
@@ -22,32 +20,37 @@ export default async function IncomePage({ params, searchParams }: PageProps<"/[
   const month = monthFromSearchParam((await searchParams).m, currentMonthKey());
   const messages = getDictionary(locale);
 
-  const [{ incomes, spending, income }, sources] = await Promise.all([loadMonthView(userId, month, currentMonthKey()), getActiveIncomeSources(userId)]);
-  const hasRideshare = sources.some((source) => source.isRideshare) || income.rideshareGrossCents > 0;
+  const { incomes, spending, income } = await loadMonthView(userId, month, currentMonthKey());
   const today = todayKey();
 
   return (
     <div className="space-y-7">
       <MonthNav labels={messages.common} locale={locale} month={month} path={`/${locale}/income`} />
 
-      <Card className="px-4 py-5 text-center">
-        <p className="text-xs text-muted-foreground">{messages.income.total}</p>
-        <Money cents={income.totalCents} className="mt-1 block text-3xl text-gain" />
+      <Card>
+        <div className="px-4 py-4 text-center">
+          <p className="text-xs text-muted-foreground">{messages.income.total}</p>
+          <Money cents={income.totalCents} className="mt-1 block text-3xl text-gain" />
+          {income.daysWithIncome > 0 ? (
+            <p className="mt-1 text-xs text-muted-foreground">
+              {income.daysWithIncome === 1 ? messages.income.daysWithIncomeOne : format(messages.income.daysWithIncome, { count: income.daysWithIncome })}
+            </p>
+          ) : null}
+        </div>
+        <div className="grid grid-cols-2 divide-x divide-border border-t border-border text-center [&>*:nth-child(n+3)]:border-t [&>*:nth-child(n+3)]:border-border">
+          <Stat label={messages.income.carSpending}><Money cents={-spending.carCents} className="text-muted-foreground" /></Stat>
+          <Stat label={messages.income.net}><Money cents={income.netCents} className={tone(income.netCents)} /></Stat>
+          <Stat label={messages.income.dailyGross}><Money cents={income.dailyGrossCents} /></Stat>
+          <Stat label={messages.income.dailyNet}><Money cents={income.dailyNetCents} className={tone(income.dailyNetCents)} /></Stat>
+          {/* Rideshare figures differ from the totals only when there is other income too. */}
+          {income.rideshareGrossCents > 0 && income.rideshareGrossCents < income.totalCents ? (
+            <>
+              <Stat label={messages.income.rideshareGross}><Money cents={income.rideshareGrossCents} /></Stat>
+              <Stat label={messages.income.rideshareNet}><Money cents={income.netRideshareCents} className={tone(income.netRideshareCents)} /></Stat>
+            </>
+          ) : null}
+        </div>
       </Card>
-
-      {hasRideshare ? (
-        <Section title={messages.income.rideshare}>
-          <Card>
-            <dl className="divide-y divide-border">
-              <Row label={messages.income.rideshareGross}><Money cents={income.rideshareGrossCents} /></Row>
-              <Row label={messages.income.carSpending}><Money cents={-spending.carCents} className="text-muted-foreground" /></Row>
-              <Row label={messages.income.rideshareNet} strong>
-                <Money cents={income.netRideshareCents} className={cn(income.netRideshareCents < 0 ? "text-loss" : "text-gain")} />
-              </Row>
-            </dl>
-          </Card>
-        </Section>
-      ) : null}
 
       {income.bySource.length > 0 ? (
         <Section title={messages.income.bySource}>
@@ -99,11 +102,24 @@ export default async function IncomePage({ params, searchParams }: PageProps<"/[
   );
 }
 
-function Row({ label, children, strong = false }: { label: string; children: React.ReactNode; strong?: boolean }) {
+function tone(cents: number) {
+  return cents < 0 ? "text-loss" : "text-gain";
+}
+
+function Stat({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="px-2 py-3">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-1 text-sm font-medium sm:text-base">{children}</p>
+    </div>
+  );
+}
+
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between px-4 py-3">
-      <dt className={strong ? "font-semibold" : undefined}>{label}</dt>
-      <dd className={strong ? "font-semibold" : undefined}>{children}</dd>
+      <dt>{label}</dt>
+      <dd>{children}</dd>
     </div>
   );
 }

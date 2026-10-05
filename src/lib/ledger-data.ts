@@ -50,7 +50,7 @@ async function getRecurringHistory(userId: string): Promise<ConfirmedAmount[]> {
 function getOccurrenceOverrides(userId: string, from: MonthKey, to: MonthKey): Promise<OccurrenceOverride[]> {
   return db.recurringOccurrence.findMany({
     where: { userId, month: { gte: monthRange(from).start, lt: monthRange(to).end } },
-    select: { recurringPaymentId: true, month: true, amountCents: true, paidAt: true },
+    select: { recurringPaymentId: true, month: true, amountCents: true, paidAt: true, chargedOn: true },
   });
 }
 

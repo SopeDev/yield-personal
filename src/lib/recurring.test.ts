@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { statementsForCards } from "./card-statements";
 import { dateFromKey, dateKeyOf } from "./months";
-import { estimateFromHistory, isActiveInMonth, nextActiveMonth, occurrencesForMonth, unpaidCashOccurrences, type RecurringDefinition } from "./recurring";
+import { estimateFromHistory, isActiveInMonth, lateChargeDate, nextActiveMonth, occurrencesForMonth, unpaidCashOccurrences, type RecurringDefinition } from "./recurring";
 
 const fixed = { id: "fixed", key: "fixed", name: null, sortOrder: 0, includeInAverage: true };
 const cash = { id: "cash", kind: "CASH" as const, name: "Cash", color: "#00c896" };
@@ -79,4 +80,26 @@ test("unpaid cash bills from earlier months are carried, skipping paid months an
   assert.deepEqual(carried.map((occurrence) => `${occurrence.recurring.id} ${occurrence.month}`), [
     "gym 2026-08", "gym 2026-09", "gym 2026-10", "rent 2026-10", "gym 2026-11", "gym 2026-12", "rent 2026-12",
   ]);
+});
+
+test("a bill switched to a card after its due date is charged on the day it was switched", () => {
+  assert.equal(lateChargeDate("2026-10", 5, dateFromKey("2026-10-03")), null);
+  assert.equal(lateChargeDate("2026-10", 5, dateFromKey("2026-10-05")), null);
+  assert.equal(dateKeyOf(lateChargeDate("2026-10", 5, dateFromKey("2026-10-20"))!), "2026-10-20");
+
+  // Nu closes on the 10th and its October statement is already paid: the switched gas bill goes on November's.
+  const nu = { id: "nu", kind: "CARD" as const, name: "Nu", color: "#8b5cf6" };
+  const gas: RecurringDefinition = { ...rent, id: "gas", item: { id: "gas", name: "Gas", category: fixed }, amountCents: 50000, dayOfMonth: 5, paymentMethod: nu };
+  const overrides = [{ recurringPaymentId: "gas", month: dateFromKey("2026-10-01"), amountCents: null, paidAt: null, chargedOn: dateFromKey("2026-10-20") }];
+  const october = occurrencesForMonth([gas], overrides, "2026-10")[0];
+  assert.equal(dateKeyOf(october.date), "2026-10-05");
+  assert.equal(dateKeyOf(october.chargeDate), "2026-10-20");
+
+  const statements = statementsForCards({
+    cards: [{ id: "nu", closingDay: 10, paymentDays: 15 }], purchases: [], definitions: [gas], overrides,
+    recurringFrom: "2026-10", recurringTo: "2026-11", paidStatements: [{ paymentMethodId: "nu", statementMonth: dateFromKey("2026-10-01") }],
+  });
+  const byMonth = Object.fromEntries(statements.map((statement) => [statement.month, statement.charges.map((charge) => charge.id)]));
+  assert.deepEqual(byMonth["2026-10"] ?? [], []);
+  assert.deepEqual(byMonth["2026-11"], ["gas:2026-10", "gas:2026-11"]);
 });

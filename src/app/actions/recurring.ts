@@ -3,12 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db/client";
+import type { Prisma } from "@/generated/prisma/client";
 import { resolveItem } from "@/lib/item-resolution";
 import { parseAmountToCents } from "@/lib/money";
-import { addMonths, dateFromKey, isMonthKey, monthKeyOf } from "@/lib/months";
+import { addMonths, dateFromKey, isMonthKey, monthKeyOf, type MonthKey } from "@/lib/months";
 import { MAX_STATEMENT_DAY } from "@/lib/payment-methods";
-import { MAX_INTERVAL_MONTHS, nextActiveMonth } from "@/lib/recurring";
-import { currentMonthKey } from "@/lib/today";
+import { lateChargeDate, MAX_INTERVAL_MONTHS, nextActiveMonth } from "@/lib/recurring";
+import { currentMonthKey, todayKey } from "@/lib/today";
 import { localeFromForm, requireActionUserId } from "./action-user";
 import type { FormState } from "./form-state";
 
@@ -130,14 +131,49 @@ async function findOwnedRecurring(userId: string, formData: FormData) {
   if (!isUuid(id) || !isMonthKey(month)) return null;
   const recurring = await db.recurringPayment.findFirst({
     where: { id, userId },
-    select: { id: true, amountCents: true, isVariable: true, paymentMethod: { select: { kind: true } } },
+    select: { id: true, amountCents: true, isVariable: true, dayOfMonth: true, paymentMethod: { select: { id: true, kind: true } } },
   });
   return recurring ? { recurring, month: dateFromKey(`${month}-01`) } : null;
 }
 
 /**
- * Sets one month's amount: confirms a variable bill's real amount, or changes a fixed bill for that month only.
- * With `markPaid`, a cash bill is also marked paid in the same step.
+ * Moves a recurring payment to another payment method from `month` on; earlier months keep the old one. A payment
+ * that started before `month` is split like an edit: the old version ends the month before and a new version
+ * (counted as added when the original was) continues from `month` with that month's and later changes.
+ * Returns the id of the version that now holds `month`.
+ */
+async function switchPaymentMethodFrom(tx: Prisma.TransactionClient, recurringId: string, month: MonthKey, paymentMethodId: string) {
+  const recurring = await tx.recurringPayment.findUniqueOrThrow({ where: { id: recurringId } });
+  if (monthKeyOf(recurring.startMonth) >= month) {
+    await tx.recurringPayment.update({ where: { id: recurringId }, data: { paymentMethodId } });
+    return recurringId;
+  }
+  const monthStart = dateFromKey(`${month}-01`);
+  await tx.recurringPayment.update({ where: { id: recurringId }, data: { endMonth: dateFromKey(`${addMonths(month, -1)}-01`) } });
+  const next = await tx.recurringPayment.create({
+    data: {
+      userId: recurring.userId,
+      itemId: recurring.itemId,
+      paymentMethodId,
+      amountCents: recurring.amountCents,
+      isVariable: recurring.isVariable,
+      intervalMonths: recurring.intervalMonths,
+      dayOfMonth: recurring.dayOfMonth,
+      startMonth: monthStart,
+      endMonth: recurring.endMonth,
+      createdAt: recurring.createdAt,
+    },
+    select: { id: true },
+  });
+  await tx.recurringOccurrence.updateMany({ where: { recurringPaymentId: recurringId, month: { gte: monthStart } }, data: { recurringPaymentId: next.id } });
+  return next.id;
+}
+
+/**
+ * Sets one month's amount and payment method: confirms a variable bill's real amount, or changes a fixed bill's
+ * amount for that month only. A different payment method applies from that month on (see
+ * `switchPaymentMethodFrom`); a bill switched to a card after its due date is charged on the day it was
+ * switched. With `markPaid`, a cash bill is also marked paid in the same step.
  */
 export async function setOccurrenceAmount(_state: FormState, formData: FormData): Promise<FormState> {
   const userId = await requireActionUserId();
@@ -145,14 +181,33 @@ export async function setOccurrenceAmount(_state: FormState, formData: FormData)
   if (!amountCents) return { fieldErrors: { amount: "amount" } };
   const owned = await findOwnedRecurring(userId, formData);
   if (!owned) return { error: "generic" };
+  const { recurring, month } = owned;
+  const monthKey = monthKeyOf(month);
+
+  const requestedMethodId = readText(formData, "paymentMethodId") || recurring.paymentMethod.id;
+  const methodChanged = requestedMethodId !== recurring.paymentMethod.id;
+  const method = methodChanged
+    ? await db.paymentMethod.findFirst({ where: { id: requestedMethodId, userId, archivedAt: null }, select: { id: true, kind: true } })
+    : recurring.paymentMethod;
+  if (!method) return { fieldErrors: { paymentMethodId: "paymentMethod" } };
 
   // A variable bill always stores the amount, since storing it is what confirms the month.
-  const override = !owned.recurring.isVariable && amountCents === owned.recurring.amountCents ? null : amountCents;
-  const paidAt = formData.get("markPaid") === "true" && owned.recurring.paymentMethod.kind === "CASH" ? new Date() : undefined;
-  await db.recurringOccurrence.upsert({
-    where: { recurringPaymentId_month: { recurringPaymentId: owned.recurring.id, month: owned.month } },
-    create: { userId, recurringPaymentId: owned.recurring.id, month: owned.month, amountCents: override, paidAt },
-    update: { amountCents: override, ...(paidAt ? { paidAt } : {}) },
+  const override = !recurring.isVariable && amountCents === recurring.amountCents ? null : amountCents;
+  const paidAt = formData.get("markPaid") === "true" && method.kind === "CASH" ? new Date() : undefined;
+  const methodChange = methodChanged
+    ? {
+      // Cash "paid" doesn't carry to a card, whose bills are paid with the statement.
+      ...(method.kind === "CARD" ? { paidAt: null } : {}),
+      chargedOn: method.kind === "CARD" ? lateChargeDate(monthKey, recurring.dayOfMonth, dateFromKey(todayKey())) : null,
+    }
+    : {};
+  await db.$transaction(async (tx) => {
+    const recurringPaymentId = methodChanged ? await switchPaymentMethodFrom(tx, recurring.id, monthKey, method.id) : recurring.id;
+    await tx.recurringOccurrence.upsert({
+      where: { recurringPaymentId_month: { recurringPaymentId, month } },
+      create: { userId, recurringPaymentId, month, amountCents: override, paidAt, ...methodChange },
+      update: { amountCents: override, ...(paidAt ? { paidAt } : {}), ...methodChange },
+    });
   });
   revalidatePath(`/${localeFromForm(formData)}`, "layout");
   return {};

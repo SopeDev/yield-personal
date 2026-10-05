@@ -5,6 +5,7 @@ import { createRecurringPayment, updateRecurringPayment } from "@/app/actions/re
 import type { FormState } from "@/app/actions/form-state";
 import { format, type Messages } from "@/i18n/dictionaries";
 import { MAX_STATEMENT_DAY } from "@/lib/payment-methods";
+import { MoneyInput } from "./amount-input";
 import { Chip, Field, inputClass, SubmitButton } from "./form-controls";
 import { ItemField, type CategoryOption, type ItemOption } from "./item-field";
 
@@ -64,7 +65,7 @@ export function RecurringForm({ locale, currentMonth, items, categories, methods
 
       <div className="grid grid-cols-2 gap-3">
         <Field error={errors.amount} errors={messages.errors} htmlFor={`${idPrefix}-amount`} label={isVariable ? messages.recurring.estimateFallback : messages.recurring.usualAmount}>
-          <input className={`${inputClass} font-mono`} defaultValue={initial?.amount} id={`${idPrefix}-amount`} inputMode="decimal" name="amount" placeholder="0.00" required />
+          <MoneyInput className={`${inputClass} font-mono`} defaultValue={initial?.amount} id={`${idPrefix}-amount`} name="amount" />
         </Field>
         <Field error={errors.dayOfMonth} errors={messages.errors} htmlFor={`${idPrefix}-day`} label={messages.recurring.dayOfMonth}>
           <input className={`${inputClass} font-mono`} defaultValue={initial?.dayOfMonth} id={`${idPrefix}-day`} inputMode="numeric" max={MAX_STATEMENT_DAY} min={1} name="dayOfMonth" required type="number" />

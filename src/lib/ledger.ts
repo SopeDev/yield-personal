@@ -68,6 +68,10 @@ export function spendingAmountsOf(entries: MonthSpendingEntry[]): SpendingAmount
   return entries.map((entry) => ({ item: entry.purchase.item, amountCents: entry.amountCents }));
 }
 
+/**
+ * A month's income by source, rideshare gross and net, and the daily average over the days with income
+ * recorded (days worked): gross from all income, net after the month's car spending.
+ */
 export function summarizeIncome(incomes: LedgerIncome[], carSpendingCents: number) {
   const bySourceId = new Map<string, { source: LedgerIncomeSource; totalCents: number }>();
   for (const income of incomes) {
@@ -82,10 +86,18 @@ export function summarizeIncome(incomes: LedgerIncome[], carSpendingCents: numbe
     .filter((item) => item.source.isRideshare)
     .reduce((sum, item) => sum + item.totalCents, 0);
 
+  const daysWithIncome = new Set(incomes.map((income) => income.date.getTime())).size;
+  const perDay = (cents: number) => (daysWithIncome > 0 ? Math.round(cents / daysWithIncome) : 0);
+
   return {
     bySource,
     totalCents,
     rideshareGrossCents,
     netRideshareCents: rideshareGrossCents - carSpendingCents,
+    /** All income after the month's car spending. */
+    netCents: totalCents - carSpendingCents,
+    daysWithIncome,
+    dailyGrossCents: perDay(totalCents),
+    dailyNetCents: perDay(totalCents - carSpendingCents),
   };
 }

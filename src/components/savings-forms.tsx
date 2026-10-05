@@ -4,6 +4,7 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { createGoalFund, createSavingsMovement, updateSavingsFund } from "@/app/actions/savings";
 import type { FormState } from "@/app/actions/form-state";
 import type { Messages } from "@/i18n/dictionaries";
+import { MoneyInput } from "./amount-input";
 import { Chip, Field, inputClass, SubmitButton, submitWithoutReset, useClientId } from "./form-controls";
 
 /** Records money moved into or out of a savings fund. Stays on the page and clears after each save. */
@@ -39,7 +40,7 @@ export function SavingsMovementForm({ locale, today, funds, messages }: {
 
       <div className="grid grid-cols-2 gap-3">
         <Field error={errors.amount} errors={messages.errors} htmlFor="savings-amount" label={messages.add.amount}>
-          <input className={`${inputClass} font-mono`} id="savings-amount" inputMode="decimal" name="amount" placeholder="0.00" required />
+          <MoneyInput className={`${inputClass} font-mono`} id="savings-amount" name="amount" />
         </Field>
         <Field error={errors.date} errors={messages.errors} htmlFor="savings-date" label={messages.add.date}>
           <input className={inputClass} defaultValue={today} id="savings-date" name="date" required type="date" />
@@ -98,7 +99,7 @@ export function GoalForm({ locale, messages, initial }: { locale: string; messag
         <input className={inputClass} defaultValue={initial?.name} id={`${idPrefix}-name`} maxLength={40} name="name" placeholder={messages.savings.goalNamePlaceholder} required />
       </Field>
       <Field error={errors.target} errors={messages.errors} htmlFor={`${idPrefix}-target`} label={messages.savings.target}>
-        <input className={`${inputClass} font-mono`} defaultValue={initial?.target} id={`${idPrefix}-target`} inputMode="decimal" name="target" placeholder="0.00" required />
+        <MoneyInput className={`${inputClass} font-mono`} defaultValue={initial?.target} id={`${idPrefix}-target`} name="target" />
       </Field>
       {state.error ? <p className="text-sm text-loss" role="alert">{messages.errors[state.error]}</p> : null}
       <SubmitButton label={initial ? messages.common.saveChanges : messages.savings.addGoal} pending={pending} pendingLabel={messages.common.saving} />

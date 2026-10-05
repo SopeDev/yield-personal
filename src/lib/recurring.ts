@@ -18,7 +18,14 @@ export type RecurringDefinition = {
   addedMonth?: MonthKey;
 };
 
-export type OccurrenceOverride = { recurringPaymentId: string; month: Date; amountCents: number | null; paidAt: Date | null };
+export type OccurrenceOverride = {
+  recurringPaymentId: string;
+  month: Date;
+  amountCents: number | null;
+  paidAt: Date | null;
+  /** The day a bill switched to a card after its scheduled day was really charged. */
+  chargedOn?: Date | null;
+};
 
 /** A month's real amount of an item's recurring bill, used to estimate variable bills. */
 export type ConfirmedAmount = { itemId: string; month: Date; amountCents: number };
@@ -31,8 +38,13 @@ export const ESTIMATE_HISTORY_SIZE = 3;
 export type RecurringOccurrence = {
   recurring: RecurringDefinition;
   month: MonthKey;
-  /** The date the bill is charged: its day of the month, clamped to the month's length. */
+  /** The date the bill is due: its day of the month, clamped to the month's length. */
   date: Date;
+  /**
+   * The date a card is charged, which decides the statement: the due date, or the later day the bill was
+   * switched to the card, so a late switch never lands on a statement that already closed.
+   */
+  chargeDate: Date;
   amountCents: number;
   /** A fixed bill whose amount was changed for this month only. */
   amountChanged: boolean;
@@ -55,6 +67,14 @@ export function nextActiveMonth(recurring: Pick<RecurringDefinition, "startMonth
   const remainder = offset % recurring.intervalMonths;
   const next = addMonths(start, remainder === 0 ? offset : offset + recurring.intervalMonths - remainder);
   return !recurring.endMonth || next <= monthKeyOf(recurring.endMonth) ? next : null;
+}
+
+/**
+ * When a bill moved to a card on `switchedOn` is charged: null when switched by its due date (it is charged
+ * then), or the switch day when the due date had already passed.
+ */
+export function lateChargeDate(month: MonthKey, dayOfMonth: number, switchedOn: Date) {
+  return switchedOn > dateInMonth(month, dayOfMonth) ? switchedOn : null;
 }
 
 /** Average of the item's most recent confirmed amounts before `month`, or null without history. */
@@ -85,10 +105,13 @@ export function occurrencesForMonth(
       const expectedCents = recurring.isVariable
         ? (estimateFromHistory(history, recurring.item.id, month) ?? recurring.amountCents)
         : recurring.amountCents;
+      const date = dateInMonth(month, recurring.dayOfMonth);
+      const chargedOn = override?.chargedOn ?? null;
       return {
         recurring,
         month,
-        date: dateInMonth(month, recurring.dayOfMonth),
+        date,
+        chargeDate: chargedOn && chargedOn > date ? chargedOn : date,
         amountCents: confirmedCents ?? expectedCents,
         amountChanged: !recurring.isVariable && confirmedCents !== null,
         estimated: recurring.isVariable && confirmedCents === null,

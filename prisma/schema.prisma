@@ -219,8 +219,9 @@ model RecurringPayment {
 }
 
 /// Per-month state of a recurring payment, stored only once the month differs from the default: a changed or
-/// confirmed amount, or (for cash) being marked paid. Card-paid occurrences follow their statement. For a
-/// variable bill, a stored `amountCents` is that month's confirmed amount.
+/// confirmed amount, (for cash) being marked paid, or a late switch to a card. Card-paid occurrences follow their
+/// statement. For a variable bill, a stored `amountCents` is that month's confirmed amount. `chargedOn` is the day
+/// a bill switched to a card after its scheduled day was really charged, which decides its statement.
 model RecurringOccurrence {
   id                 String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId             String           @map("user_id") @db.Uuid
@@ -228,6 +229,7 @@ model RecurringOccurrence {
   month              DateTime         @db.Date
   amountCents        Int?             @map("amount_cents")
   paidAt             DateTime?        @map("paid_at") @db.Timestamptz(6)
+  chargedOn          DateTime?        @map("charged_on") @db.Date
   user               User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   recurringPayment   RecurringPayment @relation(fields: [recurringPaymentId], references: [id], onDelete: Cascade)
 
