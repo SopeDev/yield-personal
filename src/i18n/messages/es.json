@@ -43,6 +43,10 @@
     "edit": "Editar"
   },
   "month": {
+    "goalToGo": "Meta {goal} · faltan {amount}",
+    "goalReached": "Meta {goal} alcanzada ✓",
+    "goalMissed": "Meta {goal} · faltaron {amount}",
+    "breakEven": "{amount} para cubrir el mes",
     "spending": "Gastos",
     "income": "Ingresos",
     "balance": "Balance",
@@ -119,6 +123,10 @@
     "itemCategory": "En {category}"
   },
   "settings": {
+    "goal": "Meta",
+    "balanceGoal": "Meta de balance mensual",
+    "balanceGoalHint": "Lo que quieres que te sobre cada mes. El dinero que pasas a ahorros cuenta para la meta.",
+    "balanceGoalRemove": "Quitar meta",
     "title": "Ajustes",
     "language": "Idioma",
     "cards": "Tarjetas de crédito",

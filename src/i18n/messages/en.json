@@ -43,6 +43,10 @@
     "edit": "Edit"
   },
   "month": {
+    "goalToGo": "Goal {goal} · {amount} to go",
+    "goalReached": "Goal {goal} reached ✓",
+    "goalMissed": "Goal {goal} · missed by {amount}",
+    "breakEven": "{amount} to break even",
     "spending": "Spending",
     "income": "Income",
     "balance": "Balance",
@@ -119,6 +123,10 @@
     "itemCategory": "In {category}"
   },
   "settings": {
+    "goal": "Goal",
+    "balanceGoal": "Monthly balance goal",
+    "balanceGoalHint": "What you want left over each month. Money moved into savings counts toward it.",
+    "balanceGoalRemove": "Remove goal",
     "title": "Settings",
     "language": "Language",
     "cards": "Credit cards",

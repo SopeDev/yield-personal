@@ -19,9 +19,9 @@ import { formatDayHeading, formatMonth, formatShortDate, groupByDay } from "@/li
 import type { LedgerIncome, LedgerPaymentMethod, MonthSpendingEntry } from "@/lib/ledger";
 import { paymentMethodLabel } from "@/lib/payment-methods";
 import type { RecurringOccurrence } from "@/lib/recurring";
-import { dailyNet, neededPerDay } from "@/lib/daily-balance";
+import { dailyNet, goalProgress, neededPerDay } from "@/lib/daily-balance";
 import { loadMonthView } from "@/lib/month-view";
-import { getActivePaymentMethods } from "@/lib/queries";
+import { getActivePaymentMethods, getBalanceGoal } from "@/lib/queries";
 import { monthFromSearchParam } from "@/lib/search-params";
 import { currentMonthKey, todayKey } from "@/lib/today";
 import { cn } from "@/lib/cn";
@@ -38,9 +38,10 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
   // Opening a cell of the year view filters the month's entries and recurring payments to one item.
   const itemFilter = typeof query.item === "string" ? query.item : null;
   const messages = getDictionary(locale);
-  const [{ cards, entries, incomes, occurrences, statements, spending, income, cashFlow }, methods] = await Promise.all([
+  const [{ cards, entries, incomes, occurrences, statements, spending, income, cashFlow, savingsNetCents }, methods, goalCents] = await Promise.all([
     loadMonthView(userId, month, currentMonth),
     getActivePaymentMethods(userId),
+    getBalanceGoal(userId),
   ]);
 
   const balanceCents = income.totalCents - cashFlow.toPayCents;
@@ -63,7 +64,13 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
   ].sort((a, b) => b.date.getTime() - a.date.getTime());
   const today = todayKey();
   const typicalDay = dailyNet({ month, today, entries, incomes });
-  const needed = neededPerDay({ month, today, toPayCents: cashFlow.toPayCents, incomeCents: income.totalCents });
+  const needed = neededPerDay({ month, today, toPayCents: cashFlow.toPayCents, incomeCents: income.totalCents, savingsNetCents, goalCents });
+  // Money moved into savings counts toward the goal; a month that has ended either met it or missed it.
+  const goalLeftCents = goalCents === null ? 0 : goalCents - goalProgress({ balanceCents, savingsNetCents });
+  const goalLine = goalCents === null ? null
+    : goalLeftCents <= 0 ? { text: format(messages.month.goalReached, { goal: formatCents(goalCents) }), className: "text-gain" }
+      : needed ? { text: format(messages.month.goalToGo, { goal: formatCents(goalCents), amount: formatCents(goalLeftCents) }), className: "text-muted-foreground" }
+        : { text: format(messages.month.goalMissed, { goal: formatCents(goalCents), amount: formatCents(goalLeftCents) }), className: "text-loss" };
 
   function purchaseRow(entry: MonthSpendingEntry) {
     const { purchase } = entry;
@@ -166,6 +173,7 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
         <div className="border-b border-border px-4 py-4 text-center">
           <p className="text-xs text-muted-foreground">{messages.month.balance}</p>
           <Money cents={balanceCents} className={cn("mt-1 block text-3xl", balanceCents < 0 ? "text-loss" : "text-gain")} />
+          {goalLine ? <p className={cn("mt-1 text-xs", goalLine.className)}>{goalLine.text}</p> : null}
         </div>
         <div className="grid grid-cols-2 divide-x divide-border text-center [&>*:nth-child(n+3)]:border-t [&>*:nth-child(n+3)]:border-border">
           <Stat label={messages.month.income}><Money cents={income.totalCents} /></Stat>
@@ -178,7 +186,15 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
             ) : null}
           </Stat>
           <Stat label={messages.month.neededPerDay}>
-            {needed ? <Money cents={needed.cents} className={needed.cents === 0 ? "text-gain" : undefined} /> : <span className="text-subtle">–</span>}
+            {!needed ? <span className="text-subtle">–</span> : needed.forGoalCents === null ? (
+              <Money cents={needed.cents} className={needed.cents === 0 ? "text-gain" : undefined} />
+            ) : (
+              // With a goal, the goal's daily target leads and breaking even is noted below.
+              <>
+                <Money cents={needed.forGoalCents} className={needed.forGoalCents === 0 ? "text-gain" : undefined} />
+                <span className="mt-0.5 block text-xs font-normal text-muted-foreground">{format(messages.month.breakEven, { amount: formatCents(needed.cents) })}</span>
+              </>
+            )}
           </Stat>
           <Stat label={messages.month.dailyNet}>
             {typicalDay ? <Money cents={typicalDay.averageCents} className={tone(typicalDay.averageCents)} /> : <span className="text-subtle">–</span>}

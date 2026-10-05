@@ -61,6 +61,7 @@ Last updated: 2026-10-04
 - All money inputs use the add page's digits-only, fill-from-the-right entry; quick add keeps the amount when switching between Expense and Income.
 - Month summary: always two columns (income/spending, to pay/outstanding, avg. daily balance/needed per day), adding income needed per remaining day to cover the month.
 - Month summary reordered (income/to pay, spending/outstanding, needed per day/daily net); the average daily balance became daily net, which leaves out recurring bills, earlier installments, and extras.
+- Monthly balance goal: set in Settings; savings count toward it; the month view shows progress under Balance and the goal's daily target in Needed per day (break-even noted below). Migration adds `balance_goal_cents` to users.
 
 ## Next
 

@@ -32,12 +32,30 @@ export function dailyNet({ month, today, entries, incomes }: {
 }
 
 /**
- * Income still needed per remaining day of the month (today included) to cover its total to pay; zero once
- * income covers it. Null for a month that has ended.
+ * Income still needed per remaining day of the month (today included): `cents` to cover its total to pay, and
+ * `forGoalCents` to also reach the balance goal, where money moved into savings counts toward the goal. Both are
+ * zero once covered. Null for a month that has ended.
  */
-export function neededPerDay({ month, today, toPayCents, incomeCents }: { month: MonthKey; today: string; toPayCents: number; incomeCents: number }) {
+export function neededPerDay({ month, today, toPayCents, incomeCents, savingsNetCents = 0, goalCents = null }: {
+  month: MonthKey;
+  today: string;
+  toPayCents: number;
+  incomeCents: number;
+  savingsNetCents?: number;
+  goalCents?: number | null;
+}) {
   const currentMonth = today.slice(0, 7);
   if (month < currentMonth) return null;
   const daysLeft = month === currentMonth ? daysInMonth(month) - Number(today.slice(8, 10)) + 1 : daysInMonth(month);
-  return { daysLeft, cents: Math.max(0, Math.ceil((toPayCents - incomeCents) / daysLeft)) };
+  const perDay = (shortfallCents: number) => Math.max(0, Math.ceil(shortfallCents / daysLeft));
+  return {
+    daysLeft,
+    cents: perDay(toPayCents - incomeCents),
+    forGoalCents: goalCents === null ? null : perDay(goalCents - goalProgress({ balanceCents: incomeCents - toPayCents, savingsNetCents })),
+  };
+}
+
+/** Progress toward the balance goal: the month's balance plus what it moved into savings, so saving never counts against it. */
+export function goalProgress({ balanceCents, savingsNetCents }: { balanceCents: number; savingsNetCents: number }) {
+  return balanceCents + savingsNetCents;
 }

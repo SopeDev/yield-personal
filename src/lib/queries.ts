@@ -90,3 +90,9 @@ export function getCategoriesForManagement(userId: string) {
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
   });
 }
+
+/** The monthly balance goal in centavos, or null when unset. */
+export async function getBalanceGoal(userId: string) {
+  const user = await db.user.findUnique({ where: { id: userId }, select: { balanceGoalCents: true } });
+  return user?.balanceGoalCents ?? null;
+}

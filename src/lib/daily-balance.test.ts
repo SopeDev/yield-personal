@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { dailyNet, neededPerDay } from "./daily-balance";
+import { dailyNet, goalProgress, neededPerDay } from "./daily-balance";
 import type { LedgerPurchase, MonthSpendingEntry } from "./ledger";
 import { dateFromKey } from "./months";
 
@@ -38,8 +38,20 @@ test("a typical day's net leaves out extras and installments of earlier purchase
 
 test("income needed per remaining day to cover the month's total to pay", () => {
   // Oct 5: 27 days left, today included.
-  assert.deepEqual(neededPerDay({ month: "2026-10", today: "2026-10-05", toPayCents: 2508219, incomeCents: 793924 }), { daysLeft: 27, cents: 63493 });
+  assert.deepEqual(neededPerDay({ month: "2026-10", today: "2026-10-05", toPayCents: 2508219, incomeCents: 793924 }), { daysLeft: 27, cents: 63493, forGoalCents: null });
   assert.equal(neededPerDay({ month: "2026-10", today: "2026-10-31", toPayCents: 100000, incomeCents: 150000 })?.cents, 0);
-  assert.deepEqual(neededPerDay({ month: "2026-11", today: "2026-10-05", toPayCents: 300000, incomeCents: 0 }), { daysLeft: 30, cents: 10000 });
+  assert.deepEqual(neededPerDay({ month: "2026-11", today: "2026-10-05", toPayCents: 300000, incomeCents: 0 }), { daysLeft: 30, cents: 10000, forGoalCents: null });
   assert.equal(neededPerDay({ month: "2026-09", today: "2026-10-05", toPayCents: 300000, incomeCents: 0 }), null);
+});
+
+test("the balance goal raises what's needed per day, with savings counting toward it", () => {
+  const october = { month: "2026-10" as const, today: "2026-10-05", toPayCents: 2508219, incomeCents: 793924, goalCents: 500000 };
+  // (17,142.95 + 5,000) over 27 days.
+  assert.equal(neededPerDay(october)?.forGoalCents, 82011);
+  // 2,000 of to pay went into savings: 2,000 less is needed for the goal, the same for breaking even.
+  const saved = neededPerDay({ ...october, savingsNetCents: 200000 });
+  assert.equal(saved?.cents, 63493);
+  assert.equal(saved?.forGoalCents, 74604);
+  assert.equal(neededPerDay({ ...october, incomeCents: 3100000 })?.forGoalCents, 0);
+  assert.equal(goalProgress({ balanceCents: -200000, savingsNetCents: 500000 }), 300000);
 });

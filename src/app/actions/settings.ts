@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/db/client";
 import { LOCALE_COOKIE } from "@/i18n/config";
+import { parseAmountToCents } from "@/lib/money";
 import { CARD_COLORS, MAX_STATEMENT_DAY } from "@/lib/payment-methods";
 import { MAX_PAYMENT_DAYS } from "@/lib/statements";
 import { localeFromForm, requireActionUserId } from "./action-user";
@@ -173,4 +174,20 @@ export async function setLocale(formData: FormData) {
   const locale = localeFromForm(formData);
   (await cookies()).set(LOCALE_COOKIE, locale, { maxAge: LOCALE_COOKIE_MAX_AGE_SECONDS, sameSite: "lax", path: "/" });
   redirect(`/${locale}/settings`);
+}
+
+/** Sets the monthly balance goal: money to have left over or saved each month. */
+export async function setBalanceGoal(_state: FormState, formData: FormData): Promise<FormState> {
+  const userId = await requireActionUserId();
+  const goalCents = parseAmountToCents(readText(formData, "goal"));
+  if (!goalCents) return { fieldErrors: { goal: "amount" } };
+  await db.user.update({ where: { id: userId }, data: { balanceGoalCents: goalCents } });
+  revalidatePath(`/${localeFromForm(formData)}`, "layout");
+  return { savedAt: Date.now() };
+}
+
+export async function clearBalanceGoal(formData: FormData) {
+  const userId = await requireActionUserId();
+  await db.user.update({ where: { id: userId }, data: { balanceGoalCents: null } });
+  revalidatePath(`/${localeFromForm(formData)}`, "layout");
 }

@@ -3,6 +3,7 @@ import { ChevronDown, ChevronRight, ChevronUp, RotateCcw } from "lucide-react";
 import { signOut } from "@/auth";
 import { archiveCard, archiveCategory, archiveIncomeSource, moveCategory, restoreCategory, setLocale } from "@/app/actions/settings";
 import { ActionButton } from "@/components/action-button";
+import { BalanceGoalForm } from "@/components/balance-goal-form";
 import { CategoryForm } from "@/components/category-form";
 import { categoryLabel } from "@/lib/categories";
 import { CardForm } from "@/components/card-form";
@@ -12,7 +13,7 @@ import { Card, Section } from "@/components/section";
 import { isLocale, locales } from "@/i18n/config";
 import { format, getDictionary } from "@/i18n/dictionaries";
 import { requireUserId } from "@/lib/auth-user";
-import { getActiveIncomeSources, getActivePaymentMethods, getCategoriesForManagement } from "@/lib/queries";
+import { getActiveIncomeSources, getActivePaymentMethods, getBalanceGoal, getCategoriesForManagement } from "@/lib/queries";
 import { cn } from "@/lib/cn";
 
 const languageNames = { en: "English", es: "Español" } as const;
@@ -23,7 +24,12 @@ export default async function SettingsPage({ params }: PageProps<"/[locale]/sett
   const userId = await requireUserId(locale);
   const messages = getDictionary(locale);
 
-  const [methods, sources, allCategories] = await Promise.all([getActivePaymentMethods(userId), getActiveIncomeSources(userId), getCategoriesForManagement(userId)]);
+  const [methods, sources, allCategories, goalCents] = await Promise.all([
+    getActivePaymentMethods(userId),
+    getActiveIncomeSources(userId),
+    getCategoriesForManagement(userId),
+    getBalanceGoal(userId),
+  ]);
   const categories = allCategories.filter((category) => !category.archivedAt);
   const archivedCategories = allCategories.filter((category) => category.archivedAt);
   const cards = methods.filter((method) => method.kind === "CARD");
@@ -52,6 +58,12 @@ export default async function SettingsPage({ params }: PageProps<"/[locale]/sett
             </form>
           ))}
         </div>
+      </Section>
+
+      <Section title={messages.settings.goal}>
+        <Card>
+          <BalanceGoalForm goal={goalCents === null ? null : (goalCents / 100).toFixed(2)} locale={locale} messages={messages} />
+        </Card>
       </Section>
 
       <div className="space-y-2">
