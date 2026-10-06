@@ -64,7 +64,7 @@ Last updated: 2026-10-04
 - Monthly balance goal: set in Settings; savings count toward it; the month view shows progress under Balance and the goal's daily target in Needed per day (break-even noted below). Migration adds `balance_goal_cents` to users.
 - Estimated variable bills stay collapsed in the month view until tapped; confirming the amount and method also marks a cash bill paid.
 - Needed per day now includes typical daily spending (everyday purchases pooled over up to 3 full months plus this month); a "Count history from" setting excludes partial early months from it and from average monthly spending. Migration adds `history_start_month` to users.
-- Month summary compares gross with gross: daily income (with daily net below) beside needed per day, plus today's income against the day's target and days left.
+- Month summary compares gross with gross: daily income (with daily net below) beside needed per day.
 
 ## Next
 
