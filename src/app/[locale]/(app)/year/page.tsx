@@ -35,10 +35,10 @@ export default async function YearPage({ params, searchParams }: PageProps<"/[lo
   const grid = buildYearGrid(months, categories);
   const startMonth = grid.monthKeys[0];
 
-  /** An estimated amount (it includes an unconfirmed variable bill) shows "≈" in the warning color. */
+  /** An estimated amount (it includes an unconfirmed variable bill) is marked with "≈". */
   function amount(cents: number, className?: string, estimated = false) {
     if (cents === 0) return <span className="text-subtle">–</span>;
-    return <span className={estimated ? "text-warning" : className}>{estimated ? "≈ " : null}{formatWholePesos(cents)}</span>;
+    return <span className={className}>{estimated ? "≈ " : null}{formatWholePesos(cents)}</span>;
   }
 
   function columnClass(index: number) {

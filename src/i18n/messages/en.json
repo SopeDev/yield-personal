@@ -53,6 +53,7 @@
     "methodFromHere": "Applies to this month and later ones; earlier months keep their method.",
     "dailyNet": "Daily net",
     "neededPerDay": "Needed per day",
+    "inclEveryday": "incl. {amount}/day everyday spending",
     "byCategory": "By category",
     "entries": "Entries",
     "empty": "Nothing recorded this month yet.",
@@ -81,7 +82,7 @@
     "includesCarried": "+ {amount} from earlier",
     "estimate": "Estimate",
     "confirm": "Confirm",
-    "confirmAndPay": "Confirm & mark paid",
+    "confirmAndPay": "Confirm & pay",
     "actualAmount": "Actual amount"
   },
   "income": {
@@ -123,6 +124,10 @@
     "itemCategory": "In {category}"
   },
   "settings": {
+    "history": "History",
+    "historyStart": "Count history from",
+    "historyStartHint": "Averages and typical daily spending skip earlier months, for when your first months only have some records (like card payments).",
+    "historyStartClear": "Count all months",
     "goal": "Goal",
     "balanceGoal": "Monthly balance goal",
     "balanceGoalHint": "What you want left over each month. Money moved into savings counts toward it.",

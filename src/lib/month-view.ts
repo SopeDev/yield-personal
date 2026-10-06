@@ -2,6 +2,7 @@ import "server-only";
 
 import { averageMonthlySpending } from "@/lib/averages";
 import { getSavingsFunds, loadLedgerRange } from "@/lib/ledger-data";
+import { getUserSettings } from "@/lib/queries";
 import { summarizeMonth } from "@/lib/month-summary";
 import { addMonths, type MonthKey } from "@/lib/months";
 import { emergencyFundGoal, fundBalance } from "@/lib/savings";
@@ -17,10 +18,11 @@ const CARRY_UNPAID_MONTHS = 12;
 export async function loadMonthView(userId: string, month: MonthKey, currentMonth: MonthKey) {
   const carryFrom = month === currentMonth ? addMonths(month, -CARRY_UNPAID_MONTHS) : undefined;
   const { data, cards } = await loadLedgerRange(userId, month, month, { statementsFrom: carryFrom });
-  return { ...summarizeMonth(data, month, { carryFrom }), cards, statements: data.statements };
+  return { ...summarizeMonth(data, month, { carryFrom }), cards, statements: data.statements, purchases: data.purchases };
 }
 
-export async function loadYearView(userId: string, endMonth: MonthKey) {
+/** Months before `historyStart` are shown but left out of the average, since they may hold only partial records. */
+export async function loadYearView(userId: string, endMonth: MonthKey, { historyStart = null }: { historyStart?: MonthKey | null } = {}) {
   const startMonth = addMonths(endMonth, -(YEAR_MONTHS - 1));
   const { data } = await loadLedgerRange(userId, startMonth, endMonth);
   const months = Array.from({ length: YEAR_MONTHS }, (_, index) => summarizeMonth(data, addMonths(startMonth, index)));
@@ -28,13 +30,16 @@ export async function loadYearView(userId: string, endMonth: MonthKey) {
     data,
     categories: data.categories,
     months,
-    average: averageMonthlySpending(months.map((month) => ({ month: month.month, byCategory: month.spending.byCategory }))),
+    average: averageMonthlySpending(
+      months.filter((month) => !historyStart || month.month >= historyStart).map((month) => ({ month: month.month, byCategory: month.spending.byCategory })),
+    ),
   };
 }
 
 /** Savings funds with balances, and the emergency fund goal from average spending and installments owed. */
 export async function loadSavingsView(userId: string, currentMonth: MonthKey) {
-  const [{ data, months, average }, funds] = await Promise.all([loadYearView(userId, currentMonth), getSavingsFunds(userId)]);
+  const { historyStartMonth } = await getUserSettings(userId);
+  const [{ data, months, average }, funds] = await Promise.all([loadYearView(userId, currentMonth, { historyStart: historyStartMonth }), getSavingsFunds(userId)]);
   const installmentsOwedCents = installmentsOwed(data.statements);
 
   return {

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Fragment, type ReactNode } from "react";
 import { deleteIncome, deletePurchase } from "@/app/actions/entries";
 import { setOccurrencePaid } from "@/app/actions/recurring";
 import { DeleteButton } from "@/components/delete-button";
@@ -8,20 +9,21 @@ import { StatementRow } from "@/components/statement-row";
 import { formatCents } from "@/lib/money";
 import { MonthNav } from "@/components/month-nav";
 import { OccurrenceAmountForm } from "@/components/occurrence-amount-form";
-import { PaidToggle, StatusBadge } from "@/components/paid-toggle";
+import { PaidCheck, PaidCheckForm, StatusBadge } from "@/components/paid-toggle";
 import { Card, Section } from "@/components/section";
 import { isLocale } from "@/i18n/config";
 import { format, getDictionary } from "@/i18n/dictionaries";
 import { requireUserId } from "@/lib/auth-user";
 import { occurrencePaymentStatus } from "@/lib/cash-flow";
 import { categoryLabel } from "@/lib/categories";
-import { formatDayHeading, formatMonth, formatShortDate, groupByDay } from "@/lib/dates";
+import { daysBetween, formatDayHeading, formatMonth, formatShortDate, groupByDay } from "@/lib/dates";
+import { dateKeyOf } from "@/lib/months";
 import type { LedgerIncome, LedgerPaymentMethod, MonthSpendingEntry } from "@/lib/ledger";
 import { paymentMethodLabel } from "@/lib/payment-methods";
 import type { RecurringOccurrence } from "@/lib/recurring";
-import { dailyNet, goalProgress, neededPerDay } from "@/lib/daily-balance";
+import { dailyNet, goalProgress, neededPerDay, typicalDailySpending } from "@/lib/daily-balance";
 import { loadMonthView } from "@/lib/month-view";
-import { getActivePaymentMethods, getBalanceGoal } from "@/lib/queries";
+import { getActivePaymentMethods, getUserSettings } from "@/lib/queries";
 import { monthFromSearchParam } from "@/lib/search-params";
 import { currentMonthKey, todayKey } from "@/lib/today";
 import { cn } from "@/lib/cn";
@@ -38,10 +40,10 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
   // Opening a cell of the year view filters the month's entries and recurring payments to one item.
   const itemFilter = typeof query.item === "string" ? query.item : null;
   const messages = getDictionary(locale);
-  const [{ cards, entries, incomes, occurrences, statements, spending, income, cashFlow, savingsNetCents }, methods, goalCents] = await Promise.all([
+  const [{ cards, entries, incomes, occurrences, statements, spending, income, cashFlow, savingsNetCents, purchases }, methods, { balanceGoalCents: goalCents, historyStartMonth }] = await Promise.all([
     loadMonthView(userId, month, currentMonth),
     getActivePaymentMethods(userId),
-    getBalanceGoal(userId),
+    getUserSettings(userId),
   ]);
 
   const balanceCents = income.totalCents - cashFlow.toPayCents;
@@ -63,8 +65,11 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
     ...(itemFilter ? [] : incomes).map((item) => ({ kind: "income" as const, income: item, date: item.date })),
   ].sort((a, b) => b.date.getTime() - a.date.getTime());
   const today = todayKey();
-  const typicalDay = dailyNet({ month, today, entries, incomes });
-  const needed = neededPerDay({ month, today, toPayCents: cashFlow.toPayCents, incomeCents: income.totalCents, savingsNetCents, goalCents });
+  const dayNet = dailyNet({ month, today, entries, incomes });
+  const typicalDay = typicalDailySpending({ purchases, today, historyStart: historyStartMonth });
+  const needed = neededPerDay({
+    month, today, toPayCents: cashFlow.toPayCents, incomeCents: income.totalCents, savingsNetCents, goalCents, typicalDailyCents: typicalDay.cents,
+  });
   // Money moved into savings counts toward the goal; a month that has ended either met it or missed it.
   const goalLeftCents = goalCents === null ? 0 : goalCents - goalProgress({ balanceCents, savingsNetCents });
   const goalLine = goalCents === null ? null
@@ -97,14 +102,21 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
   const occurrenceRow = (occurrence: RecurringOccurrence, carried = false) => {
     const { recurring } = occurrence;
     const status = occurrencePaymentStatus(occurrence, statements);
-    const details = status.statement
-      ? format(messages.month.onStatement, { card: recurring.paymentMethod.name, date: formatShortDate(status.statement.dueDate, locale) })
-      : [
-        carried ? formatMonth(occurrence.month, locale) : null,
-        format(messages.month.day, { day: occurrence.date.getUTCDate() }),
-        paymentMethodLabel(recurring.paymentMethod, messages.common.cash),
-      ].filter(Boolean).join(" · ");
-    const subtitle = [details, occurrence.amountChanged ? messages.month.changedAmount : null, occurrence.estimated ? messages.month.estimate : null].filter(Boolean).join(" · ");
+    // An unpaid cash bill's day turns yellow within 3 days of it and red on the day or after.
+    const daysUntilDue = daysBetween(today, dateKeyOf(occurrence.date));
+    const dayTone = status.statement || status.paid ? undefined : daysUntilDue <= 0 ? "text-loss" : daysUntilDue < 3 ? "text-warning" : undefined;
+    const subtitleParts: ReactNode[] = [
+      ...(status.statement
+        ? [format(messages.month.onStatement, { card: recurring.paymentMethod.name, date: formatShortDate(status.statement.dueDate, locale) })]
+        : [
+          carried ? formatMonth(occurrence.month, locale) : null,
+          <span className={cn(dayTone && "font-medium", dayTone)} key="day">{format(messages.month.day, { day: occurrence.date.getUTCDate() })}</span>,
+          paymentMethodLabel(recurring.paymentMethod, messages.common.cash),
+        ]),
+      occurrence.amountChanged ? messages.month.changedAmount : null,
+      occurrence.estimated ? messages.month.estimate : null,
+    ].filter(Boolean);
+    const subtitle = subtitleParts.map((part, index) => <Fragment key={index}>{index > 0 ? " · " : null}{part}</Fragment>);
     const amountForm = (mode: "change" | "confirm") => (
       <OccurrenceAmountForm
         amount={(occurrence.amountCents / 100).toFixed(2)}
@@ -117,43 +129,39 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
         recurringPaymentId={recurring.id}
       />
     );
+    const paidFormId = `paid-${recurring.id}-${occurrence.month}`;
     return (
       <li key={`${recurring.id}-${occurrence.month}`}>
-        {occurrence.estimated ? (
-          // An estimated variable bill needs its real amount: the confirm form is always shown.
-          <>
-            <div className="flex items-center gap-3 py-3 pl-4 pr-3">
-              <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: recurring.paymentMethod.color }} />
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-medium">{recurring.item.name}</p>
-                <p className="truncate text-sm text-muted-foreground">{subtitle}</p>
-              </div>
-              <span className="font-mono tabular-nums text-warning">≈ {formatCents(occurrence.amountCents)}</span>
+        {/* Tapping opens the amount and method; an estimated variable bill confirms them there, which also pays it. */}
+        <details className="group">
+          <summary className="flex cursor-pointer list-none items-center gap-3 py-3 pl-4 pr-3">
+            <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: recurring.paymentMethod.color }} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-medium">{recurring.item.name}</p>
+              <p className="truncate text-sm text-muted-foreground">{subtitle}</p>
             </div>
-            {amountForm("confirm")}
-          </>
-        ) : (
-          <>
-            <details className="group">
-              <summary className="flex cursor-pointer list-none items-center gap-3 py-3 pl-4 pr-3">
-                <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: recurring.paymentMethod.color }} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{recurring.item.name}</p>
-                  <p className="truncate text-sm text-muted-foreground">{subtitle}</p>
-                </div>
-                <Money cents={occurrence.amountCents} />
-              </summary>
-              {amountForm("change")}
-            </details>
-            <div className="flex justify-end px-3 pb-3 -mt-1">
-              {recurring.paymentMethod.kind === "CASH" ? (
-                <PaidToggle action={setOccurrencePaid} fields={{ locale, recurringPaymentId: recurring.id, month: occurrence.month }} labels={toggleLabels} paid={status.paid} />
-              ) : (
+            {occurrence.estimated ? (
+              // Paid by confirming it, so it shows its status instead of a paid check.
+              <>
+                <span className="font-mono tabular-nums">≈ {formatCents(occurrence.amountCents)}</span>
                 <StatusBadge labels={messages.common} paid={status.paid} />
-              )}
-            </div>
-          </>
-        )}
+              </>
+            ) : (
+              <>
+                <Money cents={occurrence.amountCents} />
+                {recurring.paymentMethod.kind === "CASH" ? (
+                  <PaidCheck formId={paidFormId} labels={toggleLabels} paid={status.paid} />
+                ) : (
+                  <StatusBadge labels={messages.common} paid={status.paid} />
+                )}
+              </>
+            )}
+          </summary>
+          {amountForm(occurrence.estimated ? "confirm" : "change")}
+        </details>
+        {!occurrence.estimated && recurring.paymentMethod.kind === "CASH" ? (
+          <PaidCheckForm action={setOccurrencePaid} fields={{ locale, recurringPaymentId: recurring.id, month: occurrence.month }} id={paidFormId} paid={status.paid} />
+        ) : null}
       </li>
     );
   };
@@ -177,17 +185,22 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
         </div>
         <div className="grid grid-cols-2 divide-x divide-border text-center [&>*:nth-child(n+3)]:border-t [&>*:nth-child(n+3)]:border-border">
           <Stat label={messages.month.income}><Money cents={income.totalCents} /></Stat>
-          <Stat label={messages.month.toPay}><Money cents={cashFlow.toPayCents} /></Stat>
-          <Stat label={messages.month.spending}><Money cents={spending.totalCents} /></Stat>
           <Stat label={messages.month.outstanding}>
             <Money cents={cashFlow.outstandingCents} className={cashFlow.outstandingCents > 0 ? "text-warning" : undefined} />
             {cashFlow.carriedOutstandingCents > 0 ? (
               <span className="mt-0.5 block text-xs font-normal text-loss">{format(messages.month.includesCarried, { amount: formatCents(cashFlow.carriedOutstandingCents) })}</span>
             ) : null}
           </Stat>
+          <Stat label={messages.month.spending}><Money cents={spending.totalCents} /></Stat>
+          <Stat label={messages.month.toPay}><Money cents={cashFlow.toPayCents} /></Stat>
           <Stat label={messages.month.neededPerDay}>
             {!needed ? <span className="text-subtle">–</span> : needed.forGoalCents === null ? (
-              <Money cents={needed.cents} className={needed.cents === 0 ? "text-gain" : undefined} />
+              <>
+                <Money cents={needed.cents} className={needed.cents === 0 ? "text-gain" : undefined} />
+                {needed.typicalDailyCents > 0 ? (
+                  <span className="mt-0.5 block text-xs font-normal text-muted-foreground">{format(messages.month.inclEveryday, { amount: formatCents(needed.typicalDailyCents) })}</span>
+                ) : null}
+              </>
             ) : (
               // With a goal, the goal's daily target leads and breaking even is noted below.
               <>
@@ -197,7 +210,7 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
             )}
           </Stat>
           <Stat label={messages.month.dailyNet}>
-            {typicalDay ? <Money cents={typicalDay.averageCents} className={tone(typicalDay.averageCents)} /> : <span className="text-subtle">–</span>}
+            {dayNet ? <Money cents={dayNet.averageCents} className={tone(dayNet.averageCents)} /> : <span className="text-subtle">–</span>}
           </Stat>
         </div>
       </Card>

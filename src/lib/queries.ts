@@ -1,6 +1,7 @@
 import "server-only";
 
 import { db } from "@/db/client";
+import { monthKeyOf } from "@/lib/months";
 import { usualPurchases } from "@/lib/usual-purchase";
 
 const categorySelect = { id: true, key: true, name: true, sortOrder: true, includeInAverage: true } as const;
@@ -91,8 +92,11 @@ export function getCategoriesForManagement(userId: string) {
   });
 }
 
-/** The monthly balance goal in centavos, or null when unset. */
-export async function getBalanceGoal(userId: string) {
-  const user = await db.user.findUnique({ where: { id: userId }, select: { balanceGoalCents: true } });
-  return user?.balanceGoalCents ?? null;
+/** Settings that shape month figures: the balance goal (centavos) and the first month history counts from. */
+export async function getUserSettings(userId: string) {
+  const user = await db.user.findUnique({ where: { id: userId }, select: { balanceGoalCents: true, historyStartMonth: true } });
+  return {
+    balanceGoalCents: user?.balanceGoalCents ?? null,
+    historyStartMonth: user?.historyStartMonth ? monthKeyOf(user.historyStartMonth) : null,
+  };
 }

@@ -22,6 +22,9 @@ model User {
   image                String?
   /// Monthly balance goal in centavos: money to have left over or saved each month. Null when unset.
   balanceGoalCents     Int?                  @map("balance_goal_cents")
+  /// First month (its first day) counted in calculations from past spending, like averages and typical daily
+  /// spending; earlier months may hold only partial records. Null counts every month.
+  historyStartMonth    DateTime?             @map("history_start_month") @db.Date
   createdAt            DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
   accounts             Account[]

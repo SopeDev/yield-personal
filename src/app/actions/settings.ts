@@ -7,6 +7,7 @@ import { z } from "zod";
 import { db } from "@/db/client";
 import { LOCALE_COOKIE } from "@/i18n/config";
 import { parseAmountToCents } from "@/lib/money";
+import { dateFromKey, isMonthKey } from "@/lib/months";
 import { CARD_COLORS, MAX_STATEMENT_DAY } from "@/lib/payment-methods";
 import { MAX_PAYMENT_DAYS } from "@/lib/statements";
 import { localeFromForm, requireActionUserId } from "./action-user";
@@ -189,5 +190,21 @@ export async function setBalanceGoal(_state: FormState, formData: FormData): Pro
 export async function clearBalanceGoal(formData: FormData) {
   const userId = await requireActionUserId();
   await db.user.update({ where: { id: userId }, data: { balanceGoalCents: null } });
+  revalidatePath(`/${localeFromForm(formData)}`, "layout");
+}
+
+/** Sets the first month counted in calculations from past spending; earlier months may hold only partial records. */
+export async function setHistoryStart(_state: FormState, formData: FormData): Promise<FormState> {
+  const userId = await requireActionUserId();
+  const month = readText(formData, "month");
+  if (!isMonthKey(month)) return { fieldErrors: { month: "month" } };
+  await db.user.update({ where: { id: userId }, data: { historyStartMonth: dateFromKey(`${month}-01`) } });
+  revalidatePath(`/${localeFromForm(formData)}`, "layout");
+  return { savedAt: Date.now() };
+}
+
+export async function clearHistoryStart(formData: FormData) {
+  const userId = await requireActionUserId();
+  await db.user.update({ where: { id: userId }, data: { historyStartMonth: null } });
   revalidatePath(`/${localeFromForm(formData)}`, "layout");
 }

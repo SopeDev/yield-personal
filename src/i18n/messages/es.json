@@ -53,6 +53,7 @@
     "methodFromHere": "Aplica a este mes y los siguientes; los meses anteriores conservan su método.",
     "dailyNet": "Neto diario",
     "neededPerDay": "Necesario por día",
+    "inclEveryday": "incl. {amount}/día de gasto diario",
     "byCategory": "Por categoría",
     "entries": "Movimientos",
     "empty": "Todavía no hay nada registrado este mes.",
@@ -81,7 +82,7 @@
     "includesCarried": "+ {amount} de meses anteriores",
     "estimate": "Estimado",
     "confirm": "Confirmar",
-    "confirmAndPay": "Confirmar y marcar pagado",
+    "confirmAndPay": "Confirmar y pagar",
     "actualAmount": "Monto real"
   },
   "income": {
@@ -123,6 +124,10 @@
     "itemCategory": "En {category}"
   },
   "settings": {
+    "history": "Historial",
+    "historyStart": "Contar historial desde",
+    "historyStartHint": "Los promedios y el gasto diario típico omiten los meses anteriores, por si tus primeros meses solo tienen algunos registros (como pagos con tarjeta).",
+    "historyStartClear": "Contar todos los meses",
     "goal": "Meta",
     "balanceGoal": "Meta de balance mensual",
     "balanceGoalHint": "Lo que quieres que te sobre cada mes. El dinero que pasas a ahorros cuenta para la meta.",

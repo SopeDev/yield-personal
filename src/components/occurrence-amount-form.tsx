@@ -11,8 +11,8 @@ export type OccurrenceMethodOption = { id: string; label: string; color: string;
 
 /**
  * Sets one month's amount and payment method of a recurring payment. A different method also becomes the usual
- * one for later months. In `confirm` mode (a variable bill still estimated), a cash bill also offers confirming
- * and marking paid in one step.
+ * one for later months. In `confirm` mode (a variable bill still estimated), confirming also marks a cash bill
+ * paid; a card bill is paid with its statement.
  */
 export function OccurrenceAmountForm({ locale, recurringPaymentId, month, amount, paymentMethodId, methods, messages, mode = "change" }: {
   locale: string;
@@ -41,20 +41,11 @@ export function OccurrenceAmountForm({ locale, recurringPaymentId, month, amount
       </label>
       <div className="flex flex-wrap items-start gap-2">
         <MoneyInput className={`${inputClass} min-h-10 w-32 flex-1 font-mono`} defaultValue={amount} id={inputId} name="amount" />
-        {mode === "confirm" && isCash ? (
-          <>
-            <button className={`${buttonClass} border border-border text-foreground`} disabled={pending} name="markPaid" type="submit" value="false">
-              {messages.month.confirm}
-            </button>
-            <button className={`${buttonClass} bg-primary text-primary-foreground`} disabled={pending} name="markPaid" type="submit" value="true">
-              {messages.month.confirmAndPay}
-            </button>
-          </>
-        ) : (
-          <button className={`${buttonClass} bg-primary px-4 text-primary-foreground`} disabled={pending} type="submit">
-            {pending ? messages.common.saving : mode === "confirm" ? messages.month.confirm : messages.common.save}
-          </button>
-        )}
+        {/* Confirming a variable bill also pays it: a cash bill is marked paid; a card bill follows its statement. */}
+        {mode === "confirm" ? <input name="markPaid" type="hidden" value="true" /> : null}
+        <button className={`${buttonClass} bg-primary px-4 text-primary-foreground`} disabled={pending} type="submit">
+          {pending ? messages.common.saving : mode === "change" ? messages.common.save : isCash ? messages.month.confirmAndPay : messages.month.confirm}
+        </button>
       </div>
       {methods.length > 1 ? (
         <fieldset className="mt-3">

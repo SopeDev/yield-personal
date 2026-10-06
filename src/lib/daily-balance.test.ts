@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { dailyNet, goalProgress, neededPerDay } from "./daily-balance";
+import { dailyNet, goalProgress, neededPerDay, typicalDailySpending } from "./daily-balance";
 import type { LedgerPurchase, MonthSpendingEntry } from "./ledger";
 import { dateFromKey } from "./months";
 
@@ -38,9 +38,9 @@ test("a typical day's net leaves out extras and installments of earlier purchase
 
 test("income needed per remaining day to cover the month's total to pay", () => {
   // Oct 5: 27 days left, today included.
-  assert.deepEqual(neededPerDay({ month: "2026-10", today: "2026-10-05", toPayCents: 2508219, incomeCents: 793924 }), { daysLeft: 27, cents: 63493, forGoalCents: null });
+  assert.deepEqual(neededPerDay({ month: "2026-10", today: "2026-10-05", toPayCents: 2508219, incomeCents: 793924 }), { daysLeft: 27, typicalDailyCents: 0, cents: 63493, forGoalCents: null });
   assert.equal(neededPerDay({ month: "2026-10", today: "2026-10-31", toPayCents: 100000, incomeCents: 150000 })?.cents, 0);
-  assert.deepEqual(neededPerDay({ month: "2026-11", today: "2026-10-05", toPayCents: 300000, incomeCents: 0 }), { daysLeft: 30, cents: 10000, forGoalCents: null });
+  assert.deepEqual(neededPerDay({ month: "2026-11", today: "2026-10-05", toPayCents: 300000, incomeCents: 0 }), { daysLeft: 30, typicalDailyCents: 0, cents: 10000, forGoalCents: null });
   assert.equal(neededPerDay({ month: "2026-09", today: "2026-10-05", toPayCents: 300000, incomeCents: 0 }), null);
 });
 
@@ -54,4 +54,24 @@ test("the balance goal raises what's needed per day, with savings counting towar
   assert.equal(saved?.forGoalCents, 74604);
   assert.equal(neededPerDay({ ...october, incomeCents: 3100000 })?.forGoalCents, 0);
   assert.equal(goalProgress({ balanceCents: -200000, savingsNetCents: 500000 }), 300000);
+});
+
+test("typical daily spending pools everyday purchases since the history start", () => {
+  const purchases = [
+    entry("2026-09-20", 99000).purchase,
+    entry("2026-10-02", 20000).purchase,
+    entry("2026-10-03", 900000, { category: extras }).purchase,
+    entry("2026-10-04", 30000).purchase,
+  ];
+  // Without a history start, the last 3 full months count: Jul 1 to Oct 5.
+  assert.deepEqual(typicalDailySpending({ purchases, today: "2026-10-05" }), { days: 97, cents: 1536 });
+  // Counting from October: 500 over 5 days; September's partial records and extras are left out.
+  assert.deepEqual(typicalDailySpending({ purchases, today: "2026-10-05", historyStart: "2026-10" }), { days: 5, cents: 10000 });
+});
+
+test("needed per day adds a typical day's spending to the month's bills", () => {
+  const needed = neededPerDay({ month: "2026-10", today: "2026-10-05", toPayCents: 2508219, incomeCents: 793924, typicalDailyCents: 10000 });
+  assert.equal(needed?.cents, 73493);
+  // Income already covers the bills, but the coming days still cost something.
+  assert.equal(neededPerDay({ month: "2026-10", today: "2026-10-05", toPayCents: 100000, incomeCents: 370000, typicalDailyCents: 15000 })?.cents, 5000);
 });

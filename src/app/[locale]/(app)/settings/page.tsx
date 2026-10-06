@@ -4,6 +4,7 @@ import { signOut } from "@/auth";
 import { archiveCard, archiveCategory, archiveIncomeSource, moveCategory, restoreCategory, setLocale } from "@/app/actions/settings";
 import { ActionButton } from "@/components/action-button";
 import { BalanceGoalForm } from "@/components/balance-goal-form";
+import { HistoryStartForm } from "@/components/history-start-form";
 import { CategoryForm } from "@/components/category-form";
 import { categoryLabel } from "@/lib/categories";
 import { CardForm } from "@/components/card-form";
@@ -13,7 +14,7 @@ import { Card, Section } from "@/components/section";
 import { isLocale, locales } from "@/i18n/config";
 import { format, getDictionary } from "@/i18n/dictionaries";
 import { requireUserId } from "@/lib/auth-user";
-import { getActiveIncomeSources, getActivePaymentMethods, getBalanceGoal, getCategoriesForManagement } from "@/lib/queries";
+import { getActiveIncomeSources, getActivePaymentMethods, getCategoriesForManagement, getUserSettings } from "@/lib/queries";
 import { cn } from "@/lib/cn";
 
 const languageNames = { en: "English", es: "Español" } as const;
@@ -24,11 +25,11 @@ export default async function SettingsPage({ params }: PageProps<"/[locale]/sett
   const userId = await requireUserId(locale);
   const messages = getDictionary(locale);
 
-  const [methods, sources, allCategories, goalCents] = await Promise.all([
+  const [methods, sources, allCategories, { balanceGoalCents: goalCents, historyStartMonth }] = await Promise.all([
     getActivePaymentMethods(userId),
     getActiveIncomeSources(userId),
     getCategoriesForManagement(userId),
-    getBalanceGoal(userId),
+    getUserSettings(userId),
   ]);
   const categories = allCategories.filter((category) => !category.archivedAt);
   const archivedCategories = allCategories.filter((category) => category.archivedAt);
@@ -63,6 +64,12 @@ export default async function SettingsPage({ params }: PageProps<"/[locale]/sett
       <Section title={messages.settings.goal}>
         <Card>
           <BalanceGoalForm goal={goalCents === null ? null : (goalCents / 100).toFixed(2)} locale={locale} messages={messages} />
+        </Card>
+      </Section>
+
+      <Section title={messages.settings.history}>
+        <Card>
+          <HistoryStartForm locale={locale} messages={messages} month={historyStartMonth} />
         </Card>
       </Section>
 
