@@ -17,7 +17,7 @@ import { requireUserId } from "@/lib/auth-user";
 import { occurrencePaymentStatus } from "@/lib/cash-flow";
 import { categoryLabel } from "@/lib/categories";
 import { daysBetween, formatDayHeading, formatMonth, formatShortDate, groupByDay } from "@/lib/dates";
-import { dateKeyOf } from "@/lib/months";
+import { dateKeyOf, daysInMonth } from "@/lib/months";
 import type { LedgerIncome, LedgerPaymentMethod, MonthSpendingEntry } from "@/lib/ledger";
 import { paymentMethodLabel } from "@/lib/payment-methods";
 import type { RecurringOccurrence } from "@/lib/recurring";
@@ -70,6 +70,10 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
   const needed = neededPerDay({
     month, today, toPayCents: cashFlow.toPayCents, incomeCents: income.totalCents, savingsNetCents, goalCents, typicalDailyCents: typicalDay.cents,
   });
+  // The day's target is the goal's when one is set; average and today's income are gross, like the target.
+  const targetCents = needed ? (needed.forGoalCents ?? needed.cents) : null;
+  const dailyIncomeCents = dayNet ? Math.round(dayNet.incomeCents / dayNet.days) : null;
+  const todayIncomeCents = incomes.filter((item) => dateKeyOf(item.date) === today).reduce((sum, item) => sum + item.amountCents, 0);
   // Money moved into savings counts toward the goal; a month that has ended either met it or missed it.
   const goalLeftCents = goalCents === null ? 0 : goalCents - goalProgress({ balanceCents, savingsNetCents });
   const goalLine = goalCents === null ? null
@@ -209,9 +213,28 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
               </>
             )}
           </Stat>
-          <Stat label={messages.month.dailyNet}>
-            {dayNet ? <Money cents={dayNet.averageCents} className={tone(dayNet.averageCents)} /> : <span className="text-subtle">–</span>}
+          <Stat label={messages.month.dailyIncome}>
+            {dayNet && dailyIncomeCents !== null ? (
+              <>
+                <Money cents={dailyIncomeCents} className={targetCents === null ? undefined : dailyIncomeCents >= targetCents ? "text-gain" : "text-warning"} />
+                <span className="mt-0.5 block text-xs font-normal text-muted-foreground">{format(messages.month.netPerDay, { amount: formatCents(dayNet.averageCents) })}</span>
+              </>
+            ) : <span className="text-subtle">–</span>}
           </Stat>
+          {month === currentMonth && needed && targetCents !== null ? (
+            <>
+              <Stat label={messages.month.today}>
+                <Money cents={todayIncomeCents} className={todayIncomeCents >= targetCents ? "text-gain" : undefined} />
+                <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+                  {todayIncomeCents >= targetCents ? messages.month.todayMet : format(messages.month.todayToGo, { amount: formatCents(targetCents - todayIncomeCents) })}
+                </span>
+              </Stat>
+              <Stat label={messages.month.daysLeft}>
+                <span className="font-mono tabular-nums">{needed.daysLeft}</span>
+                <span className="mt-0.5 block text-xs font-normal text-muted-foreground">{format(messages.month.ofDays, { count: daysInMonth(month) })}</span>
+              </Stat>
+            </>
+          ) : null}
         </div>
       </Card>
 
@@ -314,10 +337,6 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
       </Section>
     </div>
   );
-}
-
-function tone(cents: number) {
-  return cents < 0 ? "text-loss" : "text-gain";
 }
 
 function Stat({ label, children }: { label: string; children: React.ReactNode }) {
