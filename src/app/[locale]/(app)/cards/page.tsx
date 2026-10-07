@@ -8,6 +8,7 @@ import { format, getDictionary } from "@/i18n/dictionaries";
 import { requireUserId } from "@/lib/auth-user";
 import { formatShortDate } from "@/lib/dates";
 import { loadLedgerRange } from "@/lib/ledger-data";
+import { CARRY_UNPAID_MONTHS } from "@/lib/month-view";
 import { addMonths, dateKeyOf } from "@/lib/months";
 import { installmentsOwed, type Statement } from "@/lib/statements";
 import { currentMonthKey, todayKey } from "@/lib/today";
@@ -27,7 +28,8 @@ export default async function CardsPage({ params }: PageProps<"/[locale]/cards">
   const today = todayKey();
   const firstMonth = addMonths(currentMonth, -HISTORY_MONTHS);
 
-  const { data: { statements }, cards } = await loadLedgerRange(userId, firstMonth, currentMonth);
+  // Statements as far back as the month view carries unpaid ones, so an archived card shows while it has any.
+  const { data: { statements }, cards } = await loadLedgerRange(userId, firstMonth, currentMonth, { statementsFrom: addMonths(currentMonth, -CARRY_UNPAID_MONTHS) });
 
   const visibleCards = cards.filter((card) => !card.archivedAt || statements.some((statement) => statement.paymentMethodId === card.id && !statement.paid));
   const toggleLabels = { paid: messages.common.paid, markPaid: messages.common.markPaid, markUnpaid: messages.common.markUnpaid };

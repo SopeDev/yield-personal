@@ -1,7 +1,9 @@
 import "server-only";
 
 import { db } from "@/db/client";
-import { monthKeyOf } from "@/lib/months";
+import { incomeRhythmOf } from "@/lib/income-rhythm";
+import { dateKeyOf, monthKeyOf } from "@/lib/months";
+import { parseSummaryCards } from "@/lib/stats";
 import { usualPurchases } from "@/lib/usual-purchase";
 
 const categorySelect = { id: true, key: true, name: true, sortOrder: true, kind: true } as const;
@@ -92,12 +94,26 @@ export function getCategoriesForManagement(userId: string) {
   });
 }
 
-/** Settings that shape month figures: the balance goal (centavos) and the first month history counts from. */
+/**
+ * Settings that shape month figures: the balance goal (centavos), the first month history counts from, the income
+ * rhythm (with its stored parts for editing), and the customized summary cards.
+ */
 export async function getUserSettings(userId: string) {
-  const user = await db.user.findUnique({ where: { id: userId }, select: { balanceGoalCents: true, historyStartMonth: true } });
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: { balanceGoalCents: true, historyStartMonth: true, incomeRhythm: true, incomeRhythmAnchor: true, incomePayDays: true, summaryCards: true },
+  });
+  const rhythmParts = {
+    kind: user?.incomeRhythm ?? "DAILY",
+    anchor: user?.incomeRhythmAnchor ? dateKeyOf(user.incomeRhythmAnchor) : null,
+    days: user?.incomePayDays ?? [],
+  };
   return {
     balanceGoalCents: user?.balanceGoalCents ?? null,
     historyStartMonth: user?.historyStartMonth ? monthKeyOf(user.historyStartMonth) : null,
+    incomeRhythm: incomeRhythmOf(rhythmParts),
+    rhythmParts,
+    summaryCards: parseSummaryCards(user?.summaryCards),
   };
 }
 

@@ -15,6 +15,15 @@ enum CategoryKind {
   @@map("category_kind")
 }
 
+enum IncomeRhythm {
+  DAILY
+  WEEKLY
+  BIWEEKLY
+  MONTH_DAYS
+
+  @@map("income_rhythm")
+}
+
 enum PaymentMethodKind {
   CASH
   CARD
@@ -33,7 +42,19 @@ model User {
   /// First month (its first day) counted in calculations from past spending, like averages and typical daily
   /// spending; earlier months may hold only partial records. Null counts every month.
   historyStartMonth    DateTime?             @map("history_start_month") @db.Date
-  createdAt            DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  /// Money on hand (cash, debit, and app balances outside savings) in centavos, as counted at `cashOnHandSetAt`;
+  /// records after that moment move it from there. Null until first set.
+  cashOnHandCents      Int?                  @map("cash_on_hand_cents")
+  cashOnHandSetAt      DateTime?             @map("cash_on_hand_set_at") @db.Timestamptz(6)
+  /// How often income arrives: every day, weekly or every two weeks counted from `incomeRhythmAnchor` (any
+  /// payday), or on the days of the month in `incomePayDays`. Sets the paydays the per-payday stats count.
+  incomeRhythm         IncomeRhythm          @default(DAILY) @map("income_rhythm")
+  incomeRhythmAnchor   DateTime?             @map("income_rhythm_anchor") @db.Date
+  incomePayDays        Int[]                 @default([]) @map("income_pay_days")
+  /// Customized summary cards by card id ("month", "income"), each `{ headline, grid }` of stat references
+  /// (`src/lib/stats.ts`). A card left out keeps its default layout.
+  summaryCards         Json?                 @map("summary_cards")
+  createdAt           DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
   accounts             Account[]
   sessions             Session[]

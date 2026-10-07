@@ -7,8 +7,10 @@ import { z } from "zod";
 import { db } from "@/db/client";
 import { LOCALE_COOKIE } from "@/i18n/config";
 import { isCategoryKind, type CategoryKind } from "@/lib/categories";
+import { loadCashOnHand } from "@/lib/ledger-data";
 import { parseAmountToCents } from "@/lib/money";
-import { dateFromKey, isMonthKey } from "@/lib/months";
+import { isIncomeRhythmKind, parsePayDays } from "@/lib/income-rhythm";
+import { dateFromKey, isDateKey, isMonthKey } from "@/lib/months";
 import { CARD_COLORS, MAX_STATEMENT_DAY } from "@/lib/payment-methods";
 import { MAX_PAYMENT_DAYS } from "@/lib/statements";
 import { localeFromForm, requireActionUserId } from "./action-user";
@@ -260,6 +262,41 @@ export async function clearBalanceGoal(formData: FormData) {
   const userId = await requireActionUserId();
   await db.user.update({ where: { id: userId }, data: { balanceGoalCents: null } });
   revalidatePath(`/${localeFromForm(formData)}`, "layout");
+}
+
+export type CashOnHandState = FormState & { offByCents?: number | null };
+
+/** Sets money on hand to what the user counted, returning how far it was from the tracked amount (null the first time). */
+export async function setCashOnHand(_state: CashOnHandState, formData: FormData): Promise<CashOnHandState> {
+  const userId = await requireActionUserId();
+  const cents = parseAmountToCents(readText(formData, "amount"));
+  if (cents === null) return { fieldErrors: { amount: "amount" } };
+  const trackedCents = await loadCashOnHand(userId);
+  await db.user.update({ where: { id: userId }, data: { cashOnHandCents: cents, cashOnHandSetAt: new Date() } });
+  revalidatePath(`/${localeFromForm(formData)}`, "layout");
+  return { savedAt: Date.now(), offByCents: trackedCents === null ? null : cents - trackedCents };
+}
+
+/** Sets when income arrives: daily, weekly or every two weeks from a payday, or on days of the month. */
+export async function setIncomeRhythm(_state: FormState, formData: FormData): Promise<FormState> {
+  const userId = await requireActionUserId();
+  const kind = readText(formData, "kind");
+  if (!isIncomeRhythmKind(kind)) return { error: "generic" };
+
+  const data = { incomeRhythm: kind, incomeRhythmAnchor: null as Date | null, incomePayDays: [] as number[] };
+  if (kind === "WEEKLY" || kind === "BIWEEKLY") {
+    const anchor = readText(formData, "anchor");
+    if (!isDateKey(anchor)) return { fieldErrors: { anchor: "date" } };
+    data.incomeRhythmAnchor = dateFromKey(anchor);
+  } else if (kind === "MONTH_DAYS") {
+    const days = parsePayDays(readText(formData, "days"));
+    if (!days) return { fieldErrors: { days: "payDays" } };
+    data.incomePayDays = days;
+  }
+
+  await db.user.update({ where: { id: userId }, data });
+  revalidatePath(`/${localeFromForm(formData)}`, "layout");
+  return { savedAt: Date.now() };
 }
 
 /** Sets the first month counted in calculations from past spending; earlier months may hold only partial records. */

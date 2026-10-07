@@ -2,12 +2,13 @@ import "server-only";
 
 import { db } from "@/db/client";
 import { statementsForCards } from "@/lib/card-statements";
+import { cashOnHandCents, type PaidBill } from "@/lib/cash-on-hand";
 import { earliestContributingMonth } from "@/lib/installments";
 import type { LedgerIncomeGroup } from "@/lib/ledger";
 import type { LedgerData } from "@/lib/month-summary";
-import { addMonths, monthRange, type MonthKey } from "@/lib/months";
-import type { ConfirmedAmount, OccurrenceOverride, RecurringDefinition } from "@/lib/recurring";
-import { monthKeyInAppZone } from "@/lib/today";
+import { addMonths, dateFromKey, monthKeyOf, monthRange, type MonthKey } from "@/lib/months";
+import { occurrencesForMonth, type ConfirmedAmount, type OccurrenceOverride, type RecurringDefinition } from "@/lib/recurring";
+import { dateKeyInAppZone, monthKeyInAppZone, todayKey } from "@/lib/today";
 
 const categorySelect = { id: true, key: true, name: true, sortOrder: true, kind: true } as const;
 const paymentMethodSelect = { id: true, kind: true, name: true, color: true } as const;
@@ -83,20 +84,44 @@ export function getSavingsFunds(userId: string) {
 }
 
 /**
+ * Purchases dated before `to` ends that can count from `from` on: single payments from `singlesFrom`, and
+ * installment purchases from `installmentsFrom`, since their installments keep landing for up to 48 months.
+ */
+function getPurchases(userId: string, { singlesFrom, installmentsFrom, to }: { singlesFrom: MonthKey; installmentsFrom: MonthKey; to: MonthKey }) {
+  return db.purchase.findMany({
+    where: {
+      userId,
+      date: { lt: monthRange(to).end },
+      OR: [
+        { date: { gte: monthRange(singlesFrom).start } },
+        { installmentCount: { gt: 1 }, date: { gte: monthRange(installmentsFrom).start } },
+      ],
+    },
+    select: purchaseSelect,
+    orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+  });
+}
+
+/**
  * Loads everything needed to summarize each month from `from` through `to` (spending, income, recurring
  * payments, card statements, savings), with lookbacks for installments and statements. `statementsFrom`
- * extends complete statements further back, for carrying unpaid ones forward.
+ * extends complete statements further back, for carrying unpaid ones forward; `purchasesFrom` loads single
+ * purchases from an earlier month too, for figures that look back further (typical daily spending).
  */
-export async function loadLedgerRange(userId: string, from: MonthKey, to: MonthKey, { statementsFrom: statementsStart = from }: { statementsFrom?: MonthKey } = {}) {
+export async function loadLedgerRange(userId: string, from: MonthKey, to: MonthKey, { statementsFrom: statementsStart = from, purchasesFrom }: {
+  statementsFrom?: MonthKey;
+  purchasesFrom?: MonthKey;
+} = {}) {
   const statementsFrom = addMonths(statementsStart < from ? statementsStart : from, -STATEMENT_LOOKBACK_MONTHS);
   const [categories, definitions, cards, purchases, incomes, overrides, recurringHistory, paidStatements, savingsMovements, incomeGroups] = await Promise.all([
     db.category.findMany({ where: { userId }, select: categorySelect, orderBy: { sortOrder: "asc" } }),
     getRecurringDefinitions(userId),
     getCards(userId),
-    db.purchase.findMany({
-      where: { userId, date: { gte: monthRange(earliestContributingMonth(statementsFrom)).start, lt: monthRange(to).end } },
-      select: purchaseSelect,
-      orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+    // A single purchase lands on the statement closing in its month or the next, so the statement window covers it.
+    getPurchases(userId, {
+      singlesFrom: purchasesFrom && purchasesFrom < statementsFrom ? purchasesFrom : statementsFrom,
+      installmentsFrom: earliestContributingMonth(statementsFrom),
+      to,
     }),
     db.income.findMany({
       where: { userId, date: { gte: monthRange(from).start, lt: monthRange(to).end } },
@@ -123,4 +148,45 @@ export async function loadLedgerRange(userId: string, from: MonthKey, to: MonthK
 
   const data: LedgerData = { categories, purchases, incomes, incomeGroups, definitions, overrides, recurringHistory, statements, savingsMovements };
   return { data, cards };
+}
+
+/** Cash bills and card statements marked paid after `since`, with their amounts. */
+async function getBillsPaidSince(userId: string, since: Date): Promise<PaidBill[]> {
+  const [statementPayments, occurrencePayments] = await Promise.all([
+    db.statementPayment.findMany({ where: { userId, paidAt: { gt: since } }, select: { paymentMethodId: true, statementMonth: true, paidAt: true } }),
+    db.recurringOccurrence.findMany({ where: { userId, paidAt: { gt: since } }, select: { recurringPaymentId: true, month: true, paidAt: true } }),
+  ]);
+  const months = [...statementPayments.map((paid) => monthKeyOf(paid.statementMonth)), ...occurrencePayments.map((paid) => monthKeyOf(paid.month))].sort();
+  if (months.length === 0) return [];
+
+  // Amounts are derived, so the months holding them are loaded like any other view.
+  const { data } = await loadLedgerRange(userId, months[0], months[months.length - 1]);
+  const statements = statementPayments.map((paid) => ({
+    paidAt: paid.paidAt,
+    amountCents: data.statements.find((statement) => statement.paymentMethodId === paid.paymentMethodId && statement.month === monthKeyOf(paid.statementMonth))?.totalCents ?? 0,
+  }));
+  const bills = occurrencePayments.map((paid) => {
+    const occurrence = occurrencesForMonth(data.definitions, data.overrides, monthKeyOf(paid.month), data.recurringHistory)
+      .find((item) => item.recurring.id === paid.recurringPaymentId && item.recurring.paymentMethod.kind === "CASH");
+    return { paidAt: paid.paidAt!, amountCents: occurrence?.amountCents ?? 0 };
+  });
+  return [...statements, ...bills];
+}
+
+/** Money on hand now, from the amount last counted in Settings and the records since; null until it is first set. */
+export async function loadCashOnHand(userId: string): Promise<number | null> {
+  const user = await db.user.findUnique({ where: { id: userId }, select: { cashOnHandCents: true, cashOnHandSetAt: true } });
+  if (user?.cashOnHandCents == null || !user.cashOnHandSetAt) return null;
+
+  const count = { cents: user.cashOnHandCents, setAt: user.cashOnHandSetAt, day: dateKeyInAppZone(user.cashOnHandSetAt) };
+  const today = todayKey();
+  const where = { userId, date: { gte: dateFromKey(count.day), lte: dateFromKey(today) } };
+  const select = { date: true, createdAt: true, amountCents: true } as const;
+  const [incomes, cashPurchases, savingsMovements, paidBills] = await Promise.all([
+    db.income.findMany({ where, select }),
+    db.purchase.findMany({ where: { ...where, paymentMethod: { kind: "CASH" } }, select }),
+    db.savingsMovement.findMany({ where, select }),
+    getBillsPaidSince(userId, count.setAt),
+  ]);
+  return cashOnHandCents({ count, today, incomes, cashPurchases, savingsMovements, paidBills });
 }

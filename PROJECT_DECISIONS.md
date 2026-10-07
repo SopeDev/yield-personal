@@ -1,6 +1,6 @@
 # Project Decisions
 
-Last updated: 2026-10-04
+Last updated: 2026-10-07
 
 ## Product scope
 
@@ -19,8 +19,10 @@ Last updated: 2026-10-04
 - **Recurring payment**: expense item (its name and category), amount, day of month, and usual payment method. It produces one occurrence per month that is tracked as paid or unpaid. A month's payment method can be changed from the month view; the change also becomes the usual method for later months, while earlier months keep theirs.
 - **Card statement**: derived from the card's billing cycle. It contains every charge and installment falling in that cycle, has a due date, and is marked paid or unpaid.
 - **Income**: date, source, and amount, recorded daily. Sources are user-defined and may belong to an **income group**.
+- **Income rhythm**: when income arrives, set in Settings: daily (the default), weekly or every two weeks counted from any payday, or on days of the month (e.g. the 14th and 28th; a day past the month's end falls on its last day). Income is still recorded entry by entry; the rhythm only sets the paydays the per-payday stats count.
 - **Income group**: a named set of sources (e.g. Rideshare: Uber, Didi) and the expense categories its net income is after (e.g. Car). Groups are archived rather than deleted; changing what a group deducts applies to every month, like a card's billing cycle.
 - **Savings fund**: the emergency fund, with a target and contributions.
+- **Cash on hand** ("Disponible"): one amount for all money available outside savings (cash, debit, and balances waiting in apps like Uber or Didi); no separate accounts.
 
 ## Financial rules
 
@@ -37,9 +39,10 @@ Last updated: 2026-10-04
 - A recurring payment can be variable. Each month starts as an estimate (the average of the item's last 3 confirmed amounts, else the usual amount) shown with "≈" and counted in totals; confirming the real amount (and payment method) replaces it and pays it in the same step: a cash bill is marked paid, a card bill is paid with its statement. In the month view an estimated bill stays collapsed until tapped.
 - Recurring payments generate one occurrence per billing month. Occurrence rows are stored only when a month differs from the default (a changed amount, or a cash payment marked paid); a card-paid occurrence is paid when its statement is paid.
 - Stopping a recurring payment keeps it through the current month only if that month was already paid or changed; a payment that never applied to a past month is deleted instead.
-- Statements are derived, never stored; only "statement paid" is persisted per card and closing month. Archived cards keep showing while they have unpaid statements.
+- Statements are derived, never stored; only "statement paid" is persisted per card and closing month. Archived cards keep showing on the Cards screen while they have unpaid statements from the last 12 months (the same window the month view carries).
 - Month balance follows the spreadsheet: income − total to pay.
 - Daily net (month view) = (income − everyday spending on days passed, today included) ÷ days passed; everyday spending is purchases made that month in everyday categories, leaving out recurring bills, installments of earlier purchases, and bills and occasional categories, so big monthly payments don't swamp the typical day. A past month uses all its days; a future month shows none.
+- Needed per payday = (total to pay − income + typical daily spending × days left) ÷ paydays left in the month (today's included), rounded up and never below zero; with no paydays left it shows the whole amount. Income per payday = income on days passed ÷ paydays passed, with net (after everyday spending, as in daily net) below. With a daily rhythm they equal needed per day and daily income, so they are hidden and not offered then.
 - Needed per day (month view) = (total to pay − income) ÷ days left in the month including today, plus typical daily spending (what an ordinary day costs, since those days are still to come); rounded up to the centavo and never below zero. A future month uses all its days, an ended month shows none.
 - Typical daily spending = everyday purchases (as in daily net: everyday categories, no recurring bills or installments of earlier purchases) from the last 3 full months through today, divided by those days; it starts as the current month's pace and steadies as history builds.
 - "Count history from" (Settings, `users.history_start_month`) is the first month used by calculations from past spending (typical daily spending and average monthly spending), for when early months hold only partial records; empty counts every month. The month summary shows Balance as its headline, then a two-column grid: income and outstanding, spending and to pay, needed per day (gross) and daily income (gross average per day passed, green when at or above the target, with daily net below). Needed per day and daily income are both gross so they compare directly.
@@ -47,6 +50,7 @@ Last updated: 2026-10-04
 - A group's net income = its sources' income − that month's spending in the categories it deducts. Overall net = all income − spending in every category any group deducts, each counted once. Income is entered gross. No category is special-cased in code; the former rideshare flag and built-in Car deduction became a "Rideshare" group deducting Car.
 - Average monthly spending covers the last 12 months including the current one: for each everyday or bills category, the mean over the months in which it had spending, summed. Occasional categories are left out.
 - Savings are their own records (deposits and withdrawals into a savings fund), not purchases. Money moved into savings counts in the month's total to pay but never as spending.
+- Cash on hand is counted by hand in Settings (`users.cash_on_hand_cents` and `cash_on_hand_set_at`) and tracked from there: + income, − cash purchases, − cash bills and card statements marked paid after counting (at their current amounts), − net money moved into savings. Card purchases leave only when their statement is paid. Pending bills are not subtracted. A dated record counts when dated after the counted day (once its day comes), or on that day but entered after counting, so records logged late for earlier days never count twice. Counting again replaces the amount and shows how far the tracked figure was off. It is the `cashOnHand` stat, the same in every month.
 - Every user has one emergency fund whose target is `coverMonths` (default 3) × average monthly spending, plus installments still owed on unpaid statements. Pending = target − fund balance. Additional goal funds have a fixed target.
 
 ## Screens
@@ -56,6 +60,7 @@ Last updated: 2026-10-04
 - **Quick add**: always-available entry for an expense or income. Expense flow: amount → category → payment method → date (defaults to today) → installments when paid by card. Choosing an existing item fills in its usual payment method and amount (the most frequent among its last 5 purchases, else the latest), without overriding a method already picked or an amount already typed; derived from purchases, not stored.
 - **Month view**: all records for the month, recurring payments with paid/unpaid state, and card statements due. An unpaid cash recurring payment's day shows yellow when it's 1–2 days away and red on its day or after; card-paid ones follow their statement's due date instead. Unpaid card statements use the same rule for their due date (yellow 1–2 days before, red on the due date and after), and their closing date turns green once closed, since the total is final and payable.
 - **Cards**: current statement, next due date, and upcoming installments per card.
+- **Summary cards**: the month and income summary cards are customizable per user through a "Customize" link under each card, opening an editor (on the current month) with a live preview: choose the headline, add stats, move them up or down, remove them, or reset to the default. Any stat can go on either card. By default the month card ends with the daily pair (needed per day, daily income), or the per-payday pair when the income rhythm isn't daily; customized cards are kept as saved.
 - **Income**: one summary card with total income (and days with income), deductions (named after the category when there is one, e.g. "Car spending") and net, and the daily averages over days with income recorded (gross and net). A group's gross and net appear only when the month also has income outside it, since otherwise they repeat the totals. Below: totals per source and the daily log.
 - **Savings** (header icon): emergency fund balance and progress toward its goal (average monthly spending × months to cover + installments owed), average spending by category, deposits and withdrawals, other goals with targets, and recent movements.
 - **Editing**: purchases and income open in the same form used to add them (tap an entry); cards, income sources, categories, and recurring payments open in place in their lists. Items are managed on their own page from Settings (rename, change category, merge, archive, restore).
@@ -69,10 +74,11 @@ Last updated: 2026-10-04
 ## Stack
 
 - Next.js 16 App Router, TypeScript, Tailwind CSS v4, matching the astrocoach project conventions in `AGENTS.md`. The older yield-cafe conventions (JavaScript, SCSS, no Tailwind) do not apply.
-- Postgres through Prisma 7 (`@prisma/adapter-pg`, client generated to `src/generated/prisma`), and Auth.js v5 with Google sign-in and database sessions, as in astrocoach.
+- Postgres through Prisma 7 (`@prisma/adapter-pg`, client generated to `src/generated/prisma`), and Auth.js v5 with Google sign-in, as in astrocoach. Sessions are signed JWT cookies (users and accounts still live in the database through the Prisma adapter), so pages read the user without a database round trip; the trade-off is that signing out elsewhere or revoking access takes effect when the token expires.
 - Sign-in is restricted to the emails in `ALLOWED_EMAILS`; every Server Action re-checks the session and scopes reads and writes to the signed-in user.
 - Environment variables are read where they are used, so the build never needs credentials. Missing `ALLOWED_EMAILS` refuses every sign-in rather than allowing anyone.
 - Vercel deployments run `prisma migrate deploy` before `next build` (see `vercel.json`), so schema migrations ship with the code that needs them.
+- Functions and the Prisma Postgres database both run in Washington, D.C. (`iad1` / us-east-1); keep them together. The Prisma client's connection pool is capped at 4 connections per instance. `/` redirects to the month view in the routing layer (`next.config.ts`, by the `yield-locale` cookie) rather than through a page.
 - A new user receives a Cash payment method and the built-in categories on first sign-in.
 
 ## Data conventions
@@ -89,7 +95,8 @@ Last updated: 2026-10-04
 - Editing a recurring payment (amount, day, payment method, item, variable flag, interval) applies from the current month; a bill every few months that keeps its interval continues on its cycle: if it already ran in earlier months, the old version ends last month and a new version starts this month, carrying over this month's and later per-month changes.
 - Editing a card's billing cycle applies to all of its statements, past ones included.
 - New purchases, incomes, and savings movements may carry a client-generated UUID; repeating a create with the same id does nothing, so retried submissions (such as a future offline queue) never duplicate entries.
-- All month figures come from one range loader plus pure summaries (`loadLedgerRange` + `summarizeMonth`), shared by the month, year, income, cards, and savings screens.
+- All month figures come from one range loader plus pure summaries (`loadLedgerRange` + `summarizeMonth`), shared by the month, year, income, cards, and savings screens. The loader reads single-payment purchases only from the statement window (plus 3 months for typical daily spending) and installment purchases from 47 months earlier, since only those can still land in the range.
+- Summary figures live in a stat library (`src/lib/stats.ts`): each stat has a label, a calculation over the month's stat context, and how it reads (tone and a note under the amount), returning no value ("–") when it doesn't apply or hiding itself when it isn't relevant. Summary cards are layouts (a headline plus a two-column grid) of stat references, plain ids or `id:param` for a stat about one thing such as an income group. Customized cards are stored on the user as JSON (`users.summary_cards`, `{ month?, income? }`), validated on read so unknown stats are dropped; a card left out uses its default. Money on hand is loaded only when a customized card shows it.
 - Cash is shown in Yield Green, keeping the spreadsheet's convention. Card colors come from a fixed palette that excludes green and red so they never read as a status.
 
 ## Language

@@ -1,9 +1,11 @@
 import "server-only";
 
 import { averageMonthlySpending } from "@/lib/averages";
-import { getSavingsFunds, loadLedgerRange } from "@/lib/ledger-data";
+import { TYPICAL_SPENDING_MONTHS } from "@/lib/daily-balance";
+import { getSavingsFunds, loadCashOnHand, loadLedgerRange } from "@/lib/ledger-data";
 import { getUserSettings } from "@/lib/queries";
-import { summarizeMonth } from "@/lib/month-summary";
+import { cardLayout, monthStatContext, type SummaryCardId } from "@/lib/stats";
+import { summarizeMonth, type MonthSummary } from "@/lib/month-summary";
 import { addMonths, type MonthKey } from "@/lib/months";
 import { emergencyFundGoal, fundBalance } from "@/lib/savings";
 import { installmentsOwed } from "@/lib/statements";
@@ -12,34 +14,54 @@ import { installmentsOwed } from "@/lib/statements";
 export const YEAR_MONTHS = 12;
 
 /** How far back unpaid card statements and cash bills are carried into the current month. */
-const CARRY_UNPAID_MONTHS = 12;
+export const CARRY_UNPAID_MONTHS = 12;
 
-/** The current month also carries unpaid statements and cash bills from earlier months; other months show only their own. */
+/**
+ * The current month also carries unpaid statements and cash bills from earlier months; other months show only
+ * their own. Recent purchases are loaded too, for typical daily spending (needed per day).
+ */
 export async function loadMonthView(userId: string, month: MonthKey, currentMonth: MonthKey) {
   const carryFrom = month === currentMonth ? addMonths(month, -CARRY_UNPAID_MONTHS) : undefined;
-  const { data, cards } = await loadLedgerRange(userId, month, month, { statementsFrom: carryFrom });
+  const { data, cards } = await loadLedgerRange(userId, month, month, {
+    statementsFrom: carryFrom,
+    purchasesFrom: addMonths(currentMonth, -TYPICAL_SPENDING_MONTHS),
+  });
   return { ...summarizeMonth(data, month, { carryFrom }), cards, statements: data.statements, purchases: data.purchases };
 }
 
-/** Months before `historyStart` are shown but left out of the average, since they may hold only partial records. */
-export async function loadYearView(userId: string, endMonth: MonthKey, { historyStart = null }: { historyStart?: MonthKey | null } = {}) {
+/**
+ * A summary card's layout (customized or default) and the figures it is calculated from. Money on hand takes its
+ * own queries, so it is loaded only when the customized card shows it.
+ */
+export async function loadSummaryCard(userId: string, card: SummaryCardId, { view, today, settings }: {
+  view: Awaited<ReturnType<typeof loadMonthView>>;
+  today: string;
+  settings: Awaited<ReturnType<typeof getUserSettings>>;
+}) {
+  const stored = settings.summaryCards[card];
+  const showsCash = stored !== undefined && [stored.headline, ...stored.grid].includes("cashOnHand");
+  const context = monthStatContext({ view, today, settings, cashOnHandCents: showsCash ? await loadCashOnHand(userId) : null });
+  return { context, layout: cardLayout(card, settings.summaryCards, context) };
+}
+
+/** Average monthly spending over the given months, skipping those before `historyStart` (they may hold only partial records). */
+function averageSince(months: MonthSummary[], historyStart: MonthKey | null) {
+  return averageMonthlySpending(
+    months.filter((month) => !historyStart || month.month >= historyStart).map((month) => ({ month: month.month, byCategory: month.spending.byCategory })),
+  );
+}
+
+export async function loadYearView(userId: string, endMonth: MonthKey) {
   const startMonth = addMonths(endMonth, -(YEAR_MONTHS - 1));
   const { data } = await loadLedgerRange(userId, startMonth, endMonth);
   const months = Array.from({ length: YEAR_MONTHS }, (_, index) => summarizeMonth(data, addMonths(startMonth, index)));
-  return {
-    data,
-    categories: data.categories,
-    months,
-    average: averageMonthlySpending(
-      months.filter((month) => !historyStart || month.month >= historyStart).map((month) => ({ month: month.month, byCategory: month.spending.byCategory })),
-    ),
-  };
+  return { data, categories: data.categories, months };
 }
 
 /** Savings funds with balances, and the emergency fund goal from average spending and installments owed. */
 export async function loadSavingsView(userId: string, currentMonth: MonthKey) {
-  const { historyStartMonth } = await getUserSettings(userId);
-  const [{ data, months, average }, funds] = await Promise.all([loadYearView(userId, currentMonth, { historyStart: historyStartMonth }), getSavingsFunds(userId)]);
+  const [{ data, months }, funds, { historyStartMonth }] = await Promise.all([loadYearView(userId, currentMonth), getSavingsFunds(userId), getUserSettings(userId)]);
+  const average = averageSince(months, historyStartMonth);
   const installmentsOwedCents = installmentsOwed(data.statements);
 
   return {

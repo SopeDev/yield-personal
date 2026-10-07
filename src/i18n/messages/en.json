@@ -51,6 +51,7 @@
     "income": "Income",
     "balance": "Balance",
     "methodFromHere": "Applies to this month and later ones; earlier months keep their method.",
+    "cashOnHand": "Cash on hand",
     "neededPerDay": "Needed per day",
     "dailyIncome": "Daily income",
     "netPerDay": "net {amount}",
@@ -84,7 +85,12 @@
     "estimate": "Estimate",
     "confirm": "Confirm",
     "confirmAndPay": "Confirm & pay",
-    "actualAmount": "Actual amount"
+    "actualAmount": "Actual amount",
+    "neededPerPayday": "Needed per payday",
+    "incomePerPayday": "Income per payday",
+    "paydaysLeft": "{count} paydays left",
+    "paydaysLeftOne": "1 payday left",
+    "noPaydaysLeft": "No paydays left"
   },
   "income": {
     "deductions": "Deductions",
@@ -141,6 +147,11 @@
     "historyStart": "Count history from",
     "historyStartHint": "Averages and typical daily spending skip earlier months, for when your first months only have some records (like card payments).",
     "historyStartClear": "Count all months",
+    "cashOnHandAmount": "What you have now",
+    "cashOnHandHint": "Cash, debit, and app balances, outside savings. It follows your income, cash spending, paid bills and statements, and savings from here; count it again whenever it drifts from your accounts.",
+    "cashOnHandLess": "You had {amount} less than tracked",
+    "cashOnHandMore": "You had {amount} more than tracked",
+    "cashOnHandExact": "Matches what was tracked ✓",
     "goal": "Goal",
     "balanceGoal": "Monthly balance goal",
     "balanceGoalHint": "What you want left over each month. Money moved into savings counts toward it.",
@@ -164,7 +175,18 @@
     "confirmRemove": "Remove this from your lists? Past records keep it.",
     "recurringLink": "Recurring payments",
     "paymentDays": "Days to pay after closing",
-    "paymentDaysHint": "The payment is due this many days after the statement closes."
+    "paymentDaysHint": "The payment is due this many days after the statement closes.",
+    "incomeRhythm": "Income rhythm",
+    "incomeRhythmHint": "When your income arrives. Needed per payday and Income per payday count these paydays; you still record each income as it comes.",
+    "rhythmDaily": "Daily",
+    "rhythmWeekly": "Weekly",
+    "rhythmBiweekly": "Every 2 weeks",
+    "rhythmMonthDays": "Days of the month",
+    "rhythmAnchor": "A payday",
+    "rhythmAnchorHint": "Any past or upcoming payday; the rest follow from it.",
+    "rhythmDays": "Paydays",
+    "rhythmDaysPlaceholder": "e.g. 14, 28",
+    "rhythmDaysHint": "Days of the month, separated by commas. A day past the month’s end falls on its last day."
   },
   "errors": {
     "amount": "Enter an amount greater than zero, with up to two decimals.",
@@ -184,7 +206,8 @@
     "item": "Choose an item or type a new one.",
     "itemExists": "Another item already has this name. Merge them instead.",
     "paymentDays": "Use a whole number of days from 1 to 60.",
-    "interval": "Repeat every 1 to 12 months."
+    "interval": "Repeat every 1 to 12 months.",
+    "payDays": "Use days from 1 to 31, separated by commas (up to 8)."
   },
   "recurring": {
     "title": "Recurring payments",
@@ -312,5 +335,24 @@
     "confirmArchiveItem": "Archive this item? Its history stays; typing its name again brings it back.",
     "archivedItems": "Archived items",
     "itemsEmpty": "No items yet. They're created when you record an expense."
+  },
+  "summary": {
+    "customize": "Customize",
+    "monthTitle": "Month summary",
+    "incomeTitle": "Income summary",
+    "preview": "Preview",
+    "headline": "Headline",
+    "stats": "Stats",
+    "statsHint": "Shown two per row, in this order.",
+    "empty": "No stats on this card yet.",
+    "addStat": "Add a stat",
+    "add": "Add",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "remove": "Remove",
+    "reset": "Reset to default",
+    "hiddenNow": "Not shown this month",
+    "hiddenHint": "Some stats only show when they apply, like deductions with an income group or a group’s figures when you also have other income.",
+    "back": "Back"
   }
 }

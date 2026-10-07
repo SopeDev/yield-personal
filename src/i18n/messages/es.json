@@ -51,6 +51,7 @@
     "income": "Ingresos",
     "balance": "Balance",
     "methodFromHere": "Aplica a este mes y los siguientes; los meses anteriores conservan su método.",
+    "cashOnHand": "Disponible",
     "neededPerDay": "Necesario por día",
     "dailyIncome": "Ingreso diario",
     "netPerDay": "neto {amount}",
@@ -84,7 +85,12 @@
     "estimate": "Estimado",
     "confirm": "Confirmar",
     "confirmAndPay": "Confirmar y pagar",
-    "actualAmount": "Monto real"
+    "actualAmount": "Monto real",
+    "neededPerPayday": "Necesario por pago",
+    "incomePerPayday": "Ingreso por pago",
+    "paydaysLeft": "Quedan {count} pagos",
+    "paydaysLeftOne": "Queda 1 pago",
+    "noPaydaysLeft": "Sin pagos restantes"
   },
   "income": {
     "deductions": "Deducciones",
@@ -141,6 +147,11 @@
     "historyStart": "Contar historial desde",
     "historyStartHint": "Los promedios y el gasto diario típico omiten los meses anteriores, por si tus primeros meses solo tienen algunos registros (como pagos con tarjeta).",
     "historyStartClear": "Contar todos los meses",
+    "cashOnHandAmount": "Lo que tienes ahora",
+    "cashOnHandHint": "Efectivo, débito y saldos en apps, fuera de tus ahorros. Desde aquí sigue tus ingresos, gastos en efectivo, recibos y estados de cuenta pagados, y ahorros; vuelve a contarlo cuando no cuadre con tus cuentas.",
+    "cashOnHandLess": "Tenías {amount} menos de lo registrado",
+    "cashOnHandMore": "Tenías {amount} más de lo registrado",
+    "cashOnHandExact": "Cuadra con lo registrado ✓",
     "goal": "Meta",
     "balanceGoal": "Meta de balance mensual",
     "balanceGoalHint": "Lo que quieres que te sobre cada mes. El dinero que pasas a ahorros cuenta para la meta.",
@@ -164,7 +175,18 @@
     "confirmRemove": "¿Quitar de tus listas? Los registros anteriores la conservan.",
     "recurringLink": "Pagos recurrentes",
     "paymentDays": "Días para pagar después del corte",
-    "paymentDaysHint": "El pago vence esta cantidad de días después del corte."
+    "paymentDaysHint": "El pago vence esta cantidad de días después del corte.",
+    "incomeRhythm": "Ritmo de ingresos",
+    "incomeRhythmHint": "Cuándo llegan tus ingresos. Necesario por pago e Ingreso por pago cuentan estos días de pago; sigues registrando cada ingreso cuando llega.",
+    "rhythmDaily": "Diario",
+    "rhythmWeekly": "Semanal",
+    "rhythmBiweekly": "Cada 2 semanas",
+    "rhythmMonthDays": "Días del mes",
+    "rhythmAnchor": "Un día de pago",
+    "rhythmAnchorHint": "Cualquier día de pago pasado o próximo; los demás se calculan a partir de él.",
+    "rhythmDays": "Días de pago",
+    "rhythmDaysPlaceholder": "p. ej. 14, 28",
+    "rhythmDaysHint": "Días del mes separados por comas. Un día después del fin de mes cae en su último día."
   },
   "errors": {
     "amount": "Ingresa un monto mayor a cero, con hasta dos decimales.",
@@ -184,7 +206,8 @@
     "item": "Elige un concepto o escribe uno nuevo.",
     "itemExists": "Ya existe otro concepto con este nombre. Mejor combínalos.",
     "paymentDays": "Usa un número entero de días entre 1 y 60.",
-    "interval": "Repite cada 1 a 12 meses."
+    "interval": "Repite cada 1 a 12 meses.",
+    "payDays": "Usa días del 1 al 31 separados por comas (hasta 8)."
   },
   "recurring": {
     "title": "Pagos recurrentes",
@@ -312,5 +335,24 @@
     "confirmArchiveItem": "¿Archivar este concepto? Su historial se conserva; escribir su nombre de nuevo lo recupera.",
     "archivedItems": "Conceptos archivados",
     "itemsEmpty": "Todavía no hay conceptos. Se crean al registrar un gasto."
+  },
+  "summary": {
+    "customize": "Personalizar",
+    "monthTitle": "Resumen del mes",
+    "incomeTitle": "Resumen de ingresos",
+    "preview": "Vista previa",
+    "headline": "Cifra principal",
+    "stats": "Cifras",
+    "statsHint": "Se muestran de dos en dos, en este orden.",
+    "empty": "Esta tarjeta aún no tiene cifras.",
+    "addStat": "Agregar una cifra",
+    "add": "Agregar",
+    "moveUp": "Subir",
+    "moveDown": "Bajar",
+    "remove": "Quitar",
+    "reset": "Restablecer",
+    "hiddenNow": "No se muestra este mes",
+    "hiddenHint": "Algunas cifras solo aparecen cuando aplican, como las deducciones con un grupo de ingresos o las cifras de un grupo cuando también tienes otros ingresos.",
+    "back": "Volver"
   }
 }

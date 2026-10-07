@@ -2,8 +2,7 @@ import { startTransition, useRef, type FormEvent, type ReactNode } from "react";
 import type { ErrorKey, Messages } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
 
-export const inputClass =
-  "min-h-12 w-full rounded-xl border border-border bg-surface px-4 text-base outline-none transition placeholder:text-subtle focus:border-primary";
+export { inputClass } from "./input-class";
 
 export function Field({ label, htmlFor, error, errors, children }: {
   label: string;

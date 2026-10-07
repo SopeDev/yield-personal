@@ -1,17 +1,17 @@
 import Link from "next/link";
-import { Fragment } from "react";
 import { deleteIncome } from "@/app/actions/entries";
 import { DeleteButton } from "@/components/delete-button";
 import { EntryRow } from "@/components/entry-row";
 import { Money } from "@/components/money";
 import { MonthNav } from "@/components/month-nav";
 import { Card, Section } from "@/components/section";
+import { SummaryCard } from "@/components/summary-card";
 import { isLocale } from "@/i18n/config";
-import { format, getDictionary } from "@/i18n/dictionaries";
+import { getDictionary } from "@/i18n/dictionaries";
 import { requireUserId } from "@/lib/auth-user";
-import { categoryLabel } from "@/lib/categories";
 import { formatDayHeading, groupByDay } from "@/lib/dates";
-import { loadMonthView } from "@/lib/month-view";
+import { loadMonthView, loadSummaryCard } from "@/lib/month-view";
+import { getUserSettings } from "@/lib/queries";
 import { monthFromSearchParam } from "@/lib/search-params";
 import { currentMonthKey, todayKey } from "@/lib/today";
 
@@ -22,47 +22,17 @@ export default async function IncomePage({ params, searchParams }: PageProps<"/[
   const month = monthFromSearchParam((await searchParams).m, currentMonthKey());
   const messages = getDictionary(locale);
 
-  const { incomes, spending, income } = await loadMonthView(userId, month, currentMonthKey());
+  const [view, settings] = await Promise.all([loadMonthView(userId, month, currentMonthKey()), getUserSettings(userId)]);
+  const { incomes, income } = view;
   const today = todayKey();
-  // A single deducted category is named ("Car spending"); several are summed as deductions.
-  const deductedCategories = income.deductCategoryIds.map((id) => spending.byCategory.find((entry) => entry.category.id === id)?.category).filter((category) => category !== undefined);
-  const deductionsLabel = deductedCategories.length === 1
-    ? format(messages.income.categorySpending, { category: categoryLabel(deductedCategories[0], messages.categories) })
-    : messages.income.deductions;
+  const summary = await loadSummaryCard(userId, "income", { view, today, settings });
   const groupNames = new Map(income.byGroup.map(({ group }) => [group.id, group.name]));
 
   return (
     <div className="space-y-7">
       <MonthNav labels={messages.common} locale={locale} month={month} path={`/${locale}/income`} />
 
-      <Card>
-        <div className="px-4 py-4 text-center">
-          <p className="text-xs text-muted-foreground">{messages.income.total}</p>
-          <Money cents={income.totalCents} className="mt-1 block text-3xl text-gain" />
-          {income.daysWithIncome > 0 ? (
-            <p className="mt-1 text-xs text-muted-foreground">
-              {income.daysWithIncome === 1 ? messages.income.daysWithIncomeOne : format(messages.income.daysWithIncome, { count: income.daysWithIncome })}
-            </p>
-          ) : null}
-        </div>
-        <div className="grid grid-cols-2 divide-x divide-border border-t border-border text-center [&>*:nth-child(n+3)]:border-t [&>*:nth-child(n+3)]:border-border">
-          {income.deductCategoryIds.length > 0 ? (
-            <>
-              <Stat label={deductionsLabel}><Money cents={-income.deductionsCents} className="text-muted-foreground" /></Stat>
-              <Stat label={messages.income.net}><Money cents={income.netCents} className={tone(income.netCents)} /></Stat>
-            </>
-          ) : null}
-          <Stat label={messages.income.dailyGross}><Money cents={income.dailyGrossCents} /></Stat>
-          <Stat label={messages.income.dailyNet}><Money cents={income.dailyNetCents} className={tone(income.dailyNetCents)} /></Stat>
-          {/* A group's figures differ from the totals only when there is income outside it too. */}
-          {income.byGroup.filter((entry) => entry.grossCents < income.totalCents).map((entry) => (
-            <Fragment key={entry.group.id}>
-              <Stat label={format(messages.income.groupGross, { group: entry.group.name })}><Money cents={entry.grossCents} /></Stat>
-              <Stat label={format(messages.income.groupNet, { group: entry.group.name })}><Money cents={entry.netCents} className={tone(entry.netCents)} /></Stat>
-            </Fragment>
-          ))}
-        </div>
-      </Card>
+      <SummaryCard context={summary.context} customizeHref={`/${locale}/settings/cards/income`} layout={summary.layout} messages={messages} />
 
       {income.bySource.length > 0 ? (
         <Section title={messages.income.bySource}>
@@ -110,19 +80,6 @@ export default async function IncomePage({ params, searchParams }: PageProps<"/[
           </div>
         )}
       </Section>
-    </div>
-  );
-}
-
-function tone(cents: number) {
-  return cents < 0 ? "text-loss" : "text-gain";
-}
-
-function Stat({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="px-2 py-3">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-1 text-sm font-medium sm:text-base">{children}</p>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 # Project Progress
 
-Last updated: 2026-10-04
+Last updated: 2026-10-07
 
 ## Completed
 
@@ -68,7 +68,15 @@ Last updated: 2026-10-04
 
 - Customization step 1: category types (everyday / bills / occasional) replace "include in average", and income groups (sources plus the categories their net deducts) replace the rideshare flag and the built-in Car deduction. Migration backfills both (Fixed → bills, Extras → occasional; rideshare sources → a "Rideshare" group deducting Car), verified on an embedded Postgres.
 
+- Performance: a loading screen for every signed-in screen, so navigation switches instantly and dynamic routes can be partly prefetched. Audit found the database co-located with the functions (both Washington, D.C. / us-east-1); then JWT sessions, a 4-connection pool cap, the Savings page's queries running together, and `/` redirected in the routing layer. Then the ledger loader stopped reading old single-payment purchases (about 14 months instead of 60 for the month view), verified against five years of seeded data on an embedded Postgres with every screen's figures unchanged; a separate Income loader was dropped because the stat library's cards need the full month figures. Remaining: client caching of visited tabs, and checking for sequential nested queries.
+
+- Customization step 2: a stat library (`src/lib/stats.ts`) holding every summary figure with its label, calculation, tone, and note; the month and income summary cards are rebuilt on it as layouts of stat references, unchanged on screen.
+
+- Cash on hand ("Disponible"): set and recount in Settings, which shows the current figure and how far the last count was off; tracked from income, cash purchases, paid bills and statements, and savings since counting. Registered as the `cashOnHand` stat (`monthStatContext` takes it from `loadCashOnHand`); not on the default cards, but any card can add it through Customize. Migration adds `cash_on_hand_cents` and `cash_on_hand_set_at` to users.
+
+- Customization step 3: customizable summary cards. A "Customize" link under the month and income cards opens an editor (headline, add / move / remove stats, reset) with a live preview; layouts are saved per user, and money on hand loads only for a card that shows it. Income rhythm in Settings (daily, weekly, every 2 weeks, or days of the month) adds needed per payday and income per payday, which replace the daily pair on the default month card when income isn't daily. Migration adds `income_rhythm`, `income_rhythm_anchor`, `income_pay_days`, and `summary_cards` to users, verified on an embedded Postgres.
+
 ## Next
 
-- Customization step 2: a stat library holding every summary figure (label, calculation, format), with today's summary cards rebuilt on it and unchanged on screen.
-- Then: customizable summary cards with an income-rhythm setting, recurring income with a projected month-end balance, category budgets, and quick wins (start screen, last-used category, calendar-year option).
+- Customization step 4: recurring income with a projected month-end balance (the income rhythm's paydays are a natural base for expected income).
+- Then: category budgets, and quick wins (start screen, last-used category, calendar-year option).

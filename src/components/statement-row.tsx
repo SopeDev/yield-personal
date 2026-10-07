@@ -39,10 +39,13 @@ export function StatementRow({ statement, card, today, locale, messages }: {
       <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: card?.color }} />
       <Link className="min-w-0 flex-1" href={`/${locale}/cards`}>
         <p className="truncate font-medium">{format(messages.month.statementDue, { card: card?.name ?? "" })}</p>
+        {/* The due date gets its own line so it's never cut off on a phone; the closing date goes last, where a
+            narrow screen truncates first. */}
+        <p className="text-sm text-muted-foreground">{dueLabel}</p>
         <p className="truncate text-sm text-muted-foreground">
-          <span className={cn(closed && !statement.paid && "font-medium text-gain")}>{closingLabel}</span> · {dueLabel}
+          {timing ? <><span className={cn("font-medium", timing.tone)}>{timing.text}</span> · </> : null}
+          <span className={cn(closed && !statement.paid && "font-medium text-gain")}>{closingLabel}</span>
         </p>
-        {timing ? <p className={cn("text-sm font-medium", timing.tone)}>{timing.text}</p> : null}
       </Link>
       <Money cents={statement.totalCents} />
       <PaidToggle

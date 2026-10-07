@@ -4,7 +4,9 @@ import { signOut } from "@/auth";
 import { archiveCard, archiveCategory, archiveIncomeGroup, archiveIncomeSource, moveCategory, restoreCategory, setLocale } from "@/app/actions/settings";
 import { ActionButton } from "@/components/action-button";
 import { BalanceGoalForm } from "@/components/balance-goal-form";
+import { CashOnHandForm } from "@/components/cash-on-hand-form";
 import { HistoryStartForm } from "@/components/history-start-form";
+import { IncomeRhythmForm } from "@/components/income-rhythm-form";
 import { CategoryForm } from "@/components/category-form";
 import { categoryLabel } from "@/lib/categories";
 import { CardForm } from "@/components/card-form";
@@ -15,8 +17,10 @@ import { Card, Section } from "@/components/section";
 import { isLocale, locales } from "@/i18n/config";
 import { format, getDictionary } from "@/i18n/dictionaries";
 import { requireUserId } from "@/lib/auth-user";
+import { loadCashOnHand } from "@/lib/ledger-data";
 import { getActiveIncomeSources, getActivePaymentMethods, getCategoriesForManagement, getIncomeGroupsForManagement, getUserSettings } from "@/lib/queries";
 import { cn } from "@/lib/cn";
+import { todayKey } from "@/lib/today";
 
 const languageNames = { en: "English", es: "Español" } as const;
 
@@ -26,12 +30,13 @@ export default async function SettingsPage({ params }: PageProps<"/[locale]/sett
   const userId = await requireUserId(locale);
   const messages = getDictionary(locale);
 
-  const [methods, sources, allCategories, { balanceGoalCents: goalCents, historyStartMonth }, groups] = await Promise.all([
+  const [methods, sources, allCategories, { balanceGoalCents: goalCents, historyStartMonth, rhythmParts }, groups, cashOnHandCents] = await Promise.all([
     getActivePaymentMethods(userId),
     getActiveIncomeSources(userId),
     getCategoriesForManagement(userId),
     getUserSettings(userId),
     getIncomeGroupsForManagement(userId),
+    loadCashOnHand(userId),
   ]);
   const categories = allCategories.filter((category) => !category.archivedAt);
   const archivedCategories = allCategories.filter((category) => category.archivedAt);
@@ -72,9 +77,21 @@ export default async function SettingsPage({ params }: PageProps<"/[locale]/sett
         </div>
       </Section>
 
+      <Section title={messages.month.cashOnHand}>
+        <Card>
+          <CashOnHandForm cents={cashOnHandCents} locale={locale} messages={messages} />
+        </Card>
+      </Section>
+
       <Section title={messages.settings.goal}>
         <Card>
           <BalanceGoalForm goal={goalCents === null ? null : (goalCents / 100).toFixed(2)} locale={locale} messages={messages} />
+        </Card>
+      </Section>
+
+      <Section title={messages.settings.incomeRhythm}>
+        <Card>
+          <IncomeRhythmForm anchor={rhythmParts.anchor} days={rhythmParts.days} kind={rhythmParts.kind} locale={locale} messages={messages} today={todayKey()} />
         </Card>
       </Section>
 

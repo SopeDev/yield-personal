@@ -8,15 +8,21 @@ import { createUserDefaults } from "@/lib/user-defaults";
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(db),
   providers: [Google],
-  session: { strategy: "database" },
+  // A signed cookie instead of a database session: pages read the user without a database round trip first.
+  // The adapter still stores users and accounts.
+  session: { strategy: "jwt" },
   pages: { signIn: "/sign-in", error: "/sign-in" },
   callbacks: {
     // Yield Personal holds private financial data: only allow-listed accounts may sign in.
     signIn({ user }) {
       return isAllowedEmail(user.email);
     },
-    session({ session, user }) {
-      session.user.id = user.id;
+    jwt({ token, user }) {
+      if (user?.id) token.sub = user.id;
+      return token;
+    },
+    session({ session, token }) {
+      if (token.sub) session.user.id = token.sub;
       return session;
     },
   },
