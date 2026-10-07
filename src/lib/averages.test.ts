@@ -3,10 +3,10 @@ import { test } from "node:test";
 import { averageMonthlySpending } from "./averages";
 import type { MonthKey } from "./months";
 
-const fixed = { id: "fixed", key: "fixed", name: null, sortOrder: 0, includeInAverage: true };
-const food = { id: "food", key: "food", name: null, sortOrder: 1, includeInAverage: true };
-const car = { id: "car", key: "car", name: null, sortOrder: 2, includeInAverage: true };
-const extras = { id: "extras", key: "extras", name: null, sortOrder: 3, includeInAverage: false };
+const fixed = { id: "fixed", key: "fixed", name: null, sortOrder: 0, kind: "BILLS" as const };
+const food = { id: "food", key: "food", name: null, sortOrder: 1, kind: "EVERYDAY" as const };
+const car = { id: "car", key: "car", name: null, sortOrder: 2, kind: "EVERYDAY" as const };
+const extras = { id: "extras", key: "extras", name: null, sortOrder: 3, kind: "OCCASIONAL" as const };
 
 test("reproduces the spreadsheet's average monthly spending", () => {
   // Fixed: 17,400 in October and 13,500 for the other 11 months; food and car only have October data.

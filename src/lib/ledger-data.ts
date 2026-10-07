@@ -3,12 +3,13 @@ import "server-only";
 import { db } from "@/db/client";
 import { statementsForCards } from "@/lib/card-statements";
 import { earliestContributingMonth } from "@/lib/installments";
+import type { LedgerIncomeGroup } from "@/lib/ledger";
 import type { LedgerData } from "@/lib/month-summary";
 import { addMonths, monthRange, type MonthKey } from "@/lib/months";
 import type { ConfirmedAmount, OccurrenceOverride, RecurringDefinition } from "@/lib/recurring";
 import { monthKeyInAppZone } from "@/lib/today";
 
-const categorySelect = { id: true, key: true, name: true, sortOrder: true, includeInAverage: true } as const;
+const categorySelect = { id: true, key: true, name: true, sortOrder: true, kind: true } as const;
 const paymentMethodSelect = { id: true, kind: true, name: true, color: true } as const;
 const itemSelect = { id: true, name: true, category: { select: categorySelect } } as const;
 const purchaseSelect = {
@@ -63,6 +64,16 @@ export function getCards(userId: string) {
   });
 }
 
+/** Income groups, including archived ones, with the categories each deducts. */
+export async function getIncomeGroups(userId: string, { activeOnly = false } = {}): Promise<LedgerIncomeGroup[]> {
+  const groups = await db.incomeGroup.findMany({
+    where: { userId, ...(activeOnly ? { archivedAt: null } : {}) },
+    select: { id: true, name: true, deductions: { select: { categoryId: true } } },
+    orderBy: { createdAt: "asc" },
+  });
+  return groups.map(({ deductions, ...group }) => ({ ...group, deductCategoryIds: deductions.map((deduction) => deduction.categoryId) }));
+}
+
 export function getSavingsFunds(userId: string) {
   return db.savingsFund.findMany({
     where: { userId, archivedAt: null },
@@ -78,7 +89,7 @@ export function getSavingsFunds(userId: string) {
  */
 export async function loadLedgerRange(userId: string, from: MonthKey, to: MonthKey, { statementsFrom: statementsStart = from }: { statementsFrom?: MonthKey } = {}) {
   const statementsFrom = addMonths(statementsStart < from ? statementsStart : from, -STATEMENT_LOOKBACK_MONTHS);
-  const [categories, definitions, cards, purchases, incomes, overrides, recurringHistory, paidStatements, savingsMovements] = await Promise.all([
+  const [categories, definitions, cards, purchases, incomes, overrides, recurringHistory, paidStatements, savingsMovements, incomeGroups] = await Promise.all([
     db.category.findMany({ where: { userId }, select: categorySelect, orderBy: { sortOrder: "asc" } }),
     getRecurringDefinitions(userId),
     getCards(userId),
@@ -89,13 +100,14 @@ export async function loadLedgerRange(userId: string, from: MonthKey, to: MonthK
     }),
     db.income.findMany({
       where: { userId, date: { gte: monthRange(from).start, lt: monthRange(to).end } },
-      select: { id: true, date: true, amountCents: true, note: true, source: { select: { id: true, name: true, isRideshare: true } } },
+      select: { id: true, date: true, amountCents: true, note: true, source: { select: { id: true, name: true, groupId: true } } },
       orderBy: [{ date: "desc" }, { createdAt: "desc" }],
     }),
     getOccurrenceOverrides(userId, statementsFrom, addMonths(to, 1)),
     getRecurringHistory(userId),
     db.statementPayment.findMany({ where: { userId }, select: { paymentMethodId: true, statementMonth: true } }),
     db.savingsMovement.findMany({ where: { userId }, select: { id: true, fundId: true, date: true, amountCents: true, note: true }, orderBy: { date: "desc" } }),
+    getIncomeGroups(userId),
   ]);
 
   const statements = statementsForCards({
@@ -109,6 +121,6 @@ export async function loadLedgerRange(userId: string, from: MonthKey, to: MonthK
     paidStatements,
   });
 
-  const data: LedgerData = { categories, purchases, incomes, definitions, overrides, recurringHistory, statements, savingsMovements };
+  const data: LedgerData = { categories, purchases, incomes, incomeGroups, definitions, overrides, recurringHistory, statements, savingsMovements };
   return { data, cards };
 }

@@ -7,6 +7,14 @@ datasource db {
   provider = "postgresql"
 }
 
+enum CategoryKind {
+  EVERYDAY
+  BILLS
+  OCCASIONAL
+
+  @@map("category_kind")
+}
+
 enum PaymentMethodKind {
   CASH
   CARD
@@ -33,6 +41,7 @@ model User {
   categories           Category[]
   purchases            Purchase[]
   incomeSources        IncomeSource[]
+  incomeGroups         IncomeGroup[]
   incomes              Income[]
   recurringPayments    RecurringPayment[]
   recurringOccurrences RecurringOccurrence[]
@@ -104,19 +113,21 @@ model PaymentMethod {
   @@map("payment_methods")
 }
 
-/// Built-in categories have a `key` and are labelled through i18n; custom ones use `name`.
-/// `includeInAverage` marks everyday categories counted in average monthly spending (one-off extras are not).
+/// Built-in categories have a `key` and are labelled through i18n; custom ones use `name`. `kind` says how its
+/// spending counts: everyday spending (daily net, typical daily spending, averages), bills (averages only), or
+/// occasional (left out of both, like one-off extras).
 model Category {
-  id               String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId           String        @map("user_id") @db.Uuid
+  id               String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId           String                 @map("user_id") @db.Uuid
   key              String?
   name             String?
-  sortOrder        Int           @default(0) @map("sort_order")
-  includeInAverage Boolean       @default(true) @map("include_in_average")
-  archivedAt       DateTime?     @map("archived_at") @db.Timestamptz(6)
-  createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
-  user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sortOrder        Int                    @default(0) @map("sort_order")
+  kind             CategoryKind           @default(EVERYDAY)
+  archivedAt       DateTime?              @map("archived_at") @db.Timestamptz(6)
+  createdAt        DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  user             User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   items            ExpenseItem[]
+  incomeDeductions IncomeGroupDeduction[]
 
   @@unique([userId, key])
   @@index([userId])
@@ -166,18 +177,49 @@ model ExpenseItem {
   @@map("expense_items")
 }
 
+/// Where income comes from. Its group, if any, decides which spending its net income is after.
 model IncomeSource {
-  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId      String    @map("user_id") @db.Uuid
-  name        String
-  isRideshare Boolean   @default(false) @map("is_rideshare")
-  archivedAt  DateTime? @map("archived_at") @db.Timestamptz(6)
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  incomes     Income[]
+  id         String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String       @map("user_id") @db.Uuid
+  groupId    String?      @map("group_id") @db.Uuid
+  name       String
+  archivedAt DateTime?    @map("archived_at") @db.Timestamptz(6)
+  createdAt  DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group      IncomeGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  incomes    Income[]
 
   @@index([userId])
+  @@index([groupId])
   @@map("income_sources")
+}
+
+/// Income sources grouped for a net figure, like "Rideshare" (Uber, Didi): the group's income minus spending in
+/// the categories it deducts (for rideshare, Car).
+model IncomeGroup {
+  id         String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String                 @map("user_id") @db.Uuid
+  name       String
+  archivedAt DateTime?              @map("archived_at") @db.Timestamptz(6)
+  createdAt  DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  user       User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sources    IncomeSource[]
+  deductions IncomeGroupDeduction[]
+
+  @@index([userId])
+  @@map("income_groups")
+}
+
+/// A category whose spending an income group's net income is after.
+model IncomeGroupDeduction {
+  groupId    String      @map("group_id") @db.Uuid
+  categoryId String      @map("category_id") @db.Uuid
+  group      IncomeGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  category   Category    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, categoryId])
+  @@index([categoryId])
+  @@map("income_group_deductions")
 }
 
 /// Gross income, in centavos.

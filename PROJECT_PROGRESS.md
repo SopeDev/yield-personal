@@ -66,6 +66,9 @@ Last updated: 2026-10-04
 - Needed per day now includes typical daily spending (everyday purchases pooled over up to 3 full months plus this month); a "Count history from" setting excludes partial early months from it and from average monthly spending. Migration adds `history_start_month` to users.
 - Month summary compares gross with gross: daily income (with daily net below) beside needed per day.
 
+- Customization step 1: category types (everyday / bills / occasional) replace "include in average", and income groups (sources plus the categories their net deducts) replace the rideshare flag and the built-in Car deduction. Migration backfills both (Fixed → bills, Extras → occasional; rideshare sources → a "Rideshare" group deducting Car), verified on an embedded Postgres.
+
 ## Next
 
-- No slice planned. Offline entry (service worker plus a replay queue) was dropped as unnecessary.
+- Customization step 2: a stat library holding every summary figure (label, calculation, format), with today's summary cards rebuilt on it and unchanged on screen.
+- Then: customizable summary cards with an income-rhythm setting, recurring income with a projected month-end balance, category budgets, and quick wins (start screen, last-used category, calendar-year option).

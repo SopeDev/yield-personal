@@ -4,7 +4,7 @@ import { db } from "@/db/client";
 import { monthKeyOf } from "@/lib/months";
 import { usualPurchases } from "@/lib/usual-purchase";
 
-const categorySelect = { id: true, key: true, name: true, sortOrder: true, includeInAverage: true } as const;
+const categorySelect = { id: true, key: true, name: true, sortOrder: true, kind: true } as const;
 
 /** All categories, including archived ones, so past spending is still totalled under them. */
 export function getCategories(userId: string) {
@@ -60,7 +60,7 @@ export function getActivePaymentMethods(userId: string) {
 export function getActiveIncomeSources(userId: string) {
   return db.incomeSource.findMany({
     where: { userId, archivedAt: null },
-    select: { id: true, name: true, isRideshare: true },
+    select: { id: true, name: true, groupId: true },
     orderBy: { createdAt: "asc" },
   });
 }
@@ -99,4 +99,14 @@ export async function getUserSettings(userId: string) {
     balanceGoalCents: user?.balanceGoalCents ?? null,
     historyStartMonth: user?.historyStartMonth ? monthKeyOf(user.historyStartMonth) : null,
   };
+}
+
+/** Every income group with the categories it deducts and whether it is archived, for managing groups. */
+export async function getIncomeGroupsForManagement(userId: string) {
+  const groups = await db.incomeGroup.findMany({
+    where: { userId },
+    select: { id: true, name: true, archivedAt: true, deductions: { select: { categoryId: true } } },
+    orderBy: { createdAt: "asc" },
+  });
+  return groups.map(({ deductions, ...group }) => ({ ...group, deductCategoryIds: deductions.map((deduction) => deduction.categoryId) }));
 }

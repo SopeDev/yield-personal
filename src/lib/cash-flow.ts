@@ -39,9 +39,11 @@ export function monthCashFlow({ month, purchases, occurrences, statements, savin
     .filter((purchase) => purchase.paymentMethod.kind === "CASH" && monthKeyOf(purchase.date) === month)
     .reduce((sum, purchase) => sum + purchase.amountCents, 0);
   const cashOccurrences = occurrences.filter((occurrence) => occurrence.recurring.paymentMethod.kind === "CASH");
-  const statementsClosing = statements.filter((statement) => statement.month === month && statement.totalCents > 0);
+  // Listed in the order they close.
+  const byClosingDate = (a: Statement, b: Statement) => a.closingDate.getTime() - b.closingDate.getTime();
+  const statementsClosing = statements.filter((statement) => statement.month === month && statement.totalCents > 0).sort(byClosingDate);
   const carriedStatements = carryFrom
-    ? statements.filter((statement) => !statement.paid && statement.totalCents > 0 && statement.month >= carryFrom && statement.month < month)
+    ? statements.filter((statement) => !statement.paid && statement.totalCents > 0 && statement.month >= carryFrom && statement.month < month).sort(byClosingDate)
     : [];
 
   const unpaidOccurrences = cashOccurrences.filter((occurrence) => occurrence.cashPaidAt === null);

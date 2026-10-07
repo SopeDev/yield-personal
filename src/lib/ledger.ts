@@ -1,8 +1,8 @@
-import { CAR_CATEGORY_KEY } from "./categories";
+import type { CategoryKind } from "./categories";
 import { consumptionInMonth } from "./installments";
 import type { MonthKey } from "./months";
 
-export type LedgerCategory = { id: string; key: string | null; name: string | null; sortOrder: number; includeInAverage: boolean };
+export type LedgerCategory = { id: string; key: string | null; name: string | null; sortOrder: number; kind: CategoryKind };
 export type LedgerPaymentMethod = { id: string; kind: "CASH" | "CARD"; name: string; color: string };
 /** A reusable expense concept; its category groups it. */
 export type LedgerItem = { id: string; name: string; category: LedgerCategory };
@@ -15,7 +15,9 @@ export type LedgerPurchase = {
   item: LedgerItem;
   paymentMethod: LedgerPaymentMethod;
 };
-export type LedgerIncomeSource = { id: string; name: string; isRideshare: boolean };
+export type LedgerIncomeSource = { id: string; name: string; groupId: string | null };
+/** Income sources grouped for a net figure: the group's income after spending in `deductCategoryIds`. */
+export type LedgerIncomeGroup = { id: string; name: string; deductCategoryIds: string[] };
 export type LedgerIncome = { id: string; date: Date; amountCents: number; note: string | null; source: LedgerIncomeSource };
 
 export type MonthSpendingEntry = {
@@ -59,9 +61,8 @@ export function summarizeSpending(amounts: SpendingAmount[], categories: LedgerC
     (a, b) => a.item.category.sortOrder - b.item.category.sortOrder || b.totalCents - a.totalCents || a.item.name.localeCompare(b.item.name),
   );
   const totalCents = byCategory.reduce((sum, item) => sum + item.totalCents, 0);
-  const carCents = byCategory.find((item) => item.category.key === CAR_CATEGORY_KEY)?.totalCents ?? 0;
 
-  return { byCategory, byItem, totalCents, carCents };
+  return { byCategory, byItem, totalCents };
 }
 
 export function spendingAmountsOf(entries: MonthSpendingEntry[]): SpendingAmount[] {
@@ -69,10 +70,14 @@ export function spendingAmountsOf(entries: MonthSpendingEntry[]): SpendingAmount
 }
 
 /**
- * A month's income by source, rideshare gross and net, and the daily average over the days with income
- * recorded (days worked): gross from all income, net after the month's car spending.
+ * A month's income by source and by income group, with each group's net after the spending it deducts, and the
+ * daily average over the days with income recorded (days worked). Overall net is all income after every
+ * deducted category's spending, each category counted once even when several groups deduct it.
  */
-export function summarizeIncome(incomes: LedgerIncome[], carSpendingCents: number) {
+export function summarizeIncome(incomes: LedgerIncome[], { groups = [], spendingByCategory = [] }: {
+  groups?: LedgerIncomeGroup[];
+  spendingByCategory?: { category: LedgerCategory; totalCents: number }[];
+} = {}) {
   const bySourceId = new Map<string, { source: LedgerIncomeSource; totalCents: number }>();
   for (const income of incomes) {
     const current = bySourceId.get(income.source.id) ?? { source: income.source, totalCents: 0 };
@@ -82,22 +87,35 @@ export function summarizeIncome(incomes: LedgerIncome[], carSpendingCents: numbe
 
   const bySource = [...bySourceId.values()].sort((a, b) => b.totalCents - a.totalCents);
   const totalCents = bySource.reduce((sum, item) => sum + item.totalCents, 0);
-  const rideshareGrossCents = bySource
-    .filter((item) => item.source.isRideshare)
-    .reduce((sum, item) => sum + item.totalCents, 0);
+  const spentIn = (categoryIds: Iterable<string>) =>
+    [...new Set(categoryIds)].reduce((sum, id) => sum + (spendingByCategory.find((entry) => entry.category.id === id)?.totalCents ?? 0), 0);
 
+  const byGroup = groups
+    .map((group) => {
+      const grossCents = bySource.filter((item) => item.source.groupId === group.id).reduce((sum, item) => sum + item.totalCents, 0);
+      const deductionsCents = spentIn(group.deductCategoryIds);
+      return { group, grossCents, deductionsCents, netCents: grossCents - deductionsCents };
+    })
+    .filter((entry) => entry.grossCents > 0)
+    .sort((a, b) => b.grossCents - a.grossCents);
+
+  const deductCategoryIds = [...new Set(groups.flatMap((group) => group.deductCategoryIds))];
+  const deductionsCents = spentIn(deductCategoryIds);
+  const netCents = totalCents - deductionsCents;
   const daysWithIncome = new Set(incomes.map((income) => income.date.getTime())).size;
   const perDay = (cents: number) => (daysWithIncome > 0 ? Math.round(cents / daysWithIncome) : 0);
 
   return {
     bySource,
+    byGroup,
     totalCents,
-    rideshareGrossCents,
-    netRideshareCents: rideshareGrossCents - carSpendingCents,
-    /** All income after the month's car spending. */
-    netCents: totalCents - carSpendingCents,
+    /** The categories deducted by any income group, and their spending this month. */
+    deductCategoryIds,
+    deductionsCents,
+    /** All income after the deducted categories' spending. */
+    netCents,
     daysWithIncome,
     dailyGrossCents: perDay(totalCents),
-    dailyNetCents: perDay(totalCents - carSpendingCents),
+    dailyNetCents: perDay(netCents),
   };
 }

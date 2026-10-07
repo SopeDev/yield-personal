@@ -1,15 +1,15 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { dailyNet, goalProgress, neededPerDay, typicalDailySpending } from "./daily-balance";
-import type { LedgerPurchase, MonthSpendingEntry } from "./ledger";
+import type { LedgerCategory, LedgerPurchase, MonthSpendingEntry } from "./ledger";
 import { dateFromKey } from "./months";
 
-const food = { id: "food", key: "food", name: null, sortOrder: 1, includeInAverage: true };
-const extras = { id: "extras", key: "extras", name: null, sortOrder: 3, includeInAverage: false };
+const food = { id: "food", key: "food", name: null, sortOrder: 1, kind: "EVERYDAY" as const };
+const extras = { id: "extras", key: "extras", name: null, sortOrder: 3, kind: "OCCASIONAL" as const };
 const cash = { id: "cash", kind: "CASH" as const, name: "Cash", color: "#00c896" };
-const uber = { id: "uber", name: "Uber", isRideshare: true };
+const uber = { id: "uber", name: "Uber", groupId: "rideshare" };
 
-function entry(date: string, amountCents: number, { installmentNumber = 1, category = food } = {}): MonthSpendingEntry {
+function entry(date: string, amountCents: number, { installmentNumber = 1, category = food }: { installmentNumber?: number; category?: LedgerCategory } = {}): MonthSpendingEntry {
   const purchase: LedgerPurchase = { id: date, date: dateFromKey(date), amountCents, note: null, installmentCount: installmentNumber, item: { id: "comida", name: "Comida", category }, paymentMethod: cash };
   return { purchase, amountCents, installmentNumber };
 }

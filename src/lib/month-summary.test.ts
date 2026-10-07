@@ -7,10 +7,10 @@ import { dateFromKey } from "./months";
 import type { RecurringDefinition } from "./recurring";
 import { installmentsOwed } from "./statements";
 
-const fixed = { id: "fixed", key: "fixed", name: null, sortOrder: 0, includeInAverage: true };
-const food = { id: "food", key: "food", name: null, sortOrder: 1, includeInAverage: true };
-const car = { id: "car", key: "car", name: null, sortOrder: 2, includeInAverage: true };
-const extras = { id: "extras", key: "extras", name: null, sortOrder: 3, includeInAverage: false };
+const fixed = { id: "fixed", key: "fixed", name: null, sortOrder: 0, kind: "BILLS" as const };
+const food = { id: "food", key: "food", name: null, sortOrder: 1, kind: "EVERYDAY" as const };
+const car = { id: "car", key: "car", name: null, sortOrder: 2, kind: "EVERYDAY" as const };
+const extras = { id: "extras", key: "extras", name: null, sortOrder: 3, kind: "OCCASIONAL" as const };
 const cash = { id: "cash", kind: "CASH" as const, name: "Cash", color: "#00c896" };
 const klar = { id: "klar", kind: "CARD" as const, name: "Klar", color: "#14b8a6" };
 const klarCard = { id: "klar", closingDay: 20, paymentDays: 30 };
@@ -37,7 +37,8 @@ test("summarizes spending, cash out, savings, and balance for a month", () => {
   const data: LedgerData = {
     categories: [fixed, food, car, extras],
     purchases,
-    incomes: [{ id: "uber", date: dateFromKey("2026-10-01"), amountCents: 326940, note: null, source: { id: "uber", name: "Uber", isRideshare: true } }],
+    incomes: [{ id: "uber", date: dateFromKey("2026-10-01"), amountCents: 326940, note: null, source: { id: "uber", name: "Uber", groupId: "rideshare" } }],
+    incomeGroups: [{ id: "rideshare", name: "Rideshare", deductCategoryIds: ["car"] }],
     definitions,
     overrides: [],
     recurringHistory: [],
@@ -53,7 +54,7 @@ test("summarizes spending, cash out, savings, and balance for a month", () => {
   assert.equal(october.cashFlow.toPayCents, 800000 + 41000 + 26000 + 100000 + 33300);
   assert.equal(october.savingsNetCents, 100000);
   assert.equal(october.balanceCents, 326940 - october.cashFlow.toPayCents);
-  assert.equal(october.income.netRideshareCents, 326940 - 41000);
+  assert.equal(october.income.byGroup[0].netCents, 326940 - 41000);
 
   const november = summarizeMonth(data, "2026-11");
   assert.equal(november.cashFlow.statementsClosing.length, 1);
@@ -66,7 +67,7 @@ test("carries unpaid statements from earlier months into the current month witho
     cards: [klarCard], purchases: purchases.filter((item) => item.paymentMethod.kind === "CARD"),
     definitions: [], overrides: [], recurringFrom: "2026-09", recurringTo: "2026-12", paidStatements: [],
   });
-  const data: LedgerData = { categories: [fixed, food, car, extras], purchases, incomes: [], definitions: [], overrides: [], recurringHistory: [], statements, savingsMovements: [] };
+  const data: LedgerData = { categories: [fixed, food, car, extras], purchases, incomes: [], incomeGroups: [], definitions: [], overrides: [], recurringHistory: [], statements, savingsMovements: [] };
 
   const november = summarizeMonth(data, "2026-11", { carryFrom: "2026-01" });
   assert.deepEqual(november.cashFlow.carriedStatements.map((statement) => statement.month), ["2026-10"]);
@@ -84,7 +85,7 @@ test("carries unpaid statements from earlier months into the current month witho
 
 test("the current month carries unpaid cash bills from earlier months as outstanding", () => {
   const data: LedgerData = {
-    categories: [fixed], purchases: [], incomes: [], definitions: definitions.map((item) => ({ ...item, addedMonth: "2026-10" as const })),
+    categories: [fixed], purchases: [], incomes: [], incomeGroups: [], definitions: definitions.map((item) => ({ ...item, addedMonth: "2026-10" as const })),
     overrides: [{ recurringPaymentId: "rent", month: dateFromKey("2026-11-01"), amountCents: null, paidAt: dateFromKey("2026-11-02") }],
     recurringHistory: [], statements: [], savingsMovements: [],
   };

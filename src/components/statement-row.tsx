@@ -19,14 +19,18 @@ export function StatementRow({ statement, card, today, locale, messages }: {
 }) {
   const closingKey = dateKeyOf(statement.closingDate);
   const daysUntilDue = daysBetween(today, dateKeyOf(statement.dueDate));
-  const closingLabel = format(closingKey > today ? messages.month.closes : messages.month.closed, { date: formatShortDate(statement.closingDate, locale) });
+  const closed = closingKey <= today;
+  const closingLabel = format(closed ? messages.month.closed : messages.month.closes, { date: formatShortDate(statement.closingDate, locale) });
   const dueLabel = format(messages.cards.due, { date: formatShortDate(statement.dueDate, locale) });
 
+  // As with recurring payments: yellow 1–2 days before the due date, red on it and after. A closed, unpaid
+  // statement's closing date turns green: its total is final and it can be paid now.
   let timing: { text: string; tone: string } | null = null;
   if (!statement.paid) {
     if (daysUntilDue < 0) timing = { text: format(messages.month.overdueBy, { days: -daysUntilDue }), tone: "text-loss" };
-    else if (daysUntilDue === 0) timing = { text: messages.month.dueToday, tone: "text-warning" };
+    else if (daysUntilDue === 0) timing = { text: messages.month.dueToday, tone: "text-loss" };
     else if (daysUntilDue === 1) timing = { text: messages.month.dueTomorrow, tone: "text-warning" };
+    else if (daysUntilDue === 2) timing = { text: format(messages.month.dueIn, { days: daysUntilDue }), tone: "text-warning" };
     else timing = { text: format(messages.month.dueIn, { days: daysUntilDue }), tone: "text-muted-foreground" };
   }
 
@@ -35,7 +39,9 @@ export function StatementRow({ statement, card, today, locale, messages }: {
       <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: card?.color }} />
       <Link className="min-w-0 flex-1" href={`/${locale}/cards`}>
         <p className="truncate font-medium">{format(messages.month.statementDue, { card: card?.name ?? "" })}</p>
-        <p className="truncate text-sm text-muted-foreground">{closingLabel} · {dueLabel}</p>
+        <p className="truncate text-sm text-muted-foreground">
+          <span className={cn(closed && !statement.paid && "font-medium text-gain")}>{closingLabel}</span> · {dueLabel}
+        </p>
         {timing ? <p className={cn("text-sm font-medium", timing.tone)}>{timing.text}</p> : null}
       </Link>
       <Money cents={statement.totalCents} />

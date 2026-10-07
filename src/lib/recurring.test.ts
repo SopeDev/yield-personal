@@ -4,7 +4,7 @@ import { statementsForCards } from "./card-statements";
 import { dateFromKey, dateKeyOf } from "./months";
 import { estimateFromHistory, isActiveInMonth, lateChargeDate, nextActiveMonth, occurrencesForMonth, unpaidCashOccurrences, type RecurringDefinition } from "./recurring";
 
-const fixed = { id: "fixed", key: "fixed", name: null, sortOrder: 0, includeInAverage: true };
+const fixed = { id: "fixed", key: "fixed", name: null, sortOrder: 0, kind: "BILLS" as const };
 const cash = { id: "cash", kind: "CASH" as const, name: "Cash", color: "#00c896" };
 
 const rent: RecurringDefinition = {

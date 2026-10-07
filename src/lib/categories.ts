@@ -2,11 +2,30 @@ export const BUILT_IN_CATEGORY_KEYS = ["fixed", "food", "car", "extras"] as cons
 
 export type BuiltInCategoryKey = (typeof BUILT_IN_CATEGORY_KEYS)[number];
 
-/** One-off purchases don't describe typical monthly spending. */
-export const EXCLUDED_FROM_AVERAGE_KEYS: readonly BuiltInCategoryKey[] = ["extras"];
+export const CATEGORY_KINDS = ["EVERYDAY", "BILLS", "OCCASIONAL"] as const;
 
-/** Spending in this category is subtracted from rideshare income to get net rideshare income. */
-export const CAR_CATEGORY_KEY: BuiltInCategoryKey = "car";
+/**
+ * How a category's spending counts: everyday spending (daily net, typical daily spending, and averages), bills
+ * (averages only; they mostly arrive as recurring payments), or occasional (neither, like one-off extras).
+ */
+export type CategoryKind = (typeof CATEGORY_KINDS)[number];
+
+/** The type each built-in category starts with. */
+export const BUILT_IN_CATEGORY_KINDS: Record<BuiltInCategoryKey, CategoryKind> = { fixed: "BILLS", food: "EVERYDAY", car: "EVERYDAY", extras: "OCCASIONAL" };
+
+export function isCategoryKind(value: string): value is CategoryKind {
+  return (CATEGORY_KINDS as readonly string[]).includes(value);
+}
+
+/** Spending that describes a typical month, for average monthly spending. */
+export function countsInAverage(category: { kind: CategoryKind }) {
+  return category.kind !== "OCCASIONAL";
+}
+
+/** Day-to-day spending, for daily net and typical daily spending. */
+export function isEveryday(category: { kind: CategoryKind }) {
+  return category.kind === "EVERYDAY";
+}
 
 type CategoryLabelSource = { key: string | null; name: string | null };
 

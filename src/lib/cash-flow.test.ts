@@ -6,8 +6,8 @@ import { dateFromKey } from "./months";
 import { occurrencesForMonth, type RecurringDefinition } from "./recurring";
 import { buildStatements } from "./statements";
 
-const fixed = { id: "fixed", key: "fixed", name: null, sortOrder: 0, includeInAverage: true };
-const car = { id: "car", key: "car", name: null, sortOrder: 2, includeInAverage: true };
+const fixed = { id: "fixed", key: "fixed", name: null, sortOrder: 0, kind: "BILLS" as const };
+const car = { id: "car", key: "car", name: null, sortOrder: 2, kind: "EVERYDAY" as const };
 const cash = { id: "cash", kind: "CASH" as const, name: "Cash", color: "#00c896" };
 const nu = { id: "nu", kind: "CARD" as const, name: "Nu", color: "#8b5cf6" };
 const nuCycle = { id: "nu", closingDay: 5, paymentDays: 20 };

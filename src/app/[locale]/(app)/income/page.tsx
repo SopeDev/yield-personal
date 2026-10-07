@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Fragment } from "react";
 import { deleteIncome } from "@/app/actions/entries";
 import { DeleteButton } from "@/components/delete-button";
 import { EntryRow } from "@/components/entry-row";
@@ -8,6 +9,7 @@ import { Card, Section } from "@/components/section";
 import { isLocale } from "@/i18n/config";
 import { format, getDictionary } from "@/i18n/dictionaries";
 import { requireUserId } from "@/lib/auth-user";
+import { categoryLabel } from "@/lib/categories";
 import { formatDayHeading, groupByDay } from "@/lib/dates";
 import { loadMonthView } from "@/lib/month-view";
 import { monthFromSearchParam } from "@/lib/search-params";
@@ -22,6 +24,12 @@ export default async function IncomePage({ params, searchParams }: PageProps<"/[
 
   const { incomes, spending, income } = await loadMonthView(userId, month, currentMonthKey());
   const today = todayKey();
+  // A single deducted category is named ("Car spending"); several are summed as deductions.
+  const deductedCategories = income.deductCategoryIds.map((id) => spending.byCategory.find((entry) => entry.category.id === id)?.category).filter((category) => category !== undefined);
+  const deductionsLabel = deductedCategories.length === 1
+    ? format(messages.income.categorySpending, { category: categoryLabel(deductedCategories[0], messages.categories) })
+    : messages.income.deductions;
+  const groupNames = new Map(income.byGroup.map(({ group }) => [group.id, group.name]));
 
   return (
     <div className="space-y-7">
@@ -38,17 +46,21 @@ export default async function IncomePage({ params, searchParams }: PageProps<"/[
           ) : null}
         </div>
         <div className="grid grid-cols-2 divide-x divide-border border-t border-border text-center [&>*:nth-child(n+3)]:border-t [&>*:nth-child(n+3)]:border-border">
-          <Stat label={messages.income.carSpending}><Money cents={-spending.carCents} className="text-muted-foreground" /></Stat>
-          <Stat label={messages.income.net}><Money cents={income.netCents} className={tone(income.netCents)} /></Stat>
-          <Stat label={messages.income.dailyGross}><Money cents={income.dailyGrossCents} /></Stat>
-          <Stat label={messages.income.dailyNet}><Money cents={income.dailyNetCents} className={tone(income.dailyNetCents)} /></Stat>
-          {/* Rideshare figures differ from the totals only when there is other income too. */}
-          {income.rideshareGrossCents > 0 && income.rideshareGrossCents < income.totalCents ? (
+          {income.deductCategoryIds.length > 0 ? (
             <>
-              <Stat label={messages.income.rideshareGross}><Money cents={income.rideshareGrossCents} /></Stat>
-              <Stat label={messages.income.rideshareNet}><Money cents={income.netRideshareCents} className={tone(income.netRideshareCents)} /></Stat>
+              <Stat label={deductionsLabel}><Money cents={-income.deductionsCents} className="text-muted-foreground" /></Stat>
+              <Stat label={messages.income.net}><Money cents={income.netCents} className={tone(income.netCents)} /></Stat>
             </>
           ) : null}
+          <Stat label={messages.income.dailyGross}><Money cents={income.dailyGrossCents} /></Stat>
+          <Stat label={messages.income.dailyNet}><Money cents={income.dailyNetCents} className={tone(income.dailyNetCents)} /></Stat>
+          {/* A group's figures differ from the totals only when there is income outside it too. */}
+          {income.byGroup.filter((entry) => entry.grossCents < income.totalCents).map((entry) => (
+            <Fragment key={entry.group.id}>
+              <Stat label={format(messages.income.groupGross, { group: entry.group.name })}><Money cents={entry.grossCents} /></Stat>
+              <Stat label={format(messages.income.groupNet, { group: entry.group.name })}><Money cents={entry.netCents} className={tone(entry.netCents)} /></Stat>
+            </Fragment>
+          ))}
         </div>
       </Card>
 
@@ -83,7 +95,7 @@ export default async function IncomePage({ params, searchParams }: PageProps<"/[
                       <EntryRow
                         cents={item.amountCents}
                         color="var(--color-gain)"
-                        details={item.note ?? (item.source.isRideshare ? messages.settings.rideshareBadge : messages.month.income)}
+                        details={item.note ?? (item.source.groupId ? groupNames.get(item.source.groupId) : undefined) ?? messages.month.income}
                         href={`/${locale}/edit/income/${item.id}`}
                         key={item.id}
                         signed

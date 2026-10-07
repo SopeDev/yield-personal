@@ -5,8 +5,8 @@ import { summarizeMonth, type LedgerData } from "./month-summary";
 import { dateFromKey } from "./months";
 import { buildYearGrid } from "./year-grid";
 
-const fixed = { id: "fixed", key: "fixed", name: null, sortOrder: 0, includeInAverage: true };
-const car = { id: "car", key: "car", name: null, sortOrder: 2, includeInAverage: true };
+const fixed = { id: "fixed", key: "fixed", name: null, sortOrder: 0, kind: "BILLS" as const };
+const car = { id: "car", key: "car", name: null, sortOrder: 2, kind: "EVERYDAY" as const };
 const cash = { id: "cash", kind: "CASH" as const, name: "Cash", color: "#00c896" };
 const gasolina = { id: "gasolina", name: "Gasolina", category: car };
 const lavado = { id: "lavado", name: "Lavado", category: car };
@@ -25,6 +25,7 @@ test("builds category groups with item rows and monthly totals", () => {
       purchase("l1", "2026-11-05", 15000, lavado),
     ],
     incomes: [],
+    incomeGroups: [],
     definitions: [
       { id: "rent", item: { id: "renta", name: "Renta", category: fixed }, amountCents: 800000, isVariable: false, intervalMonths: 1, dayOfMonth: 1, startMonth: dateFromKey("2026-11-01"), endMonth: null, paymentMethod: cash },
     ],
@@ -55,6 +56,7 @@ test("marks months whose spending includes an unconfirmed variable bill", () => 
     categories: [car, fixed],
     purchases: [purchase("g1", "2026-10-02", 41000, gasolina)],
     incomes: [],
+    incomeGroups: [],
     definitions: [luz],
     overrides: [{ recurringPaymentId: "luz", month: dateFromKey("2026-10-01"), amountCents: 58000, paidAt: null }],
     recurringHistory: [],

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ChevronDown, ChevronRight, ChevronUp, RotateCcw } from "lucide-react";
 import { signOut } from "@/auth";
-import { archiveCard, archiveCategory, archiveIncomeSource, moveCategory, restoreCategory, setLocale } from "@/app/actions/settings";
+import { archiveCard, archiveCategory, archiveIncomeGroup, archiveIncomeSource, moveCategory, restoreCategory, setLocale } from "@/app/actions/settings";
 import { ActionButton } from "@/components/action-button";
 import { BalanceGoalForm } from "@/components/balance-goal-form";
 import { HistoryStartForm } from "@/components/history-start-form";
@@ -9,12 +9,13 @@ import { CategoryForm } from "@/components/category-form";
 import { categoryLabel } from "@/lib/categories";
 import { CardForm } from "@/components/card-form";
 import { DeleteButton } from "@/components/delete-button";
+import { IncomeGroupForm } from "@/components/income-group-form";
 import { IncomeSourceForm } from "@/components/income-source-form";
 import { Card, Section } from "@/components/section";
 import { isLocale, locales } from "@/i18n/config";
 import { format, getDictionary } from "@/i18n/dictionaries";
 import { requireUserId } from "@/lib/auth-user";
-import { getActiveIncomeSources, getActivePaymentMethods, getCategoriesForManagement, getUserSettings } from "@/lib/queries";
+import { getActiveIncomeSources, getActivePaymentMethods, getCategoriesForManagement, getIncomeGroupsForManagement, getUserSettings } from "@/lib/queries";
 import { cn } from "@/lib/cn";
 
 const languageNames = { en: "English", es: "Español" } as const;
@@ -25,15 +26,25 @@ export default async function SettingsPage({ params }: PageProps<"/[locale]/sett
   const userId = await requireUserId(locale);
   const messages = getDictionary(locale);
 
-  const [methods, sources, allCategories, { balanceGoalCents: goalCents, historyStartMonth }] = await Promise.all([
+  const [methods, sources, allCategories, { balanceGoalCents: goalCents, historyStartMonth }, groups] = await Promise.all([
     getActivePaymentMethods(userId),
     getActiveIncomeSources(userId),
     getCategoriesForManagement(userId),
     getUserSettings(userId),
+    getIncomeGroupsForManagement(userId),
   ]);
   const categories = allCategories.filter((category) => !category.archivedAt);
   const archivedCategories = allCategories.filter((category) => category.archivedAt);
   const cards = methods.filter((method) => method.kind === "CARD");
+  const activeGroups = groups.filter((group) => !group.archivedAt);
+  const groupNames = new Map(groups.map((group) => [group.id, group.name]));
+  // A source may stay in a group archived since, so its own group is always offered.
+  const groupsFor = (groupId: string | null) => {
+    const own = groups.find((group) => group.id === groupId && group.archivedAt);
+    return own ? [...activeGroups, own] : activeGroups;
+  };
+  const categoryNames = new Map(allCategories.map((category) => [category.id, categoryLabel(category, messages.categories)]));
+  const categoryOptions = categories.map((category) => ({ id: category.id, label: categoryLabel(category, messages.categories) }));
 
   async function signOutAction() {
     "use server";
@@ -92,7 +103,7 @@ export default async function SettingsPage({ params }: PageProps<"/[locale]/sett
                 <details>
                   <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3">
                     <span className="min-w-0 flex-1 truncate font-medium">{categoryLabel(category, messages.categories)}</span>
-                    {!category.includeInAverage ? <span className="rounded-full bg-background px-2.5 py-1 text-xs text-muted-foreground">{messages.manage.excludedBadge}</span> : null}
+                    {category.kind !== "EVERYDAY" ? <span className="rounded-full bg-background px-2.5 py-1 text-xs text-muted-foreground">{messages.manage[`kind${category.kind}`]}</span> : null}
                     <span className="text-sm text-primary">{messages.common.edit}</span>
                   </summary>
                   <div className="border-t border-border bg-background/40">
@@ -109,7 +120,7 @@ export default async function SettingsPage({ params }: PageProps<"/[locale]/sett
                         id: category.id,
                         name: category.name ?? "",
                         defaultLabel: category.key ? categoryLabel({ key: category.key, name: null }, messages.categories) : null,
-                        includeInAverage: category.includeInAverage,
+                        kind: category.kind,
                       }}
                       locale={locale}
                       messages={messages}
@@ -193,11 +204,13 @@ export default async function SettingsPage({ params }: PageProps<"/[locale]/sett
                   <details>
                     <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3">
                       <p className="min-w-0 flex-1 truncate font-medium">{source.name}</p>
-                      {source.isRideshare ? <span className="rounded-full bg-primary/15 px-2.5 py-1 text-xs font-medium text-primary">{messages.settings.rideshareBadge}</span> : null}
+                      {source.groupId && groupNames.has(source.groupId) ? (
+                        <span className="rounded-full bg-primary/15 px-2.5 py-1 text-xs font-medium text-primary">{groupNames.get(source.groupId)}</span>
+                      ) : null}
                       <span className="text-sm text-primary">{messages.common.edit}</span>
                     </summary>
                     <div className="border-t border-border bg-background/40">
-                      <IncomeSourceForm initial={source} locale={locale} messages={messages} />
+                      <IncomeSourceForm groups={groupsFor(source.groupId)} initial={source} locale={locale} messages={messages} />
                       <RemoveRow action={archiveIncomeSource} confirmMessage={messages.settings.confirmRemove} id={source.id} label={messages.settings.remove} locale={locale} />
                     </div>
                   </details>
@@ -207,7 +220,44 @@ export default async function SettingsPage({ params }: PageProps<"/[locale]/sett
           )}
           <details className="border-t border-border">
             <summary className="flex min-h-12 cursor-pointer items-center px-4 font-medium text-primary">{messages.settings.addSource}</summary>
-            <IncomeSourceForm locale={locale} messages={messages} />
+            <IncomeSourceForm groups={activeGroups} locale={locale} messages={messages} />
+          </details>
+        </Card>
+      </Section>
+
+      <Section title={messages.settings.incomeGroups}>
+        <Card>
+          <p className="px-4 pt-4 text-sm text-muted-foreground">{messages.settings.incomeGroupsHint}</p>
+          {activeGroups.length === 0 ? (
+            <p className="px-4 py-4 text-muted-foreground">{messages.settings.groupsEmpty}</p>
+          ) : (
+            <ul className="mt-3 divide-y divide-border border-t border-border">
+              {activeGroups.map((group) => (
+                <li key={group.id}>
+                  <details>
+                    <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium">{group.name}</p>
+                        {group.deductCategoryIds.length > 0 ? (
+                          <p className="truncate text-sm text-muted-foreground">
+                            {messages.settings.deducts} {group.deductCategoryIds.map((id) => categoryNames.get(id)).filter(Boolean).join(", ")}
+                          </p>
+                        ) : null}
+                      </div>
+                      <span className="text-sm text-primary">{messages.common.edit}</span>
+                    </summary>
+                    <div className="border-t border-border bg-background/40">
+                      <IncomeGroupForm categories={categoryOptions} initial={group} locale={locale} messages={messages} />
+                      <RemoveRow action={archiveIncomeGroup} confirmMessage={messages.settings.confirmArchiveGroup} id={group.id} label={messages.settings.archiveGroup} locale={locale} />
+                    </div>
+                  </details>
+                </li>
+              ))}
+            </ul>
+          )}
+          <details className="border-t border-border">
+            <summary className="flex min-h-12 cursor-pointer items-center px-4 font-medium text-primary">{messages.settings.addGroup}</summary>
+            <IncomeGroupForm categories={categoryOptions} locale={locale} messages={messages} />
           </details>
         </Card>
       </Section>

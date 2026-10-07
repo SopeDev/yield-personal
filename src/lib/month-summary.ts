@@ -1,5 +1,5 @@
 import { monthCashFlow } from "./cash-flow";
-import { monthSpendingEntries, spendingAmountsOf, summarizeIncome, summarizeSpending, type LedgerCategory, type LedgerIncome, type LedgerPurchase } from "./ledger";
+import { monthSpendingEntries, spendingAmountsOf, summarizeIncome, summarizeSpending, type LedgerCategory, type LedgerIncome, type LedgerIncomeGroup, type LedgerPurchase } from "./ledger";
 import { monthKeyOf, type MonthKey } from "./months";
 import { occurrencesForMonth, unpaidCashOccurrences, type ConfirmedAmount, type OccurrenceOverride, type RecurringDefinition } from "./recurring";
 import { netSavingsInMonth, type SavingsMovementRecord } from "./savings";
@@ -10,6 +10,8 @@ export type LedgerData = {
   categories: LedgerCategory[];
   purchases: LedgerPurchase[];
   incomes: LedgerIncome[];
+  /** Income groups, including archived ones, so past months still net their income. */
+  incomeGroups: LedgerIncomeGroup[];
   definitions: RecurringDefinition[];
   overrides: OccurrenceOverride[];
   /** Confirmed recurring amounts by item, for estimating variable bills. */
@@ -26,7 +28,7 @@ export function summarizeMonth(data: LedgerData, month: MonthKey, { carryFrom }:
     data.categories,
   );
   const incomes = data.incomes.filter((income) => monthKeyOf(income.date) === month);
-  const income = summarizeIncome(incomes, spending.carCents);
+  const income = summarizeIncome(incomes, { groups: data.incomeGroups, spendingByCategory: spending.byCategory });
   const savingsNetCents = netSavingsInMonth(data.savingsMovements, month);
   const carriedOccurrences = carryFrom ? unpaidCashOccurrences(data.definitions, data.overrides, carryFrom, month, data.recurringHistory) : [];
   const cashFlow = monthCashFlow({ month, purchases: data.purchases, occurrences, statements: data.statements, savingsNetCents, carryFrom, carriedOccurrences });

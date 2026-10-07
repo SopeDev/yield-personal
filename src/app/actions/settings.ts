@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/db/client";
 import { LOCALE_COOKIE } from "@/i18n/config";
+import { isCategoryKind, type CategoryKind } from "@/lib/categories";
 import { parseAmountToCents } from "@/lib/money";
 import { dateFromKey, isMonthKey } from "@/lib/months";
 import { CARD_COLORS, MAX_STATEMENT_DAY } from "@/lib/payment-methods";
@@ -72,12 +73,23 @@ export async function archiveCard(formData: FormData) {
   revalidatePath(`/${localeFromForm(formData)}`, "layout");
 }
 
+/** The source's income group: none, or one of the user's active groups. */
+async function readSourceGroup(userId: string, formData: FormData) {
+  const groupId = readText(formData, "groupId");
+  if (!groupId) return { groupId: null };
+  if (!z.uuid().safeParse(groupId).success) return null;
+  const group = await db.incomeGroup.findFirst({ where: { id: groupId, userId, archivedAt: null }, select: { id: true } });
+  return group ? { groupId: group.id } : null;
+}
+
 export async function createIncomeSource(_state: FormState, formData: FormData): Promise<FormState> {
   const userId = await requireActionUserId();
   const name = readText(formData, "name");
   if (!name || name.length > MAX_NAME_LENGTH) return { fieldErrors: { name: "name" } };
+  const group = await readSourceGroup(userId, formData);
+  if (!group) return { fieldErrors: { groupId: "generic" } };
 
-  await db.incomeSource.create({ data: { userId, name, isRideshare: formData.get("isRideshare") === "on" } });
+  await db.incomeSource.create({ data: { userId, name, groupId: group.groupId } });
   revalidatePath(`/${localeFromForm(formData)}`, "layout");
   return {};
 }
@@ -88,11 +100,63 @@ export async function updateIncomeSource(_state: FormState, formData: FormData):
   const name = readText(formData, "name");
   if (!z.uuid().safeParse(id).success) return { error: "generic" };
   if (!name || name.length > MAX_NAME_LENGTH) return { fieldErrors: { name: "name" } };
+  // A source may keep a group archived since; it just can't move into one.
+  const current = await db.incomeSource.findFirst({ where: { id, userId }, select: { groupId: true } });
+  if (!current) return { error: "generic" };
+  const group = readText(formData, "groupId") === current.groupId ? { groupId: current.groupId } : await readSourceGroup(userId, formData);
+  if (!group) return { fieldErrors: { groupId: "generic" } };
 
-  const { count } = await db.incomeSource.updateMany({ where: { id, userId }, data: { name, isRideshare: formData.get("isRideshare") === "on" } });
-  if (count === 0) return { error: "generic" };
+  await db.incomeSource.update({ where: { id }, data: { name, groupId: group.groupId } });
   revalidatePath(`/${localeFromForm(formData)}`, "layout");
   return {};
+}
+
+/** The categories an income group deducts, limited to the user's own. */
+async function readDeductions(userId: string, formData: FormData) {
+  const ids = formData.getAll("deductCategoryId").map(String).filter((id) => z.uuid().safeParse(id).success);
+  if (ids.length === 0) return [];
+  const categories = await db.category.findMany({ where: { userId, id: { in: ids } }, select: { id: true } });
+  return categories.map((category) => category.id);
+}
+
+export async function createIncomeGroup(_state: FormState, formData: FormData): Promise<FormState> {
+  const userId = await requireActionUserId();
+  const name = readText(formData, "name");
+  if (!name || name.length > MAX_NAME_LENGTH) return { fieldErrors: { name: "name" } };
+  const categoryIds = await readDeductions(userId, formData);
+
+  await db.incomeGroup.create({ data: { userId, name, deductions: { create: categoryIds.map((categoryId) => ({ categoryId })) } } });
+  revalidatePath(`/${localeFromForm(formData)}`, "layout");
+  return {};
+}
+
+/** Changing what a group deducts applies to every month, past ones included, like a card's billing cycle. */
+export async function updateIncomeGroup(_state: FormState, formData: FormData): Promise<FormState> {
+  const userId = await requireActionUserId();
+  const id = readText(formData, "id");
+  const name = readText(formData, "name");
+  if (!z.uuid().safeParse(id).success) return { error: "generic" };
+  if (!name || name.length > MAX_NAME_LENGTH) return { fieldErrors: { name: "name" } };
+  const group = await db.incomeGroup.findFirst({ where: { id, userId }, select: { id: true } });
+  if (!group) return { error: "generic" };
+  const categoryIds = await readDeductions(userId, formData);
+
+  await db.$transaction([
+    db.incomeGroup.update({ where: { id }, data: { name } }),
+    db.incomeGroupDeduction.deleteMany({ where: { groupId: id } }),
+    db.incomeGroupDeduction.createMany({ data: categoryIds.map((categoryId) => ({ groupId: id, categoryId })) }),
+  ]);
+  revalidatePath(`/${localeFromForm(formData)}`, "layout");
+  return {};
+}
+
+/** Archived groups keep netting the sources still in them, but new sources can't join. */
+export async function archiveIncomeGroup(formData: FormData) {
+  const userId = await requireActionUserId();
+  const id = readText(formData, "id");
+  if (!z.uuid().safeParse(id).success) return;
+  await db.incomeGroup.updateMany({ where: { id, userId }, data: { archivedAt: new Date() } });
+  revalidatePath(`/${localeFromForm(formData)}`, "layout");
 }
 
 export async function archiveIncomeSource(formData: FormData) {
@@ -103,6 +167,11 @@ export async function archiveIncomeSource(formData: FormData) {
   revalidatePath(`/${localeFromForm(formData)}`, "layout");
 }
 
+function readKind(formData: FormData): CategoryKind {
+  const kind = readText(formData, "kind");
+  return isCategoryKind(kind) ? kind : "EVERYDAY";
+}
+
 export async function createCategory(_state: FormState, formData: FormData): Promise<FormState> {
   const userId = await requireActionUserId();
   const name = readText(formData, "name");
@@ -110,7 +179,7 @@ export async function createCategory(_state: FormState, formData: FormData): Pro
 
   const last = await db.category.findFirst({ where: { userId }, orderBy: { sortOrder: "desc" }, select: { sortOrder: true } });
   await db.category.create({
-    data: { userId, name, includeInAverage: formData.get("includeInAverage") === "on", sortOrder: (last?.sortOrder ?? -1) + 1 },
+    data: { userId, name, kind: readKind(formData), sortOrder: (last?.sortOrder ?? -1) + 1 },
   });
   revalidatePath(`/${localeFromForm(formData)}`, "layout");
   return {};
@@ -128,7 +197,7 @@ export async function updateCategory(_state: FormState, formData: FormData): Pro
   if (!category) return { error: "generic" };
   if (!name && !category.key) return { fieldErrors: { name: "name" } };
 
-  await db.category.update({ where: { id }, data: { name: name || null, includeInAverage: formData.get("includeInAverage") === "on" } });
+  await db.category.update({ where: { id }, data: { name: name || null, kind: readKind(formData) } });
   revalidatePath(`/${localeFromForm(formData)}`, "layout");
   return {};
 }
