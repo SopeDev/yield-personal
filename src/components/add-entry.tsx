@@ -1,13 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useState, type ComponentProps } from "react";
 import type { Messages } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
 import { ExchangeForm } from "./exchange-form";
 import { ExpenseForm } from "./expense-form";
 import { IncomeForm } from "./income-form";
-import { Card } from "./section";
 
 export type EntryType = "expense" | "income" | "exchange";
 
@@ -59,15 +57,8 @@ export function AddEntry({ locale, messages, initialType, expense, income }: {
         <ExpenseForm {...expense} amount={amount} locale={locale} messages={messages} onAmountChange={setAmount} />
       ) : type === "exchange" && canExchange ? (
         <ExchangeForm currencies={income.currencies} locale={locale} messages={messages} today={income.today} />
-      ) : income.sources.length > 0 ? (
-        <IncomeForm {...income} amount={amount} locale={locale} messages={messages} onAmountChange={setAmount} />
       ) : (
-        <Card className="px-4 py-8 text-center">
-          <p className="text-muted-foreground">{messages.add.noSources}</p>
-          <Link className="mt-4 inline-flex min-h-11 items-center rounded-xl bg-primary px-5 font-semibold text-primary-foreground" href={`/${locale}/settings`}>
-            {messages.add.goToSettings}
-          </Link>
-        </Card>
+        <IncomeForm {...income} amount={amount} locale={locale} messages={messages} onAmountChange={setAmount} />
       )}
     </div>
   );

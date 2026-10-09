@@ -5,7 +5,7 @@ import { isLocale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { requireUserId } from "@/lib/auth-user";
 import { dateKeyOf } from "@/lib/months";
-import { getActiveIncomeSources, getActivePaymentMethods, getMainCurrency, getOwnedIncome, walletCurrencies } from "@/lib/queries";
+import { getActiveIncomeSources, getActivePaymentMethods, getIncomeGroupsForManagement, getMainCurrency, getOwnedIncome, walletCurrencies } from "@/lib/queries";
 import { todayKey } from "@/lib/today";
 
 export default async function EditIncomePage({ params }: PageProps<"/[locale]/edit/income/[id]">) {
@@ -14,8 +14,8 @@ export default async function EditIncomePage({ params }: PageProps<"/[locale]/ed
   const userId = await requireUserId(locale);
   if (!z.uuid().safeParse(id).success) notFound();
 
-  const [income, sources, methods, mainCurrency] = await Promise.all([
-    getOwnedIncome(userId, id), getActiveIncomeSources(userId), getActivePaymentMethods(userId), getMainCurrency(userId),
+  const [income, sources, methods, mainCurrency, groups] = await Promise.all([
+    getOwnedIncome(userId, id), getActiveIncomeSources(userId), getActivePaymentMethods(userId), getMainCurrency(userId), getIncomeGroupsForManagement(userId),
   ]);
   if (!income) notFound();
   const messages = getDictionary(locale);
@@ -32,6 +32,7 @@ export default async function EditIncomePage({ params }: PageProps<"/[locale]/ed
       <IncomeForm
         initial={{ id: income.id, amount: (income.amountCents / 100).toFixed(2), sourceId: income.source.id, date: dateKeyOf(income.date), note: income.note ?? "", currency: income.currency }}
         currencies={currencyOptions}
+        groups={groups.filter((group) => !group.archivedAt).map(({ id, name }) => ({ id, name }))}
         locale={locale}
         messages={messages}
         sources={sourceOptions}

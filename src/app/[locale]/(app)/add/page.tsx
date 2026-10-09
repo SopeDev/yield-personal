@@ -4,7 +4,9 @@ import { getDictionary } from "@/i18n/dictionaries";
 import { requireUserId } from "@/lib/auth-user";
 import { categoryLabel } from "@/lib/categories";
 import { paymentMethodLabel } from "@/lib/payment-methods";
-import { getActiveIncomeSources, getActivePaymentMethods, getActiveCategories, getActiveItems, getMainCurrency, getUsualPurchases, walletCurrencies } from "@/lib/queries";
+import {
+  getActiveIncomeSources, getActivePaymentMethods, getActiveCategories, getActiveItems, getIncomeGroupsForManagement, getMainCurrency, getUsualPurchases, walletCurrencies,
+} from "@/lib/queries";
 import { todayKey } from "@/lib/today";
 
 export default async function AddPage({ params, searchParams }: PageProps<"/[locale]/add">) {
@@ -15,13 +17,14 @@ export default async function AddPage({ params, searchParams }: PageProps<"/[loc
   const type: EntryType = requested === "income" || requested === "exchange" ? requested : "expense";
   const messages = getDictionary(locale);
   const today = todayKey();
-  const [items, categories, methods, sources, usual, mainCurrency] = await Promise.all([
+  const [items, categories, methods, sources, usual, mainCurrency, groups] = await Promise.all([
     getActiveItems(userId),
     getActiveCategories(userId),
     getActivePaymentMethods(userId),
     getActiveIncomeSources(userId),
     getUsualPurchases(userId),
     getMainCurrency(userId),
+    getIncomeGroupsForManagement(userId),
   ]);
   const currencies = walletCurrencies(mainCurrency, methods);
 
@@ -35,7 +38,7 @@ export default async function AddPage({ params, searchParams }: PageProps<"/[loc
         today,
         usual,
       }}
-      income={{ sources, today, currencies }}
+      income={{ sources, groups: groups.filter((group) => !group.archivedAt).map(({ id, name }) => ({ id, name })), today, currencies }}
       initialType={type}
       key={type}
       locale={locale}

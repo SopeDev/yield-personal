@@ -5,6 +5,8 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/db/client";
 import { MAX_INSTALLMENTS } from "@/lib/installments";
+import { resolveIncomeSource } from "@/lib/income-source-resolution";
+import { NEW_SOURCE } from "@/lib/income-sources";
 import { resolveItem } from "@/lib/item-resolution";
 import { isCurrency, parseAmountToCents } from "@/lib/money";
 import { getMainCurrency } from "@/lib/queries";
@@ -67,6 +69,7 @@ async function parsePurchase(userId: string, formData: FormData, { isEdit }: { i
   };
 }
 
+/** Income fields; the source is a chosen one, or a new one typed in the form (reusing a source of the same name). */
 async function parseIncome(userId: string, formData: FormData, { isEdit }: { isEdit: boolean }) {
   const amountCents = parseAmountToCents(readText(formData, "amount"));
   const date = readText(formData, "date");
@@ -76,17 +79,23 @@ async function parseIncome(userId: string, formData: FormData, { isEdit }: { isE
   const fieldErrors: FormState["fieldErrors"] = {};
   if (!amountCents) fieldErrors.amount = "amount";
   if (!isDateKey(date)) fieldErrors.date = "date";
-  if (!isUuid(sourceId)) fieldErrors.sourceId = "source";
+  if (sourceId !== NEW_SOURCE && !isUuid(sourceId)) fieldErrors.sourceId = "source";
   if (note.length > MAX_NOTE_LENGTH) fieldErrors.note = "generic";
   if (Object.keys(fieldErrors).length > 0) return { fieldErrors };
 
-  const source = await db.incomeSource.findFirst({ where: { id: sourceId, userId, ...(isEdit ? {} : { archivedAt: null }) }, select: { id: true } });
-  if (!source) return { fieldErrors: { sourceId: "source" } as FormState["fieldErrors"] };
   // Income lands in the cash wallet of its currency (the main currency when the form doesn't ask).
   const currency = readText(formData, "currency") || await getMainCurrency(userId);
   if (!isCurrency(currency)) return { fieldErrors: { currency: "generic" } as FormState["fieldErrors"] };
+  // Resolved last, so a rejected entry never creates a source.
+  const source = await resolveIncomeSource(userId, {
+    sourceId, sourceName: readText(formData, "sourceName"), groupId: readText(formData, "sourceGroupId"), allowArchived: isEdit,
+  });
+  if ("error" in source) {
+    const sourceErrors = { source: { sourceId: "source" }, name: { sourceName: "name" }, group: { sourceGroupId: "generic" } } as const;
+    return { fieldErrors: sourceErrors[source.error] as FormState["fieldErrors"] };
+  }
 
-  return { data: { sourceId, date: dateFromKey(date), amountCents: amountCents!, currency, note: note || null }, month: date.slice(0, 7) };
+  return { data: { sourceId: source.sourceId, date: dateFromKey(date), amountCents: amountCents!, currency, note: note || null }, month: date.slice(0, 7) };
 }
 
 export async function createPurchase(_state: FormState, formData: FormData): Promise<FormState> {

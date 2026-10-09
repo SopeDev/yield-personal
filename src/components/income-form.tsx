@@ -3,7 +3,8 @@
 import { useActionState, useState } from "react";
 import { createIncome, updateIncome } from "@/app/actions/entries";
 import type { FormState } from "@/app/actions/form-state";
-import type { Messages } from "@/i18n/dictionaries";
+import { format, type Messages } from "@/i18n/dictionaries";
+import { findSourceByName, MAX_SOURCE_NAME_LENGTH, NEW_SOURCE } from "@/lib/income-sources";
 import { AmountInput } from "./amount-input";
 import { Chip, Field, inputClass, SubmitButton, submitWithoutReset, useClientId } from "./form-controls";
 
@@ -12,12 +13,15 @@ export type IncomeInitial = { id: string; amount: string; sourceId: string; date
 
 /**
  * Records new income, or edits an entry when `initial` is given. With cash wallets in several currencies
- * (`currencies`, the main one first), it asks which one the income came in; it lands in that wallet.
+ * (`currencies`, the main one first), it asks which one the income came in; it lands in that wallet. A new source
+ * can be named in place (in one of `groups`, if any); a name matching an existing source uses that one.
  */
-export function IncomeForm({ locale, today, sources, currencies, messages, initial, amount, onAmountChange }: {
+export function IncomeForm({ locale, today, sources, groups = [], currencies, messages, initial, amount, onAmountChange }: {
   locale: string;
   today: string;
   sources: { id: string; name: string }[];
+  /** Active income groups a new source may join. */
+  groups?: { id: string; name: string }[];
   currencies: string[];
   messages: Messages;
   initial?: IncomeInitial;
@@ -29,6 +33,9 @@ export function IncomeForm({ locale, today, sources, currencies, messages, initi
   const clientId = useClientId();
   const errors = state.fieldErrors ?? {};
   const [currency, setCurrency] = useState(initial?.currency ?? currencies[0]);
+  const [sourceChoice, setSourceChoice] = useState(initial?.sourceId ?? sources[0]?.id ?? NEW_SOURCE);
+  const [sourceName, setSourceName] = useState("");
+  const matchingSource = sourceChoice === NEW_SOURCE ? findSourceByName(sources, sourceName) : undefined;
 
   return (
     <form className="space-y-6" onSubmit={(event) => submitWithoutReset(event, formAction, initial ? undefined : clientId())}>
@@ -46,13 +53,44 @@ export function IncomeForm({ locale, today, sources, currencies, messages, initi
         </Field>
       ) : <input name="currency" type="hidden" value={currency} />}
 
-      <Field error={errors.sourceId} errors={messages.errors} label={messages.add.source}>
-        <div className="flex flex-wrap gap-2">
-          {sources.map((source, index) => (
-            <Chip defaultChecked={initial ? source.id === initial.sourceId : index === 0} key={source.id} label={source.name} name="sourceId" value={source.id} />
-          ))}
-        </div>
-      </Field>
+      {/* With no sources yet, the form goes straight to naming the first one. */}
+      {sources.length > 0 ? (
+        <Field error={errors.sourceId} errors={messages.errors} label={messages.add.source}>
+          <div className="flex flex-wrap gap-2">
+            {sources.map((source) => (
+              <Chip checked={sourceChoice === source.id} key={source.id} label={source.name} name="sourceId" onChange={() => setSourceChoice(source.id)} value={source.id} />
+            ))}
+            <Chip checked={sourceChoice === NEW_SOURCE} label={`+ ${messages.add.newSource}`} name="sourceId" onChange={() => setSourceChoice(NEW_SOURCE)} value={NEW_SOURCE} />
+          </div>
+        </Field>
+      ) : <input name="sourceId" type="hidden" value={NEW_SOURCE} />}
+
+      {sourceChoice === NEW_SOURCE ? (
+        <>
+          <Field error={errors.sourceName} errors={messages.errors} htmlFor="source-name" label={messages.add.sourceName}>
+            <input
+              autoComplete="off"
+              className={inputClass}
+              id="source-name"
+              maxLength={MAX_SOURCE_NAME_LENGTH}
+              name="sourceName"
+              onChange={(event) => setSourceName(event.target.value)}
+              placeholder={messages.add.sourceNamePlaceholder}
+              required
+              value={sourceName}
+            />
+            {matchingSource ? <p className="text-sm text-muted-foreground">{format(messages.add.sourceExists, { name: matchingSource.name })}</p> : null}
+          </Field>
+          {groups.length > 0 && !matchingSource ? (
+            <Field error={errors.sourceGroupId} errors={messages.errors} label={messages.settings.sourceGroup}>
+              <div className="flex flex-wrap gap-2">
+                <Chip defaultChecked label={messages.settings.noGroup} name="sourceGroupId" value="" />
+                {groups.map((group) => <Chip key={group.id} label={group.name} name="sourceGroupId" value={group.id} />)}
+              </div>
+            </Field>
+          ) : null}
+        </>
+      ) : null}
 
       <Field error={errors.date} errors={messages.errors} htmlFor="date" label={messages.add.date}>
         <input className={inputClass} defaultValue={initial?.date ?? today} id="date" name="date" required type="date" />

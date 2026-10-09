@@ -129,14 +129,17 @@
     "source": "Fuente",
     "note": "Nota",
     "notePlaceholder": "Opcional",
-    "noSources": "Agrega una fuente de ingreso en Ajustes antes de registrar ingresos.",
     "goToSettings": "Ir a Ajustes",
     "saveExpense": "Guardar gasto",
     "saveIncome": "Guardar ingreso",
     "item": "Concepto",
     "itemPlaceholder": "p. ej. Gasolina, Calimax, Pho",
     "newItemCategory": "Categoría para este concepto nuevo",
-    "itemCategory": "En {category}"
+    "itemCategory": "En {category}",
+    "newSource": "Nueva fuente",
+    "sourceName": "Nombre de la fuente",
+    "sourceNamePlaceholder": "p. ej. Uber, Sueldo",
+    "sourceExists": "Ya es una fuente; este ingreso va a {name}."
   },
   "settings": {
     "addWallet": "Agregar una cartera en otra moneda",

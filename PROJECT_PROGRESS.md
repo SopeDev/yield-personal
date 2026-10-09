@@ -80,6 +80,8 @@ Last updated: 2026-10-07
 
 - Multi-currency: payment methods (one cash wallet per currency, cards), income, and savings funds have a currency; currency exchanges are a new entry (an Exchange tab on Add once there are wallets in two currencies). Currencies are never converted: headline figures are the main currency's, with other currencies noted beside them and every list amount in its own currency (distinct symbols like US$). Cash on hand is per wallet. Migration backfills existing records with the main currency and moves the counted cash to the Cash wallet, verified on an embedded Postgres; every figure on peso-only seeded data is unchanged, and a mixed peso/dollar scenario checked out by hand.
 
+- New income sources from quick add (and the income edit form): a "+ New source" chip names one in place, with an optional group; an existing name (even archived) is reused instead of duplicated, and a first income no longer requires a trip to Settings.
+
 ## Next
 
 - Customization step 4: recurring income with a projected month-end balance (the income rhythm's paydays are a natural base for expected income).

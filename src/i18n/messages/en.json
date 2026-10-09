@@ -129,14 +129,17 @@
     "source": "Source",
     "note": "Note",
     "notePlaceholder": "Optional",
-    "noSources": "Add an income source in Settings before recording income.",
     "goToSettings": "Go to Settings",
     "saveExpense": "Save expense",
     "saveIncome": "Save income",
     "item": "Item",
     "itemPlaceholder": "e.g. Gasolina, Calimax, Pho",
     "newItemCategory": "Category for this new item",
-    "itemCategory": "In {category}"
+    "itemCategory": "In {category}",
+    "newSource": "New source",
+    "sourceName": "Source name",
+    "sourceNamePlaceholder": "e.g. Uber, Salary",
+    "sourceExists": "Already a source; this income goes to {name}."
   },
   "settings": {
     "addWallet": "Add a wallet in another currency",
