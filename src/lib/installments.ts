@@ -2,7 +2,7 @@ import { addMonths, monthDifference, monthKeyOf, type MonthKey } from "./months"
 
 export const MAX_INSTALLMENTS = 48;
 
-/** Splits an amount into equal installments; leftover centavos go to the earliest installments. */
+/** Splits an amount into equal installments; leftover cents go to the earliest installments. */
 export function splitInstallments(amountCents: number, count: number) {
   const base = Math.floor(amountCents / count);
   const remainder = amountCents % count;

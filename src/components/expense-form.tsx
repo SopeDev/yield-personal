@@ -9,6 +9,7 @@ import { formatCents, parseAmountToCents } from "@/lib/money";
 import type { UsualPurchase } from "@/lib/usual-purchase";
 import { AmountInput } from "./amount-input";
 import { Chip, Field, inputClass, SubmitButton, submitWithoutReset, useClientId } from "./form-controls";
+import { useCurrency } from "./currency";
 import { ItemField, type CategoryOption, type ItemOption } from "./item-field";
 
 type MethodOption = { id: string; label: string; color?: string; isCard: boolean };
@@ -44,6 +45,7 @@ export function ExpenseForm({ locale, today, items, categories, methods, message
   onAmountChange?: (amount: string) => void;
 }) {
   const [state, formAction, pending] = useActionState<FormState, FormData>(initial ? updatePurchase : createPurchase, {});
+  const currency = useCurrency();
   const defaultMethodId = initial?.paymentMethodId ?? methods[0]?.id ?? "";
   const [methodId, setMethodId] = useState(defaultMethodId);
   const [methodPicked, setMethodPicked] = useState(false);
@@ -60,7 +62,7 @@ export function ExpenseForm({ locale, today, items, categories, methods, message
   const amountCents = parseAmountToCents(amount);
   const installmentCount = Number(installments);
   const installmentPreview = isCard && amountCents && Number.isInteger(installmentCount) && installmentCount > 1 && installmentCount <= MAX_INSTALLMENTS
-    ? format(messages.add.monthlyInstallment, { count: installmentCount, amount: formatCents(splitInstallments(amountCents, installmentCount)[0]) })
+    ? format(messages.add.monthlyInstallment, { count: installmentCount, amount: formatCents(splitInstallments(amountCents, installmentCount)[0], currency) })
     : messages.add.singlePayment;
 
   function applyUsual(itemId: string | null) {

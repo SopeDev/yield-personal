@@ -27,11 +27,11 @@ export default async function SummaryCardEditorPage({ params }: PageProps<"/[loc
   const today = todayKey();
   const currentMonth = currentMonthKey();
 
-  const [view, settings, groups, cashOnHandCents] = await Promise.all([
+  const settingsWithCash = getUserSettings(userId).then(async (settings) => ({ settings, cashOnHandCents: await loadCashOnHand(userId, settings.cashCount) }));
+  const [view, { settings, cashOnHandCents }, groups] = await Promise.all([
     loadMonthView(userId, currentMonth, currentMonth),
-    getUserSettings(userId),
+    settingsWithCash,
     getIncomeGroupsForManagement(userId),
-    loadCashOnHand(userId),
   ]);
   const context = monthStatContext({ view, today, settings, cashOnHandCents, incomeGroups: groups });
   const layout = cardLayout(card, settings.summaryCards, context);

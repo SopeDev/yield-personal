@@ -2,7 +2,7 @@ import "server-only";
 
 import { db } from "@/db/client";
 import { statementsForCards } from "@/lib/card-statements";
-import { cashOnHandCents, type PaidBill } from "@/lib/cash-on-hand";
+import { cashOnHandCents, type CashCount, type PaidBill } from "@/lib/cash-on-hand";
 import { earliestContributingMonth } from "@/lib/installments";
 import type { LedgerIncomeGroup } from "@/lib/ledger";
 import type { LedgerData } from "@/lib/month-summary";
@@ -174,11 +174,17 @@ async function getBillsPaidSince(userId: string, since: Date): Promise<PaidBill[
 }
 
 /** Money on hand now, from the amount last counted in Settings and the records since; null until it is first set. */
-export async function loadCashOnHand(userId: string): Promise<number | null> {
+async function getCashCount(userId: string): Promise<CashCount | null> {
   const user = await db.user.findUnique({ where: { id: userId }, select: { cashOnHandCents: true, cashOnHandSetAt: true } });
   if (user?.cashOnHandCents == null || !user.cashOnHandSetAt) return null;
+  return { cents: user.cashOnHandCents, setAt: user.cashOnHandSetAt, day: dateKeyInAppZone(user.cashOnHandSetAt) };
+}
 
-  const count = { cents: user.cashOnHandCents, setAt: user.cashOnHandSetAt, day: dateKeyInAppZone(user.cashOnHandSetAt) };
+export async function loadCashOnHand(userId: string, knownCount?: CashCount | null): Promise<number | null> {
+  // Callers that loaded settings already have the count (`getUserSettings`), saving a read before the rest.
+  const count = knownCount === undefined ? await getCashCount(userId) : knownCount;
+  if (!count) return null;
+
   const today = todayKey();
   const where = { userId, date: { gte: dateFromKey(count.day), lte: dateFromKey(today) } };
   const select = { date: true, createdAt: true, amountCents: true } as const;

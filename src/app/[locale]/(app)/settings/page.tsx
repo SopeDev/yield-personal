@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ChevronDown, ChevronRight, ChevronUp, RotateCcw } from "lucide-react";
 import { signOut } from "@/auth";
-import { archiveCard, archiveCategory, archiveIncomeGroup, archiveIncomeSource, moveCategory, restoreCategory, setLocale } from "@/app/actions/settings";
+import { archiveCard, archiveCategory, archiveIncomeGroup, archiveIncomeSource, moveCategory, restoreCategory, setCurrency, setLocale } from "@/app/actions/settings";
 import { ActionButton } from "@/components/action-button";
 import { BalanceGoalForm } from "@/components/balance-goal-form";
 import { CashOnHandForm } from "@/components/cash-on-hand-form";
@@ -20,6 +20,7 @@ import { requireUserId } from "@/lib/auth-user";
 import { loadCashOnHand } from "@/lib/ledger-data";
 import { getActiveIncomeSources, getActivePaymentMethods, getCategoriesForManagement, getIncomeGroupsForManagement, getUserSettings } from "@/lib/queries";
 import { cn } from "@/lib/cn";
+import { CURRENCIES } from "@/lib/money";
 import { todayKey } from "@/lib/today";
 
 const languageNames = { en: "English", es: "Español" } as const;
@@ -30,7 +31,7 @@ export default async function SettingsPage({ params }: PageProps<"/[locale]/sett
   const userId = await requireUserId(locale);
   const messages = getDictionary(locale);
 
-  const [methods, sources, allCategories, { balanceGoalCents: goalCents, historyStartMonth, rhythmParts }, groups, cashOnHandCents] = await Promise.all([
+  const [methods, sources, allCategories, { balanceGoalCents: goalCents, historyStartMonth, rhythmParts, currency }, groups, cashOnHandCents] = await Promise.all([
     getActivePaymentMethods(userId),
     getActiveIncomeSources(userId),
     getCategoriesForManagement(userId),
@@ -41,6 +42,7 @@ export default async function SettingsPage({ params }: PageProps<"/[locale]/sett
   const categories = allCategories.filter((category) => !category.archivedAt);
   const archivedCategories = allCategories.filter((category) => category.archivedAt);
   const cards = methods.filter((method) => method.kind === "CARD");
+  const currencyNames = new Intl.DisplayNames(locale, { type: "currency" });
   const activeGroups = groups.filter((group) => !group.archivedAt);
   const groupNames = new Map(groups.map((group) => [group.id, group.name]));
   // A source may stay in a group archived since, so its own group is always offered.
@@ -75,6 +77,26 @@ export default async function SettingsPage({ params }: PageProps<"/[locale]/sett
             </form>
           ))}
         </div>
+      </Section>
+
+      <Section title={messages.settings.currency}>
+        <div className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-surface p-1">
+          {CURRENCIES.map((option) => (
+            <form action={setCurrency} key={option}>
+              <input name="locale" type="hidden" value={locale} />
+              <input name="currency" type="hidden" value={option} />
+              <button
+                aria-pressed={option === currency}
+                className={cn("flex min-h-10 w-full flex-col items-center justify-center rounded-lg px-2 py-1 text-sm font-semibold transition", option === currency ? "bg-background text-foreground" : "text-muted-foreground")}
+                type="submit"
+              >
+                {option}
+                <span className="text-xs font-normal text-muted-foreground">{currencyNames.of(option)}</span>
+              </button>
+            </form>
+          ))}
+        </div>
+        <p className="text-sm text-muted-foreground">{messages.settings.currencyHint}</p>
       </Section>
 
       <Section title={messages.month.cashOnHand}>

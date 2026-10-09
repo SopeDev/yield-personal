@@ -43,6 +43,8 @@
     "edit": "Editar"
   },
   "month": {
+    "charges": "Se carga {date}",
+    "charged": "Cargado {date}",
     "goalToGo": "Meta {goal} · faltan {amount}",
     "goalReached": "Meta {goal} alcanzada ✓",
     "goalMissed": "Meta {goal} · faltaron {amount}",
@@ -70,9 +72,7 @@
     "recurringEmpty": "Todavía no hay pagos recurrentes.",
     "addRecurring": "Agregar pagos recurrentes",
     "statementDue": "Estado de cuenta {card}",
-    "onStatement": "En el estado de cuenta {card} · vence {date}",
     "changedAmount": "Cambiado este mes",
-    "day": "Día {day}",
     "closes": "Corta el {date}",
     "closed": "Cortó el {date}",
     "dueIn": "Vence en {days} días",
@@ -82,7 +82,6 @@
     "statements": "Estados de cuenta",
     "carriedTitle": "Pendientes de meses anteriores",
     "includesCarried": "+ {amount} de meses anteriores",
-    "estimate": "Estimado",
     "confirm": "Confirmar",
     "confirmAndPay": "Confirmar y pagar",
     "actualAmount": "Monto real",
@@ -132,6 +131,8 @@
     "itemCategory": "En {category}"
   },
   "settings": {
+    "currency": "Moneda principal",
+    "currencyHint": "Los montos se muestran en esta moneda. Cambiarla solo cambia la etiqueta; no los convierte.",
     "incomeGroups": "Grupos de ingreso",
     "incomeGroupsHint": "Agrupa fuentes para ver su ingreso neto, como Plataformas (Uber, Didi) después de los gastos del carro.",
     "groupsEmpty": "Todavía no hay grupos de ingreso.",

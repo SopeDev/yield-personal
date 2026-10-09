@@ -10,8 +10,7 @@ import { isLocale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { requireUserId } from "@/lib/auth-user";
 import { formatDayHeading, groupByDay } from "@/lib/dates";
-import { loadMonthView, loadSummaryCard } from "@/lib/month-view";
-import { getUserSettings } from "@/lib/queries";
+import { loadCardSettings, loadMonthView, summaryCardFor } from "@/lib/month-view";
 import { monthFromSearchParam } from "@/lib/search-params";
 import { currentMonthKey, todayKey } from "@/lib/today";
 
@@ -22,10 +21,10 @@ export default async function IncomePage({ params, searchParams }: PageProps<"/[
   const month = monthFromSearchParam((await searchParams).m, currentMonthKey());
   const messages = getDictionary(locale);
 
-  const [view, settings] = await Promise.all([loadMonthView(userId, month, currentMonthKey()), getUserSettings(userId)]);
+  const [view, cardSettings] = await Promise.all([loadMonthView(userId, month, currentMonthKey()), loadCardSettings(userId, "income")]);
   const { incomes, income } = view;
   const today = todayKey();
-  const summary = await loadSummaryCard(userId, "income", { view, today, settings });
+  const summary = summaryCardFor("income", { view, today, ...cardSettings });
   const groupNames = new Map(income.byGroup.map(({ group }) => [group.id, group.name]));
 
   return (

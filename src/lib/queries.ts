@@ -1,9 +1,12 @@
 import "server-only";
 
+import { cache } from "react";
 import { db } from "@/db/client";
 import { incomeRhythmOf } from "@/lib/income-rhythm";
+import { DEFAULT_CURRENCY, isCurrency, type Currency } from "@/lib/money";
 import { dateKeyOf, monthKeyOf } from "@/lib/months";
 import { parseSummaryCards } from "@/lib/stats";
+import { dateKeyInAppZone } from "@/lib/today";
 import { usualPurchases } from "@/lib/usual-purchase";
 
 const categorySelect = { id: true, key: true, name: true, sortOrder: true, kind: true } as const;
@@ -94,14 +97,27 @@ export function getCategoriesForManagement(userId: string) {
   });
 }
 
+function currencyOf(value: string | undefined): Currency {
+  return value && isCurrency(value) ? value : DEFAULT_CURRENCY;
+}
+
+/** The user's main currency, read once per request however many components ask (the layout and some pages). */
+export const getMainCurrency = cache(async (userId: string) => {
+  const user = await db.user.findUnique({ where: { id: userId }, select: { currency: true } });
+  return currencyOf(user?.currency);
+});
+
 /**
- * Settings that shape month figures: the balance goal (centavos), the first month history counts from, the income
+ * Settings that shape month figures: the balance goal (cents), the first month history counts from, the income
  * rhythm (with its stored parts for editing), and the customized summary cards.
  */
 export async function getUserSettings(userId: string) {
   const user = await db.user.findUnique({
     where: { id: userId },
-    select: { balanceGoalCents: true, historyStartMonth: true, incomeRhythm: true, incomeRhythmAnchor: true, incomePayDays: true, summaryCards: true },
+    select: {
+      balanceGoalCents: true, historyStartMonth: true, incomeRhythm: true, incomeRhythmAnchor: true, incomePayDays: true, summaryCards: true,
+      cashOnHandCents: true, cashOnHandSetAt: true, currency: true,
+    },
   });
   const rhythmParts = {
     kind: user?.incomeRhythm ?? "DAILY",
@@ -114,6 +130,11 @@ export async function getUserSettings(userId: string) {
     incomeRhythm: incomeRhythmOf(rhythmParts),
     rhythmParts,
     summaryCards: parseSummaryCards(user?.summaryCards),
+    currency: currencyOf(user?.currency),
+    /** Money on hand as last counted, so tracking it needs no extra read; null until first counted. */
+    cashCount: user?.cashOnHandCents != null && user.cashOnHandSetAt
+      ? { cents: user.cashOnHandCents, setAt: user.cashOnHandSetAt, day: dateKeyInAppZone(user.cashOnHandSetAt) }
+      : null,
   };
 }
 

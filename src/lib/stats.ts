@@ -3,7 +3,7 @@ import { categoryLabel } from "./categories";
 import { dailyNet, goalProgress, neededPerDay, typicalDailySpending } from "./daily-balance";
 import { incomePerPayday, neededPerPayday, type IncomeRhythm } from "./income-rhythm";
 import type { LedgerPurchase } from "./ledger";
-import { formatCents } from "./money";
+import { DEFAULT_CURRENCY, formatCents, type Currency } from "./money";
 import type { MonthSummary } from "./month-summary";
 import type { MonthKey } from "./months";
 
@@ -18,7 +18,7 @@ export type StatNote = { text: string; tone: StatTone };
 export type StatValue = { cents: number; tone?: StatTone; note?: StatNote } | null;
 
 /** Settings that shape month figures; the income rhythm defaults to daily. */
-export type StatSettings = { balanceGoalCents: number | null; historyStartMonth: MonthKey | null; incomeRhythm?: IncomeRhythm };
+export type StatSettings = { balanceGoalCents: number | null; historyStartMonth: MonthKey | null; incomeRhythm?: IncomeRhythm; currency?: Currency };
 
 /** A month's figures from which every stat is calculated, plus money on hand, which is the same in every month. */
 export function monthStatContext({ view, today, settings, cashOnHandCents = null, incomeGroups = [] }: {
@@ -44,6 +44,7 @@ export function monthStatContext({ view, today, settings, cashOnHandCents = null
   const goalProgressCents = goalProgress({ balanceCents, savingsNetCents });
   return {
     ...view,
+    currency: settings.currency ?? DEFAULT_CURRENCY,
     cashOnHandCents,
     incomeGroups,
     goalCents,
@@ -88,13 +89,13 @@ const STATS = {
   /** As in the spreadsheet: income minus everything paid out this month, with progress toward the balance goal. */
   balance: {
     label: (_, messages) => messages.month.balance,
-    value: ({ balanceCents, goalCents, goalLeftCents, needed }, messages) => {
-      const goal = goalCents === null ? null : formatCents(goalCents);
+    value: ({ balanceCents, goalCents, goalLeftCents, needed, currency }, messages) => {
+      const goal = goalCents === null ? null : formatCents(goalCents, currency);
       // A month that has ended either met the goal or missed it.
       const note: StatNote | undefined = goal === null ? undefined
         : goalLeftCents <= 0 ? { text: format(messages.month.goalReached, { goal }), tone: "gain" }
-          : needed ? { text: format(messages.month.goalToGo, { goal, amount: formatCents(goalLeftCents) }), tone: "muted" }
-            : { text: format(messages.month.goalMissed, { goal, amount: formatCents(goalLeftCents) }), tone: "loss" };
+          : needed ? { text: format(messages.month.goalToGo, { goal, amount: formatCents(goalLeftCents, currency) }), tone: "muted" }
+            : { text: format(messages.month.goalMissed, { goal, amount: formatCents(goalLeftCents, currency) }), tone: "loss" };
       return { cents: balanceCents, tone: signTone(balanceCents), note };
     },
   },
@@ -125,38 +126,38 @@ const STATS = {
   /** Unpaid bills and statements, noting what was carried from earlier months. */
   outstanding: {
     label: (_, messages) => messages.month.outstanding,
-    value: ({ cashFlow }, messages) => ({
+    value: ({ cashFlow, currency }, messages) => ({
       cents: cashFlow.outstandingCents,
       tone: cashFlow.outstandingCents > 0 ? "warning" : undefined,
       note: cashFlow.carriedOutstandingCents > 0
-        ? { text: format(messages.month.includesCarried, { amount: formatCents(cashFlow.carriedOutstandingCents) }), tone: "loss" }
+        ? { text: format(messages.month.includesCarried, { amount: formatCents(cashFlow.carriedOutstandingCents, currency) }), tone: "loss" }
         : undefined,
     }),
   },
   /** Income needed per remaining day; with a goal, the goal's daily target leads and breaking even is noted below. */
   neededPerDay: {
     label: (_, messages) => messages.month.neededPerDay,
-    value: ({ needed }, messages) => {
+    value: ({ needed, currency }, messages) => {
       if (!needed) return null;
       if (needed.forGoalCents !== null) {
-        return { cents: needed.forGoalCents, tone: zeroIsGain(needed.forGoalCents), note: { text: format(messages.month.breakEven, { amount: formatCents(needed.cents) }), tone: "muted" } };
+        return { cents: needed.forGoalCents, tone: zeroIsGain(needed.forGoalCents), note: { text: format(messages.month.breakEven, { amount: formatCents(needed.cents, currency) }), tone: "muted" } };
       }
       return {
         cents: needed.cents,
         tone: zeroIsGain(needed.cents),
-        note: needed.typicalDailyCents > 0 ? { text: format(messages.month.inclEveryday, { amount: formatCents(needed.typicalDailyCents) }), tone: "muted" } : undefined,
+        note: needed.typicalDailyCents > 0 ? { text: format(messages.month.inclEveryday, { amount: formatCents(needed.typicalDailyCents, currency) }), tone: "muted" } : undefined,
       };
     },
   },
   /** Gross income per day passed, against the day's target, with daily net below. */
   dailyIncome: {
     label: (_, messages) => messages.month.dailyIncome,
-    value: ({ dayNet, dailyIncomeCents, targetCents }, messages) => {
+    value: ({ dayNet, dailyIncomeCents, targetCents, currency }, messages) => {
       if (!dayNet || dailyIncomeCents === null) return null;
       return {
         cents: dailyIncomeCents,
         tone: targetCents === null ? undefined : dailyIncomeCents >= targetCents ? "gain" : "warning",
-        note: { text: format(messages.month.netPerDay, { amount: formatCents(dayNet.averageCents) }), tone: "muted" },
+        note: { text: format(messages.month.netPerDay, { amount: formatCents(dayNet.averageCents, currency) }), tone: "muted" },
       };
     },
   },
@@ -167,7 +168,7 @@ const STATS = {
   neededPerPayday: {
     label: (_, messages) => messages.month.neededPerPayday,
     shown: notDaily,
-    value: ({ neededPayday }, messages) => {
+    value: ({ neededPayday, currency }, messages) => {
       if (!neededPayday) return null;
       const { paydaysLeft } = neededPayday;
       const left: StatNote = paydaysLeft === 0 ? { text: messages.month.noPaydaysLeft, tone: "warning" }
@@ -176,7 +177,7 @@ const STATS = {
         return {
           cents: neededPayday.forGoalCents,
           tone: zeroIsGain(neededPayday.forGoalCents),
-          note: paydaysLeft === 0 ? left : { text: format(messages.month.breakEven, { amount: formatCents(neededPayday.cents) }), tone: "muted" },
+          note: paydaysLeft === 0 ? left : { text: format(messages.month.breakEven, { amount: formatCents(neededPayday.cents, currency) }), tone: "muted" },
         };
       }
       return { cents: neededPayday.cents, tone: zeroIsGain(neededPayday.cents), note: left };
@@ -186,13 +187,13 @@ const STATS = {
   incomePerPayday: {
     label: (_, messages) => messages.month.incomePerPayday,
     shown: notDaily,
-    value: ({ paydayIncome, neededPayday }, messages) => {
+    value: ({ paydayIncome, neededPayday, currency }, messages) => {
       if (!paydayIncome) return null;
       const targetCents = neededPayday ? (neededPayday.forGoalCents ?? neededPayday.cents) : null;
       return {
         cents: paydayIncome.grossCents,
         tone: targetCents === null ? undefined : paydayIncome.grossCents >= targetCents ? "gain" : "warning",
-        note: { text: format(messages.month.netPerDay, { amount: formatCents(paydayIncome.netCents) }), tone: "muted" },
+        note: { text: format(messages.month.netPerDay, { amount: formatCents(paydayIncome.netCents, currency) }), tone: "muted" },
       };
     },
   },

@@ -9,6 +9,9 @@ import type { Statement } from "@/lib/statements";
 import { Money } from "./money";
 import { PaidToggle } from "./paid-toggle";
 
+/** From this many days out, a due date shows as the date; closer than that, as a countdown. */
+const DUE_DATE_SHOWN_FROM_DAYS = 7;
+
 /** A card statement with its closing and due dates, how long until it's due, and a paid toggle. */
 export function StatementRow({ statement, card, today, locale, messages }: {
   statement: Statement;
@@ -21,17 +24,16 @@ export function StatementRow({ statement, card, today, locale, messages }: {
   const daysUntilDue = daysBetween(today, dateKeyOf(statement.dueDate));
   const closed = closingKey <= today;
   const closingLabel = format(closed ? messages.month.closed : messages.month.closes, { date: formatShortDate(statement.closingDate, locale) });
-  const dueLabel = format(messages.cards.due, { date: formatShortDate(statement.dueDate, locale) });
 
-  // As with recurring payments: yellow 1–2 days before the due date, red on it and after. A closed, unpaid
-  // statement's closing date turns green: its total is final and it can be paid now.
-  let timing: { text: string; tone: string } | null = null;
-  if (!statement.paid) {
-    if (daysUntilDue < 0) timing = { text: format(messages.month.overdueBy, { days: -daysUntilDue }), tone: "text-loss" };
-    else if (daysUntilDue === 0) timing = { text: messages.month.dueToday, tone: "text-loss" };
-    else if (daysUntilDue === 1) timing = { text: messages.month.dueTomorrow, tone: "text-warning" };
-    else if (daysUntilDue === 2) timing = { text: format(messages.month.dueIn, { days: daysUntilDue }), tone: "text-warning" };
-    else timing = { text: format(messages.month.dueIn, { days: daysUntilDue }), tone: "text-muted-foreground" };
+  // The due date shows as a date a week or more out (or once paid), and as a countdown when it's close: yellow
+  // 1–2 days before, red on the day and after, as with recurring payments. A closed, unpaid statement's closing
+  // date turns green: its total is final and it can be paid now.
+  let due = { text: format(messages.cards.due, { date: formatShortDate(statement.dueDate, locale) }), tone: "text-muted-foreground" };
+  if (!statement.paid && daysUntilDue < DUE_DATE_SHOWN_FROM_DAYS) {
+    if (daysUntilDue < 0) due = { text: format(messages.month.overdueBy, { days: -daysUntilDue }), tone: "text-loss" };
+    else if (daysUntilDue === 0) due = { text: messages.month.dueToday, tone: "text-loss" };
+    else if (daysUntilDue === 1) due = { text: messages.month.dueTomorrow, tone: "text-warning" };
+    else due = { text: format(messages.month.dueIn, { days: daysUntilDue }), tone: daysUntilDue === 2 ? "text-warning" : "text-muted-foreground" };
   }
 
   return (
@@ -39,13 +41,8 @@ export function StatementRow({ statement, card, today, locale, messages }: {
       <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: card?.color }} />
       <Link className="min-w-0 flex-1" href={`/${locale}/cards`}>
         <p className="truncate font-medium">{format(messages.month.statementDue, { card: card?.name ?? "" })}</p>
-        {/* The due date gets its own line so it's never cut off on a phone; the closing date goes last, where a
-            narrow screen truncates first. */}
-        <p className="text-sm text-muted-foreground">{dueLabel}</p>
-        <p className="truncate text-sm text-muted-foreground">
-          {timing ? <><span className={cn("font-medium", timing.tone)}>{timing.text}</span> · </> : null}
-          <span className={cn(closed && !statement.paid && "font-medium text-gain")}>{closingLabel}</span>
-        </p>
+        <p className={cn("truncate text-sm text-muted-foreground", closed && !statement.paid && "font-medium text-gain")}>{closingLabel}</p>
+        <p className={cn("truncate text-sm", due.tone, due.tone !== "text-muted-foreground" && "font-medium")}>{due.text}</p>
       </Link>
       <Money cents={statement.totalCents} />
       <PaidToggle

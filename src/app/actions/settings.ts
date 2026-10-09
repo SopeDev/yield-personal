@@ -8,7 +8,7 @@ import { db } from "@/db/client";
 import { LOCALE_COOKIE } from "@/i18n/config";
 import { isCategoryKind, type CategoryKind } from "@/lib/categories";
 import { loadCashOnHand } from "@/lib/ledger-data";
-import { parseAmountToCents } from "@/lib/money";
+import { isCurrency, parseAmountToCents } from "@/lib/money";
 import { isIncomeRhythmKind, parsePayDays } from "@/lib/income-rhythm";
 import { dateFromKey, isDateKey, isMonthKey } from "@/lib/months";
 import { CARD_COLORS, MAX_STATEMENT_DAY } from "@/lib/payment-methods";
@@ -312,5 +312,14 @@ export async function setHistoryStart(_state: FormState, formData: FormData): Pr
 export async function clearHistoryStart(formData: FormData) {
   const userId = await requireActionUserId();
   await db.user.update({ where: { id: userId }, data: { historyStartMonth: null } });
+  revalidatePath(`/${localeFromForm(formData)}`, "layout");
+}
+
+/** Sets the main currency. Amounts are relabeled, not converted. */
+export async function setCurrency(formData: FormData) {
+  const userId = await requireActionUserId();
+  const currency = readText(formData, "currency");
+  if (!isCurrency(currency)) return;
+  await db.user.update({ where: { id: userId }, data: { currency } });
   revalidatePath(`/${localeFromForm(formData)}`, "layout");
 }

@@ -30,17 +30,22 @@ export async function loadMonthView(userId: string, month: MonthKey, currentMont
 }
 
 /**
- * A summary card's layout (customized or default) and the figures it is calculated from. Money on hand takes its
- * own queries, so it is loaded only when the customized card shows it.
+ * Settings, plus money on hand when the customized summary card shows it. Money on hand takes its own queries, so
+ * it is loaded only then, starting as soon as settings arrive, alongside the month's figures rather than after them.
  */
-export async function loadSummaryCard(userId: string, card: SummaryCardId, { view, today, settings }: {
-  view: Awaited<ReturnType<typeof loadMonthView>>;
-  today: string;
-  settings: Awaited<ReturnType<typeof getUserSettings>>;
-}) {
+export async function loadCardSettings(userId: string, card: SummaryCardId) {
+  const settings = await getUserSettings(userId);
   const stored = settings.summaryCards[card];
   const showsCash = stored !== undefined && [stored.headline, ...stored.grid].includes("cashOnHand");
-  const context = monthStatContext({ view, today, settings, cashOnHandCents: showsCash ? await loadCashOnHand(userId) : null });
+  return { settings, cashOnHandCents: showsCash ? await loadCashOnHand(userId, settings.cashCount) : null };
+}
+
+/** A summary card's layout (customized or default) and the figures it is calculated from. */
+export function summaryCardFor(card: SummaryCardId, { view, today, settings, cashOnHandCents }: {
+  view: Awaited<ReturnType<typeof loadMonthView>>;
+  today: string;
+} & Awaited<ReturnType<typeof loadCardSettings>>) {
+  const context = monthStatContext({ view, today, settings, cashOnHandCents });
   return { context, layout: cardLayout(card, settings.summaryCards, context) };
 }
 

@@ -76,7 +76,10 @@ Last updated: 2026-10-07
 
 - Customization step 3: customizable summary cards. A "Customize" link under the month and income cards opens an editor (headline, add / move / remove stats, reset) with a live preview; layouts are saved per user, and money on hand loads only for a card that shows it. Income rhythm in Settings (daily, weekly, every 2 weeks, or days of the month) adds needed per payday and income per payday, which replace the daily pair on the default month card when income isn't daily. Migration adds `income_rhythm`, `income_rhythm_anchor`, `income_pay_days`, and `summary_cards` to users, verified on an embedded Postgres.
 
+- Main currency setting (MXN, USD, CAD, EUR) replacing the hard-coded pesos; amounts are relabeled, not converted. Migration adds `currency` to users. Money on hand now loads alongside the month's figures (its count comes with the settings), instead of after them.
+
 ## Next
 
+- Multi-currency (option B): a currency on every payment method, savings fund, recurring payment, income and purchase, with the rate on each entry and totals converted to the main currency; income is regularly received in dollars. Exchanges between currencies as their own entry type, and money on hand per currency.
 - Customization step 4: recurring income with a projected month-end balance (the income rhythm's paydays are a natural base for expected income).
 - Then: category budgets, and quick wins (start screen, last-used category, calendar-year option).

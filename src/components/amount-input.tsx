@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, type SyntheticEvent } from "react";
-import { amountAfterInput, formatAmountInput, parseAmountToCents } from "@/lib/money";
+import { amountAfterInput, currencySymbol, formatAmountInput, parseAmountToCents } from "@/lib/money";
+import { useCurrency } from "./currency";
 
 /** Keeps the caret at the end, where digits are entered. */
 function caretToEnd(event: SyntheticEvent<HTMLInputElement>) {
@@ -72,9 +73,10 @@ export function AmountInput({ autoFocus, onChange, defaultValue, value }: {
   defaultValue?: string;
   value?: string;
 }) {
+  const currency = useCurrency();
   return (
     <div className="flex items-center justify-center gap-1 py-2">
-      <span aria-hidden="true" className="font-mono text-3xl text-muted-foreground">$</span>
+      <span aria-hidden="true" className="font-mono text-3xl text-muted-foreground">{currencySymbol(currency)}</span>
       <MoneyInput
         autoFocus={autoFocus}
         className="w-full max-w-60 bg-transparent text-center font-mono text-5xl outline-none"

@@ -17,13 +17,13 @@ import { format, getDictionary } from "@/i18n/dictionaries";
 import { requireUserId } from "@/lib/auth-user";
 import { occurrencePaymentStatus } from "@/lib/cash-flow";
 import { categoryLabel } from "@/lib/categories";
-import { daysBetween, formatDayHeading, formatMonth, formatShortDate, groupByDay } from "@/lib/dates";
+import { daysBetween, formatDayHeading, formatShortDate, groupByDay } from "@/lib/dates";
 import { dateKeyOf } from "@/lib/months";
 import type { LedgerIncome, LedgerPaymentMethod, MonthSpendingEntry } from "@/lib/ledger";
 import { paymentMethodLabel } from "@/lib/payment-methods";
 import type { RecurringOccurrence } from "@/lib/recurring";
-import { loadMonthView, loadSummaryCard } from "@/lib/month-view";
-import { getActivePaymentMethods, getUserSettings } from "@/lib/queries";
+import { loadCardSettings, loadMonthView, summaryCardFor } from "@/lib/month-view";
+import { getActivePaymentMethods } from "@/lib/queries";
 import { monthFromSearchParam } from "@/lib/search-params";
 import { currentMonthKey, todayKey } from "@/lib/today";
 import { cn } from "@/lib/cn";
@@ -40,10 +40,10 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
   // Opening a cell of the year view filters the month's entries and recurring payments to one item.
   const itemFilter = typeof query.item === "string" ? query.item : null;
   const messages = getDictionary(locale);
-  const [view, methods, settings] = await Promise.all([
+  const [view, methods, cardSettings] = await Promise.all([
     loadMonthView(userId, month, currentMonth),
     getActivePaymentMethods(userId),
-    getUserSettings(userId),
+    loadCardSettings(userId, "month"),
   ]);
 
   const { cards, entries, incomes, occurrences, statements, spending, cashFlow } = view;
@@ -65,7 +65,7 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
     ...(itemFilter ? [] : incomes).map((item) => ({ kind: "income" as const, income: item, date: item.date })),
   ].sort((a, b) => b.date.getTime() - a.date.getTime());
   const today = todayKey();
-  const summary = await loadSummaryCard(userId, "month", { view, today, settings });
+  const summary = summaryCardFor("month", { view, today, ...cardSettings });
 
   function purchaseRow(entry: MonthSpendingEntry) {
     const { purchase } = entry;
@@ -89,22 +89,28 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
   }
 
   /** A recurring payment's month; a carried one (an unpaid cash bill from an earlier month) also names its month. */
-  const occurrenceRow = (occurrence: RecurringOccurrence, carried = false) => {
+  /**
+   * A recurring payment's month, dated by what happens that day: a cash bill is due (yellow 1–2 days before,
+   * red on the day and after, until paid); a card bill is charged to the card, which its statement then pays.
+   * The dot shows the payment method: green for cash, the card's color otherwise.
+   */
+  const occurrenceRow = (occurrence: RecurringOccurrence) => {
     const { recurring } = occurrence;
     const status = occurrencePaymentStatus(occurrence, statements);
-    // An unpaid cash bill's day turns yellow within 3 days of it and red on the day or after.
-    const daysUntilDue = daysBetween(today, dateKeyOf(occurrence.date));
-    const dayTone = status.statement || status.paid ? undefined : daysUntilDue <= 0 ? "text-loss" : daysUntilDue < 3 ? "text-warning" : undefined;
+    let dateLine: { text: string; tone?: string };
+    if (recurring.paymentMethod.kind === "CARD") {
+      const charged = dateKeyOf(occurrence.chargeDate) <= today;
+      dateLine = { text: format(charged ? messages.month.charged : messages.month.charges, { date: formatShortDate(occurrence.chargeDate, locale) }) };
+    } else {
+      const daysUntilDue = daysBetween(today, dateKeyOf(occurrence.date));
+      dateLine = {
+        text: format(messages.cards.due, { date: formatShortDate(occurrence.date, locale) }),
+        tone: status.paid ? undefined : daysUntilDue <= 0 ? "text-loss" : daysUntilDue < 3 ? "text-warning" : undefined,
+      };
+    }
     const subtitleParts: ReactNode[] = [
-      ...(status.statement
-        ? [format(messages.month.onStatement, { card: recurring.paymentMethod.name, date: formatShortDate(status.statement.dueDate, locale) })]
-        : [
-          carried ? formatMonth(occurrence.month, locale) : null,
-          <span className={cn(dayTone && "font-medium", dayTone)} key="day">{format(messages.month.day, { day: occurrence.date.getUTCDate() })}</span>,
-          paymentMethodLabel(recurring.paymentMethod, messages.common.cash),
-        ]),
+      <span className={cn(dateLine.tone && "font-medium", dateLine.tone)} key="date">{dateLine.text}</span>,
       occurrence.amountChanged ? messages.month.changedAmount : null,
-      occurrence.estimated ? messages.month.estimate : null,
     ].filter(Boolean);
     const subtitle = subtitleParts.map((part, index) => <Fragment key={index}>{index > 0 ? " · " : null}{part}</Fragment>);
     const amountForm = (mode: "change" | "confirm") => (
@@ -133,7 +139,7 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
             {occurrence.estimated ? (
               // Paid by confirming it, so it shows its status instead of a paid check.
               <>
-                <span className="font-mono tabular-nums">≈ {formatCents(occurrence.amountCents)}</span>
+                <span className="font-mono tabular-nums">≈ {formatCents(occurrence.amountCents, cardSettings.settings.currency)}</span>
                 <StatusBadge labels={messages.common} paid={status.paid} />
               </>
             ) : (
@@ -173,7 +179,7 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
         <Section title={messages.month.carriedTitle}>
           <Card className="border-loss/40">
             <ul className="divide-y divide-border">
-              {cashFlow.carriedOccurrences.map((occurrence) => occurrenceRow(occurrence, true))}
+              {cashFlow.carriedOccurrences.map((occurrence) => occurrenceRow(occurrence))}
               {cashFlow.carriedStatements.map((statement) => (
                 <StatementRow card={statementCards.get(statement.paymentMethodId)} key={`${statement.paymentMethodId}-${statement.month}`} locale={locale} messages={messages} statement={statement} today={today} />
               ))}

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { amountAfterInput, formatAmountInput, formatCents, parseAmountToCents } from "./money";
+import { amountAfterInput, currencySymbol, formatAmountInput, formatCents, formatWholeUnits, parseAmountToCents } from "./money";
 
 test("parses amounts into centavos", () => {
   assert.equal(parseAmountToCents("410"), 41000);
@@ -14,15 +14,18 @@ test("rejects invalid, zero, or over-precise amounts", () => {
   }
 });
 
-test("formats centavos as pesos", () => {
-  assert.equal(formatCents(123000), "$1,230.00");
-  assert.equal(formatCents(-1756060), "-$17,560.60");
+test("formats amounts in the user's currency", () => {
+  assert.equal(formatCents(123000, "MXN"), "$1,230.00");
+  assert.equal(formatCents(-1756060, "MXN"), "-$17,560.60");
+  assert.equal(formatCents(123000, "USD"), "$1,230.00");
+  assert.equal(formatCents(123000, "EUR"), "€1,230.00");
+  assert.equal(currencySymbol("CAD"), "$");
+  assert.equal(currencySymbol("EUR"), "€");
 });
 
-test("formats whole pesos for dense grids", async () => {
-  const { formatWholePesos } = await import("./money");
-  assert.equal(formatWholePesos(123050), "$1,231");
-  assert.equal(formatWholePesos(-1756060), "-$17,561");
+test("formats whole units for dense grids", () => {
+  assert.equal(formatWholeUnits(123050, "MXN"), "$1,231");
+  assert.equal(formatWholeUnits(-1756060, "MXN"), "-$17,561");
 });
 
 test("the amount input fills from the right, with centavos first", () => {

@@ -7,9 +7,10 @@ import { requireUserId } from "@/lib/auth-user";
 import { categoryLabel } from "@/lib/categories";
 import { cn } from "@/lib/cn";
 import { formatMonth } from "@/lib/dates";
-import { formatWholePesos } from "@/lib/money";
+import { formatWholeUnits } from "@/lib/money";
 import { addMonths, type MonthKey } from "@/lib/months";
 import { loadYearView, YEAR_MONTHS } from "@/lib/month-view";
+import { getMainCurrency } from "@/lib/queries";
 import { monthFromSearchParam } from "@/lib/search-params";
 import { currentMonthKey } from "@/lib/today";
 import { buildYearGrid, type GridRow } from "@/lib/year-grid";
@@ -31,14 +32,14 @@ export default async function YearPage({ params, searchParams }: PageProps<"/[lo
   const currentMonth = currentMonthKey();
   const endMonth = monthFromSearchParam((await searchParams).end, currentMonth);
 
-  const { months, categories } = await loadYearView(userId, endMonth);
+  const [{ months, categories }, currency] = await Promise.all([loadYearView(userId, endMonth), getMainCurrency(userId)]);
   const grid = buildYearGrid(months, categories);
   const startMonth = grid.monthKeys[0];
 
   /** An estimated amount (it includes an unconfirmed variable bill) is marked with "≈". */
   function amount(cents: number, className?: string, estimated = false) {
     if (cents === 0) return <span className="text-subtle">–</span>;
-    return <span className={className}>{estimated ? "≈ " : null}{formatWholePesos(cents)}</span>;
+    return <span className={className}>{estimated ? "≈ " : null}{formatWholeUnits(cents, currency)}</span>;
   }
 
   function columnClass(index: number) {

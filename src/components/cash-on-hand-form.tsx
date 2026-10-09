@@ -7,11 +7,13 @@ import { cn } from "@/lib/cn";
 import { formatCents } from "@/lib/money";
 import { MoneyInput } from "./amount-input";
 import { Field, inputClass } from "./form-controls";
+import { useCurrency } from "./currency";
 import { Money } from "./money";
 
 /** Shows money on hand and sets it to what the user counts, noting how far the tracked amount was off. */
 export function CashOnHandForm({ locale, messages, cents }: { locale: string; messages: Messages; cents: number | null }) {
   const [state, formAction, pending] = useActionState<CashOnHandState, FormData>(setCashOnHand, {});
+  const currency = useCurrency();
   const offBy = state.offByCents ?? null;
 
   return (
@@ -31,7 +33,7 @@ export function CashOnHandForm({ locale, messages, cents }: { locale: string; me
       {offBy !== null ? (
         <p className={cn("text-sm", offBy < 0 ? "text-loss" : "text-gain")}>
           {offBy === 0 ? messages.settings.cashOnHandExact
-            : format(offBy < 0 ? messages.settings.cashOnHandLess : messages.settings.cashOnHandMore, { amount: formatCents(Math.abs(offBy)) })}
+            : format(offBy < 0 ? messages.settings.cashOnHandLess : messages.settings.cashOnHandMore, { amount: formatCents(Math.abs(offBy), currency) })}
         </p>
       ) : null}
       <p className="text-sm text-muted-foreground">{messages.settings.cashOnHandHint}</p>

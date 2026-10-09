@@ -43,6 +43,8 @@
     "edit": "Edit"
   },
   "month": {
+    "charges": "Charges {date}",
+    "charged": "Charged {date}",
     "goalToGo": "Goal {goal} · {amount} to go",
     "goalReached": "Goal {goal} reached ✓",
     "goalMissed": "Goal {goal} · missed by {amount}",
@@ -70,9 +72,7 @@
     "recurringEmpty": "No recurring payments yet.",
     "addRecurring": "Add recurring payments",
     "statementDue": "{card} statement",
-    "onStatement": "On {card} statement · due {date}",
     "changedAmount": "Changed this month",
-    "day": "Day {day}",
     "closes": "Closes {date}",
     "closed": "Closed {date}",
     "dueIn": "Due in {days} days",
@@ -82,7 +82,6 @@
     "statements": "Card statements",
     "carriedTitle": "Unpaid from earlier months",
     "includesCarried": "+ {amount} from earlier",
-    "estimate": "Estimate",
     "confirm": "Confirm",
     "confirmAndPay": "Confirm & pay",
     "actualAmount": "Actual amount",
@@ -132,6 +131,8 @@
     "itemCategory": "In {category}"
   },
   "settings": {
+    "currency": "Main currency",
+    "currencyHint": "Amounts are shown in this currency. Changing it relabels them; it doesn't convert them.",
     "incomeGroups": "Income groups",
     "incomeGroupsHint": "Group sources to see their net income, like Rideshare (Uber, Didi) after Car spending.",
     "groupsEmpty": "No income groups yet.",
