@@ -53,6 +53,8 @@ export function purchaseStatementCharges(purchase: CardPurchase, closingDay: num
 
 export type Statement = {
   paymentMethodId: string;
+  /** The card's currency (records made before currencies have none: the main one). */
+  currency?: string;
   month: MonthKey;
   closingDate: Date;
   dueDate: Date;
@@ -63,7 +65,7 @@ export type Statement = {
 };
 
 export function buildStatements(
-  card: { id: string } & BillingCycle,
+  card: { id: string; currency?: string } & BillingCycle,
   purchases: CardPurchase[],
   recurringCharges: CardRecurringCharge[],
   paidMonths: Set<MonthKey>,
@@ -82,6 +84,7 @@ export function buildStatements(
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([month, charges]) => ({
       paymentMethodId: card.id,
+      currency: card.currency,
       month,
       ...statementDates(card, month),
       totalCents: charges.reduce((sum, charge) => sum + charge.amountCents, 0),

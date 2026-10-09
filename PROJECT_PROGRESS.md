@@ -78,8 +78,9 @@ Last updated: 2026-10-07
 
 - Main currency setting (MXN, USD, CAD, EUR) replacing the hard-coded pesos; amounts are relabeled, not converted. Migration adds `currency` to users. Money on hand now loads alongside the month's figures (its count comes with the settings), instead of after them.
 
+- Multi-currency: payment methods (one cash wallet per currency, cards), income, and savings funds have a currency; currency exchanges are a new entry (an Exchange tab on Add once there are wallets in two currencies). Currencies are never converted: headline figures are the main currency's, with other currencies noted beside them and every list amount in its own currency (distinct symbols like US$). Cash on hand is per wallet. Migration backfills existing records with the main currency and moves the counted cash to the Cash wallet, verified on an embedded Postgres; every figure on peso-only seeded data is unchanged, and a mixed peso/dollar scenario checked out by hand.
+
 ## Next
 
-- Multi-currency (option B): a currency on every payment method, savings fund, recurring payment, income and purchase, with the rate on each entry and totals converted to the main currency; income is regularly received in dollars. Exchanges between currencies as their own entry type, and money on hand per currency.
 - Customization step 4: recurring income with a projected month-end balance (the income rhythm's paydays are a natural base for expected income).
 - Then: category budgets, and quick wins (start screen, last-used category, calendar-year option).

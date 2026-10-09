@@ -1,6 +1,7 @@
 import { monthKeyOf, type MonthKey } from "./months";
 
-export type SavingsMovementRecord = { id: string; fundId: string; date: Date; amountCents: number; note: string | null };
+/** `currency` is its fund's. */
+export type SavingsMovementRecord = { id: string; fundId: string; date: Date; amountCents: number; note: string | null; currency?: string };
 
 export function fundBalance(movements: SavingsMovementRecord[], fundId: string) {
   return movements.filter((movement) => movement.fundId === fundId).reduce((sum, movement) => sum + movement.amountCents, 0);

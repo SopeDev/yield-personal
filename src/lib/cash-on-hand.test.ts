@@ -48,3 +48,9 @@ test("a record dated ahead counts once its day comes, even if entered before cou
   assert.equal(cashOnHandCents({ count, today: "2026-10-09", ...none, cashPurchases: [rent] }), 346300);
   assert.equal(cashOnHandCents({ count, today: "2026-10-10", ...none, cashPurchases: [rent] }), 346300 - 500000);
 });
+
+test("money changed into this wallet's currency adds, and money changed out of it subtracts", () => {
+  // Sold US$100 for $1,780: this (peso) wallet gains 1,780; a later exchange back takes 500.
+  const cents = cashOnHandCents({ count, today: "2026-10-09", ...none, transfers: [record("2026-10-08", 178000), record("2026-10-09", -50000)] });
+  assert.equal(cents, 346300 + 178000 - 50000);
+});

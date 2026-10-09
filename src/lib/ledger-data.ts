@@ -11,7 +11,7 @@ import { occurrencesForMonth, type ConfirmedAmount, type OccurrenceOverride, typ
 import { dateKeyInAppZone, monthKeyInAppZone, todayKey } from "@/lib/today";
 
 const categorySelect = { id: true, key: true, name: true, sortOrder: true, kind: true } as const;
-const paymentMethodSelect = { id: true, kind: true, name: true, color: true } as const;
+const paymentMethodSelect = { id: true, kind: true, name: true, color: true, currency: true } as const;
 const itemSelect = { id: true, name: true, category: { select: categorySelect } } as const;
 const purchaseSelect = {
   id: true,
@@ -78,7 +78,7 @@ export async function getIncomeGroups(userId: string, { activeOnly = false } = {
 export function getSavingsFunds(userId: string) {
   return db.savingsFund.findMany({
     where: { userId, archivedAt: null },
-    select: { id: true, kind: true, name: true, targetCents: true, coverMonths: true },
+    select: { id: true, kind: true, name: true, targetCents: true, coverMonths: true, currency: true },
     orderBy: [{ kind: "asc" }, { createdAt: "asc" }],
   });
 }
@@ -125,13 +125,13 @@ export async function loadLedgerRange(userId: string, from: MonthKey, to: MonthK
     }),
     db.income.findMany({
       where: { userId, date: { gte: monthRange(from).start, lt: monthRange(to).end } },
-      select: { id: true, date: true, amountCents: true, note: true, source: { select: { id: true, name: true, groupId: true } } },
+      select: { id: true, date: true, amountCents: true, note: true, currency: true, source: { select: { id: true, name: true, groupId: true } } },
       orderBy: [{ date: "desc" }, { createdAt: "desc" }],
     }),
     getOccurrenceOverrides(userId, statementsFrom, addMonths(to, 1)),
     getRecurringHistory(userId),
     db.statementPayment.findMany({ where: { userId }, select: { paymentMethodId: true, statementMonth: true } }),
-    db.savingsMovement.findMany({ where: { userId }, select: { id: true, fundId: true, date: true, amountCents: true, note: true }, orderBy: { date: "desc" } }),
+    db.savingsMovement.findMany({ where: { userId }, select: { id: true, fundId: true, date: true, amountCents: true, note: true, fund: { select: { currency: true } } }, orderBy: { date: "desc" } }),
     getIncomeGroups(userId),
   ]);
 
@@ -146,12 +146,18 @@ export async function loadLedgerRange(userId: string, from: MonthKey, to: MonthK
     paidStatements,
   });
 
-  const data: LedgerData = { categories, purchases, incomes, incomeGroups, definitions, overrides, recurringHistory, statements, savingsMovements };
+  const data: LedgerData = {
+    categories, purchases, incomes, incomeGroups, definitions, overrides, recurringHistory, statements,
+    savingsMovements: savingsMovements.map(({ fund, ...movement }) => ({ ...movement, currency: fund.currency })),
+  };
   return { data, cards };
 }
 
 /** Cash bills and card statements marked paid after `since`, with their amounts. */
-async function getBillsPaidSince(userId: string, since: Date): Promise<PaidBill[]> {
+/** A bill or statement marked paid, with what it was paid from: a card statement's currency, or a cash bill's wallet. */
+type WalletBill = PaidBill & { currency?: string; paymentMethodId?: string };
+
+async function getBillsPaidSince(userId: string, since: Date): Promise<WalletBill[]> {
   const [statementPayments, occurrencePayments] = await Promise.all([
     db.statementPayment.findMany({ where: { userId, paidAt: { gt: since } }, select: { paymentMethodId: true, statementMonth: true, paidAt: true } }),
     db.recurringOccurrence.findMany({ where: { userId, paidAt: { gt: since } }, select: { recurringPaymentId: true, month: true, paidAt: true } }),
@@ -161,38 +167,83 @@ async function getBillsPaidSince(userId: string, since: Date): Promise<PaidBill[
 
   // Amounts are derived, so the months holding them are loaded like any other view.
   const { data } = await loadLedgerRange(userId, months[0], months[months.length - 1]);
-  const statements = statementPayments.map((paid) => ({
-    paidAt: paid.paidAt,
-    amountCents: data.statements.find((statement) => statement.paymentMethodId === paid.paymentMethodId && statement.month === monthKeyOf(paid.statementMonth))?.totalCents ?? 0,
-  }));
+  const statements = statementPayments.map((paid) => {
+    const statement = data.statements.find((item) => item.paymentMethodId === paid.paymentMethodId && item.month === monthKeyOf(paid.statementMonth));
+    return { paidAt: paid.paidAt, amountCents: statement?.totalCents ?? 0, currency: statement?.currency };
+  });
   const bills = occurrencePayments.map((paid) => {
     const occurrence = occurrencesForMonth(data.definitions, data.overrides, monthKeyOf(paid.month), data.recurringHistory)
       .find((item) => item.recurring.id === paid.recurringPaymentId && item.recurring.paymentMethod.kind === "CASH");
-    return { paidAt: paid.paidAt!, amountCents: occurrence?.amountCents ?? 0 };
+    return { paidAt: paid.paidAt!, amountCents: occurrence?.amountCents ?? 0, paymentMethodId: occurrence?.recurring.paymentMethod.id };
   });
   return [...statements, ...bills];
 }
 
-/** Money on hand now, from the amount last counted in Settings and the records since; null until it is first set. */
-async function getCashCount(userId: string): Promise<CashCount | null> {
-  const user = await db.user.findUnique({ where: { id: userId }, select: { cashOnHandCents: true, cashOnHandSetAt: true } });
-  if (user?.cashOnHandCents == null || !user.cashOnHandSetAt) return null;
-  return { cents: user.cashOnHandCents, setAt: user.cashOnHandSetAt, day: dateKeyInAppZone(user.cashOnHandSetAt) };
+/** Money changed between currencies during a month, newest first. */
+export function getExchanges(userId: string, month: MonthKey) {
+  return db.currencyExchange.findMany({
+    where: { userId, date: { gte: monthRange(month).start, lt: monthRange(month).end } },
+    select: { id: true, date: true, fromCurrency: true, fromCents: true, toCurrency: true, toCents: true, note: true },
+    orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+  });
 }
 
-export async function loadCashOnHand(userId: string, knownCount?: CashCount | null): Promise<number | null> {
-  // Callers that loaded settings already have the count (`getUserSettings`), saving a read before the rest.
-  const count = knownCount === undefined ? await getCashCount(userId) : knownCount;
-  if (!count) return null;
+/** A cash wallet: money on hand in one currency, as last counted (null until first counted). */
+export type CashWallet = { id: string; name: string; color: string; currency: string; count: CashCount | null };
+
+/** Active cash wallets, the first one created first. */
+export async function getCashWallets(userId: string): Promise<CashWallet[]> {
+  const wallets = await db.paymentMethod.findMany({
+    where: { userId, kind: "CASH", archivedAt: null },
+    select: { id: true, name: true, color: true, currency: true, cashCountCents: true, cashCountedAt: true },
+    orderBy: { createdAt: "asc" },
+  });
+  return wallets.map(({ cashCountCents, cashCountedAt, ...wallet }) => ({
+    ...wallet,
+    count: cashCountCents != null && cashCountedAt ? { cents: cashCountCents, setAt: cashCountedAt, day: dateKeyInAppZone(cashCountedAt) } : null,
+  }));
+}
+
+/**
+ * Money on hand in each cash wallet now (null for one not counted yet): its count, moved by the records in its
+ * currency since then. Callers that already loaded the wallets pass them, saving a read before the rest.
+ */
+export async function loadCashOnHand(userId: string, knownWallets?: CashWallet[]): Promise<{ wallet: CashWallet; cents: number | null }[]> {
+  const wallets = knownWallets ?? await getCashWallets(userId);
+  const counts = wallets.flatMap((wallet) => (wallet.count ? [wallet.count] : []));
+  if (counts.length === 0) return wallets.map((wallet) => ({ wallet, cents: null }));
 
   const today = todayKey();
-  const where = { userId, date: { gte: dateFromKey(count.day), lte: dateFromKey(today) } };
+  const firstDay = counts.map((count) => count.day).sort()[0];
+  const firstSetAt = new Date(Math.min(...counts.map((count) => count.setAt.getTime())));
+  const where = { userId, date: { gte: dateFromKey(firstDay), lte: dateFromKey(today) } };
   const select = { date: true, createdAt: true, amountCents: true } as const;
-  const [incomes, cashPurchases, savingsMovements, paidBills] = await Promise.all([
-    db.income.findMany({ where, select }),
-    db.purchase.findMany({ where: { ...where, paymentMethod: { kind: "CASH" } }, select }),
-    db.savingsMovement.findMany({ where, select }),
-    getBillsPaidSince(userId, count.setAt),
+  const [incomes, cashPurchases, savingsMovements, exchanges, paidBills] = await Promise.all([
+    db.income.findMany({ where, select: { ...select, currency: true } }),
+    db.purchase.findMany({ where: { ...where, paymentMethod: { kind: "CASH" } }, select: { ...select, paymentMethodId: true } }),
+    db.savingsMovement.findMany({ where, select: { ...select, fund: { select: { currency: true } } } }),
+    db.currencyExchange.findMany({ where, select: { date: true, createdAt: true, fromCurrency: true, fromCents: true, toCurrency: true, toCents: true } }),
+    getBillsPaidSince(userId, firstSetAt),
   ]);
-  return cashOnHandCents({ count, today, incomes, cashPurchases, savingsMovements, paidBills });
+
+  return wallets.map((wallet) => {
+    if (!wallet.count) return { wallet, cents: null };
+    const { currency } = wallet;
+    const transfers = exchanges.flatMap((exchange) => [
+      ...(exchange.toCurrency === currency ? [{ date: exchange.date, createdAt: exchange.createdAt, amountCents: exchange.toCents }] : []),
+      ...(exchange.fromCurrency === currency ? [{ date: exchange.date, createdAt: exchange.createdAt, amountCents: -exchange.fromCents }] : []),
+    ]);
+    return {
+      wallet,
+      cents: cashOnHandCents({
+        count: wallet.count,
+        today,
+        incomes: incomes.filter((income) => income.currency === currency),
+        cashPurchases: cashPurchases.filter((purchase) => purchase.paymentMethodId === wallet.id),
+        savingsMovements: savingsMovements.filter((movement) => movement.fund.currency === currency),
+        paidBills: paidBills.filter((bill) => (bill.paymentMethodId ? bill.paymentMethodId === wallet.id : bill.currency === currency)),
+        transfers,
+      }),
+    };
+  });
 }

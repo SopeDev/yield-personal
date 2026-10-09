@@ -6,7 +6,6 @@ import { incomeRhythmOf } from "@/lib/income-rhythm";
 import { DEFAULT_CURRENCY, isCurrency, type Currency } from "@/lib/money";
 import { dateKeyOf, monthKeyOf } from "@/lib/months";
 import { parseSummaryCards } from "@/lib/stats";
-import { dateKeyInAppZone } from "@/lib/today";
 import { usualPurchases } from "@/lib/usual-purchase";
 
 const categorySelect = { id: true, key: true, name: true, sortOrder: true, kind: true } as const;
@@ -53,11 +52,11 @@ export function getActiveCategories(userId: string) {
   return db.category.findMany({ where: { userId, archivedAt: null }, select: categorySelect, orderBy: { sortOrder: "asc" } });
 }
 
-/** Cash first, then cards in the order they were added. */
+/** Cash wallets first, then cards, each in the order they were added. */
 export function getActivePaymentMethods(userId: string) {
   return db.paymentMethod.findMany({
     where: { userId, archivedAt: null },
-    select: { id: true, kind: true, name: true, color: true, closingDay: true, paymentDays: true },
+    select: { id: true, kind: true, name: true, color: true, currency: true, closingDay: true, paymentDays: true },
     orderBy: [{ kind: "asc" }, { createdAt: "asc" }],
   });
 }
@@ -76,15 +75,21 @@ export function getOwnedPurchase(userId: string, id: string) {
     select: {
       id: true, date: true, amountCents: true, note: true, installmentCount: true, paymentMethodId: true,
       item: { select: { name: true } },
-      paymentMethod: { select: { id: true, kind: true, name: true, color: true } },
+      paymentMethod: { select: { id: true, kind: true, name: true, color: true, currency: true } },
     },
   });
+}
+
+/** The currencies of the user's cash wallets, the main currency first: what income and exchanges can be in. */
+export function walletCurrencies(mainCurrency: string, methods: { kind: string; currency: string }[]) {
+  const others = methods.filter((method) => method.kind === "CASH" && method.currency !== mainCurrency).map((method) => method.currency);
+  return [mainCurrency, ...[...new Set(others)].sort()];
 }
 
 export function getOwnedIncome(userId: string, id: string) {
   return db.income.findFirst({
     where: { id, userId },
-    select: { id: true, date: true, amountCents: true, note: true, source: { select: { id: true, name: true } } },
+    select: { id: true, date: true, amountCents: true, note: true, currency: true, source: { select: { id: true, name: true } } },
   });
 }
 
@@ -116,7 +121,7 @@ export async function getUserSettings(userId: string) {
     where: { id: userId },
     select: {
       balanceGoalCents: true, historyStartMonth: true, incomeRhythm: true, incomeRhythmAnchor: true, incomePayDays: true, summaryCards: true,
-      cashOnHandCents: true, cashOnHandSetAt: true, currency: true,
+      currency: true,
     },
   });
   const rhythmParts = {
@@ -131,10 +136,6 @@ export async function getUserSettings(userId: string) {
     rhythmParts,
     summaryCards: parseSummaryCards(user?.summaryCards),
     currency: currencyOf(user?.currency),
-    /** Money on hand as last counted, so tracking it needs no extra read; null until first counted. */
-    cashCount: user?.cashOnHandCents != null && user.cashOnHandSetAt
-      ? { cents: user.cashOnHandCents, setAt: user.cashOnHandSetAt, day: dateKeyInAppZone(user.cashOnHandSetAt) }
-      : null,
   };
 }
 

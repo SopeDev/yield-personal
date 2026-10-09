@@ -45,7 +45,7 @@ export default async function EditPurchasePage({ params }: PageProps<"/[locale]/
         items={items}
         locale={locale}
         messages={messages}
-        methods={methodOptions.map((method) => ({ id: method.id, label: paymentMethodLabel(method, messages.common.cash), color: method.color, isCard: method.kind === "CARD" }))}
+        methods={methodOptions.map((method) => ({ id: method.id, label: paymentMethodLabel(method, messages.common.cash), color: method.color, isCard: method.kind === "CARD", currency: method.currency }))}
         today={todayKey()}
       />
     </div>

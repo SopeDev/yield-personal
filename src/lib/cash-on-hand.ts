@@ -20,9 +20,9 @@ export function countsAfter(count: CashCount, record: DatedRecord, today: string
 
 /**
  * Money on hand now: the counted amount, plus income, minus cash purchases, bills and statements paid, and net
- * money moved into savings since it was counted. Card purchases leave only when their statement is paid.
+ * money moved into savings since it was counted, plus or minus money changed from or to another currency. Card purchases leave only when their statement is paid.
  */
-export function cashOnHandCents({ count, today, incomes, cashPurchases, savingsMovements, paidBills }: {
+export function cashOnHandCents({ count, today, incomes, cashPurchases, savingsMovements, paidBills, transfers = [] }: {
   count: CashCount;
   /** Today as "YYYY-MM-DD". */
   today: string;
@@ -30,8 +30,10 @@ export function cashOnHandCents({ count, today, incomes, cashPurchases, savingsM
   cashPurchases: DatedRecord[];
   savingsMovements: DatedRecord[];
   paidBills: PaidBill[];
+  /** Money changed between currencies: positive when it arrived in this wallet, negative when it left. */
+  transfers?: DatedRecord[];
 }) {
   const sumAfter = (records: DatedRecord[]) => records.filter((record) => countsAfter(count, record, today)).reduce((sum, record) => sum + record.amountCents, 0);
   const billsCents = paidBills.filter((bill) => bill.paidAt > count.setAt).reduce((sum, bill) => sum + bill.amountCents, 0);
-  return count.cents + sumAfter(incomes) - sumAfter(cashPurchases) - sumAfter(savingsMovements) - billsCents;
+  return count.cents + sumAfter(incomes) - sumAfter(cashPurchases) - sumAfter(savingsMovements) - billsCents + sumAfter(transfers);
 }

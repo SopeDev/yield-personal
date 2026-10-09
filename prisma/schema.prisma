@@ -37,18 +37,14 @@ model User {
   email                String?               @unique
   emailVerified        DateTime?             @map("email_verified") @db.Timestamptz(6)
   image                String?
-  /// The currency every amount is in and shown as (an ISO 4217 code such as "MXN"). Changing it relabels amounts
-  /// without converting them.
+  /// The currency headline figures (balance, needed per day, averages) are in (an ISO 4217 code such as "MXN").
+  /// Records in other currencies are totalled separately, never converted.
   currency             String                @default("MXN")
   /// Monthly balance goal in centavos: money to have left over or saved each month. Null when unset.
   balanceGoalCents     Int?                  @map("balance_goal_cents")
   /// First month (its first day) counted in calculations from past spending, like averages and typical daily
   /// spending; earlier months may hold only partial records. Null counts every month.
   historyStartMonth    DateTime?             @map("history_start_month") @db.Date
-  /// Money on hand (cash, debit, and app balances outside savings) in centavos, as counted at `cashOnHandSetAt`;
-  /// records after that moment move it from there. Null until first set.
-  cashOnHandCents      Int?                  @map("cash_on_hand_cents")
-  cashOnHandSetAt      DateTime?             @map("cash_on_hand_set_at") @db.Timestamptz(6)
   /// How often income arrives: every day, weekly or every two weeks counted from `incomeRhythmAnchor` (any
   /// payday), or on the days of the month in `incomePayDays`. Sets the paydays the per-payday stats count.
   incomeRhythm         IncomeRhythm          @default(DAILY) @map("income_rhythm")
@@ -57,7 +53,7 @@ model User {
   /// Customized summary cards by card id ("month", "income"), each `{ headline, grid }` of stat references
   /// (`src/lib/stats.ts`). A card left out keeps its default layout.
   summaryCards         Json?                 @map("summary_cards")
-  createdAt           DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdAt            DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
   accounts             Account[]
   sessions             Session[]
@@ -72,6 +68,7 @@ model User {
   statementPayments    StatementPayment[]
   savingsFunds         SavingsFund[]
   savingsMovements     SavingsMovement[]
+  currencyExchanges    CurrencyExchange[]
   expenseItems         ExpenseItem[]
 
   @@map("users")
@@ -117,13 +114,18 @@ model VerificationToken {
   @@map("verification_tokens")
 }
 
-/// Cash, or a credit card. Cards close on `closingDay` each month and are due `paymentDays` days after closing.
+/// A cash wallet, or a credit card, in one currency; purchases and bills paid with it are in that currency. Cards
+/// close on `closingDay` each month and are due `paymentDays` days after closing. A cash wallet (one per currency)
+/// holds money on hand: counted by hand as `cashCountCents` at `cashCountedAt`, then moved by records in its currency.
 model PaymentMethod {
   id                String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId            String             @map("user_id") @db.Uuid
   kind              PaymentMethodKind
   name              String
   color             String
+  currency          String             @default("MXN")
+  cashCountCents    Int?               @map("cash_count_cents")
+  cashCountedAt     DateTime?          @map("cash_counted_at") @db.Timestamptz(6)
   closingDay        Int?               @map("closing_day")
   paymentDays       Int?               @map("payment_days")
   archivedAt        DateTime?          @map("archived_at") @db.Timestamptz(6)
@@ -253,6 +255,8 @@ model Income {
   sourceId    String       @map("source_id") @db.Uuid
   date        DateTime     @db.Date
   amountCents Int          @map("amount_cents")
+  /// Received in this currency, into the cash wallet of the same currency.
+  currency    String       @default("MXN")
   note        String?
   createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -339,6 +343,8 @@ model SavingsFund {
   userId      String            @map("user_id") @db.Uuid
   kind        SavingsFundKind
   name        String?
+  /// Its balance and movements are in this currency, moved from and to the cash wallet of the same currency.
+  currency    String            @default("MXN")
   targetCents Int?              @map("target_cents")
   coverMonths Int               @default(3) @map("cover_months")
   archivedAt  DateTime?         @map("archived_at") @db.Timestamptz(6)
@@ -365,4 +371,22 @@ model SavingsMovement {
   @@index([userId, date])
   @@index([fundId])
   @@map("savings_movements")
+}
+
+/// Money changed from one currency to another (like selling dollars for pesos): it leaves the `from` currency's cash
+/// wallet and arrives in the `to` currency's. Neither spending nor income.
+model CurrencyExchange {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  date         DateTime @db.Date
+  fromCurrency String   @map("from_currency")
+  fromCents    Int      @map("from_cents")
+  toCurrency   String   @map("to_currency")
+  toCents      Int      @map("to_cents")
+  note         String?
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+  @@map("currency_exchanges")
 }

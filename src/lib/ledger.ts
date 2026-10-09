@@ -3,7 +3,8 @@ import { consumptionInMonth } from "./installments";
 import type { MonthKey } from "./months";
 
 export type LedgerCategory = { id: string; key: string | null; name: string | null; sortOrder: number; kind: CategoryKind };
-export type LedgerPaymentMethod = { id: string; kind: "CASH" | "CARD"; name: string; color: string };
+/** `currency` is the currency of everything paid with it (records made before currencies have none: the main one). */
+export type LedgerPaymentMethod = { id: string; kind: "CASH" | "CARD"; name: string; color: string; currency?: string };
 /** A reusable expense concept; its category groups it. */
 export type LedgerItem = { id: string; name: string; category: LedgerCategory };
 export type LedgerPurchase = {
@@ -18,7 +19,7 @@ export type LedgerPurchase = {
 export type LedgerIncomeSource = { id: string; name: string; groupId: string | null };
 /** Income sources grouped for a net figure: the group's income after spending in `deductCategoryIds`. */
 export type LedgerIncomeGroup = { id: string; name: string; deductCategoryIds: string[] };
-export type LedgerIncome = { id: string; date: Date; amountCents: number; note: string | null; source: LedgerIncomeSource };
+export type LedgerIncome = { id: string; date: Date; amountCents: number; note: string | null; source: LedgerIncomeSource; currency?: string };
 
 export type MonthSpendingEntry = {
   purchase: LedgerPurchase;

@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { ChevronDown, ChevronRight, ChevronUp, RotateCcw } from "lucide-react";
 import { signOut } from "@/auth";
-import { archiveCard, archiveCategory, archiveIncomeGroup, archiveIncomeSource, moveCategory, restoreCategory, setCurrency, setLocale } from "@/app/actions/settings";
+import { archiveCard, archiveCashWallet, archiveCategory, archiveIncomeGroup, archiveIncomeSource, moveCategory, restoreCategory, setCurrency, setLocale } from "@/app/actions/settings";
 import { ActionButton } from "@/components/action-button";
 import { BalanceGoalForm } from "@/components/balance-goal-form";
 import { CashOnHandForm } from "@/components/cash-on-hand-form";
+import { CashWalletForm } from "@/components/cash-wallet-form";
 import { HistoryStartForm } from "@/components/history-start-form";
 import { IncomeRhythmForm } from "@/components/income-rhythm-form";
 import { CategoryForm } from "@/components/category-form";
@@ -31,7 +32,7 @@ export default async function SettingsPage({ params }: PageProps<"/[locale]/sett
   const userId = await requireUserId(locale);
   const messages = getDictionary(locale);
 
-  const [methods, sources, allCategories, { balanceGoalCents: goalCents, historyStartMonth, rhythmParts, currency }, groups, cashOnHandCents] = await Promise.all([
+  const [methods, sources, allCategories, { balanceGoalCents: goalCents, historyStartMonth, rhythmParts, currency }, groups, wallets] = await Promise.all([
     getActivePaymentMethods(userId),
     getActiveIncomeSources(userId),
     getCategoriesForManagement(userId),
@@ -43,6 +44,9 @@ export default async function SettingsPage({ params }: PageProps<"/[locale]/sett
   const archivedCategories = allCategories.filter((category) => category.archivedAt);
   const cards = methods.filter((method) => method.kind === "CARD");
   const currencyNames = new Intl.DisplayNames(locale, { type: "currency" });
+  const cardCurrencies = [currency, ...CURRENCIES.filter((code) => code !== currency)].map((code) => ({ code, name: currencyNames.of(code) ?? code }));
+  // Currencies that can still get a cash wallet.
+  const walletCurrencies = CURRENCIES.filter((code) => !wallets.some(({ wallet }) => wallet.currency === code)).map((code) => ({ code, name: currencyNames.of(code) ?? code }));
   const activeGroups = groups.filter((group) => !group.archivedAt);
   const groupNames = new Map(groups.map((group) => [group.id, group.name]));
   // A source may stay in a group archived since, so its own group is always offered.
@@ -101,7 +105,26 @@ export default async function SettingsPage({ params }: PageProps<"/[locale]/sett
 
       <Section title={messages.month.cashOnHand}>
         <Card>
-          <CashOnHandForm cents={cashOnHandCents} locale={locale} messages={messages} />
+          {/* One cash wallet per currency; each is counted and tracked on its own, never converted. */}
+          <ul className="divide-y divide-border">
+            {wallets.map(({ wallet, cents }, index) => (
+              <li key={wallet.id}>
+                {wallets.length > 1 ? (
+                  <p className="px-4 pt-4 text-sm font-medium">{wallet.name} · {wallet.currency}</p>
+                ) : null}
+                <CashOnHandForm cents={cents} currency={wallet.currency} locale={locale} messages={messages} walletId={wallet.id} />
+                {index > 0 ? (
+                  <RemoveRow action={archiveCashWallet} confirmMessage={messages.settings.confirmArchiveWallet} id={wallet.id} label={messages.settings.archiveWallet} locale={locale} />
+                ) : null}
+              </li>
+            ))}
+          </ul>
+          {walletCurrencies.length > 0 ? (
+            <details className="border-t border-border">
+              <summary className="flex min-h-12 cursor-pointer items-center px-4 font-medium text-primary">{messages.settings.addWallet}</summary>
+              <CashWalletForm currencies={walletCurrencies} locale={locale} messages={messages} />
+            </details>
+          ) : null}
         </Card>
       </Section>
 
@@ -206,7 +229,7 @@ export default async function SettingsPage({ params }: PageProps<"/[locale]/sett
                     <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3">
                       <span aria-hidden="true" className="size-3 shrink-0 rounded-full" style={{ backgroundColor: card.color }} />
                       <div className="min-w-0 flex-1">
-                        <p className="truncate font-medium">{card.name}</p>
+                        <p className="truncate font-medium">{card.name}{card.currency !== currency ? ` · ${card.currency}` : null}</p>
                         <p className="text-sm text-muted-foreground">{format(messages.settings.cardDays, { closing: card.closingDay ?? "–", days: card.paymentDays ?? "–" })}</p>
                       </div>
                       <span className="text-sm text-primary">{messages.common.edit}</span>
@@ -227,7 +250,7 @@ export default async function SettingsPage({ params }: PageProps<"/[locale]/sett
           )}
           <details className="border-t border-border">
             <summary className="flex min-h-12 cursor-pointer items-center px-4 font-medium text-primary">{messages.settings.addCard}</summary>
-            <CardForm locale={locale} messages={messages} usedColors={cards.map((card) => card.color)} />
+            <CardForm currencies={cardCurrencies} locale={locale} messages={messages} usedColors={cards.map((card) => card.color)} />
           </details>
         </Card>
       </Section>

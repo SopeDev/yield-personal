@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { statementsForCards } from "./card-statements";
 import type { LedgerPurchase } from "./ledger";
-import { summarizeMonth, type LedgerData } from "./month-summary";
+import { currenciesIn, forCurrency, summarizeMonth, type LedgerData } from "./month-summary";
 import { dateFromKey } from "./months";
 import type { RecurringDefinition } from "./recurring";
 import { installmentsOwed } from "./statements";
@@ -94,4 +94,25 @@ test("the current month carries unpaid cash bills from earlier months as outstan
   assert.equal(december.cashFlow.carriedOutstandingCents, 800000);
   assert.equal(december.cashFlow.outstandingCents, 800000);
   assert.equal(summarizeMonth(data, "2026-12").cashFlow.carriedOccurrences.length, 0);
+});
+
+test("each currency is summarized on its own, records without a currency counting as the main one", () => {
+  const usdCash = { id: "usd", kind: "CASH" as const, name: "Dólares", color: "#00c896", currency: "USD" };
+  const data: LedgerData = {
+    categories: [fixed, food, car, extras],
+    purchases: [purchase("gas", "2026-10-02", 41000, car, cash), purchase("tacos", "2026-10-03", 1500, food, usdCash)],
+    incomes: [
+      { id: "uber", date: dateFromKey("2026-10-01"), amountCents: 326940, note: null, source: { id: "uber", name: "Uber", groupId: null } },
+      { id: "client", date: dateFromKey("2026-10-05"), amountCents: 50000, note: null, source: { id: "web", name: "Web", groupId: null }, currency: "USD" },
+    ],
+    incomeGroups: [], definitions: [], overrides: [], recurringHistory: [], statements: [], savingsMovements: [],
+  };
+  assert.deepEqual(currenciesIn(data, "MXN"), ["MXN", "USD"]);
+  const pesos = summarizeMonth(forCurrency(data, "MXN", "MXN"), "2026-10");
+  const dollars = summarizeMonth(forCurrency(data, "USD", "MXN"), "2026-10");
+  assert.equal(pesos.spending.totalCents, 41000);
+  assert.equal(pesos.income.totalCents, 326940);
+  assert.equal(dollars.spending.totalCents, 1500);
+  assert.equal(dollars.income.totalCents, 50000);
+  assert.equal(dollars.cashFlow.toPayCents, 1500);
 });

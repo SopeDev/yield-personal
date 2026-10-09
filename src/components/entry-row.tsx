@@ -3,11 +3,13 @@ import Link from "next/link";
 import { Money } from "./money";
 
 /** One ledger line: a colored dot for how it was paid, a title and details, and the amount. `href` opens it for editing. */
-export function EntryRow({ color, title, details, cents, signed, trailing, href }: {
+export function EntryRow({ color, title, details, cents, currency, signed, trailing, href }: {
   color: string;
   title: string;
   details: string;
   cents: number;
+  /** The record's currency, when it isn't the main one. */
+  currency?: string;
   signed?: boolean;
   trailing?: ReactNode;
   href?: string;
@@ -19,7 +21,7 @@ export function EntryRow({ color, title, details, cents, signed, trailing, href 
         <p className="truncate font-medium">{title}</p>
         <p className="truncate text-sm text-muted-foreground">{details}</p>
       </div>
-      <Money cents={cents} className={signed ? "text-gain" : undefined} signed={signed} />
+      <Money cents={cents} className={signed ? "text-gain" : undefined} currency={currency} signed={signed} />
     </>
   );
   return (

@@ -5,14 +5,14 @@ import { createPurchase, updatePurchase } from "@/app/actions/entries";
 import type { FormState } from "@/app/actions/form-state";
 import { format, type Messages } from "@/i18n/dictionaries";
 import { splitInstallments, MAX_INSTALLMENTS } from "@/lib/installments";
-import { formatCents, parseAmountToCents } from "@/lib/money";
+import { formatCentsIn, parseAmountToCents } from "@/lib/money";
 import type { UsualPurchase } from "@/lib/usual-purchase";
 import { AmountInput } from "./amount-input";
 import { Chip, Field, inputClass, SubmitButton, submitWithoutReset, useClientId } from "./form-controls";
 import { useCurrency } from "./currency";
 import { ItemField, type CategoryOption, type ItemOption } from "./item-field";
 
-type MethodOption = { id: string; label: string; color?: string; isCard: boolean };
+type MethodOption = { id: string; label: string; color?: string; isCard: boolean; currency?: string };
 
 /** Values of an existing purchase being edited. */
 export type PurchaseInitial = {
@@ -45,7 +45,7 @@ export function ExpenseForm({ locale, today, items, categories, methods, message
   onAmountChange?: (amount: string) => void;
 }) {
   const [state, formAction, pending] = useActionState<FormState, FormData>(initial ? updatePurchase : createPurchase, {});
-  const currency = useCurrency();
+  const mainCurrency = useCurrency();
   const defaultMethodId = initial?.paymentMethodId ?? methods[0]?.id ?? "";
   const [methodId, setMethodId] = useState(defaultMethodId);
   const [methodPicked, setMethodPicked] = useState(false);
@@ -58,11 +58,13 @@ export function ExpenseForm({ locale, today, items, categories, methods, message
   const clientId = useClientId();
   const errors = state.fieldErrors ?? {};
   const isCard = methods.find((method) => method.id === methodId)?.isCard ?? false;
+  // A purchase is in the currency of what it's paid with.
+  const methodCurrency = methods.find((method) => method.id === methodId)?.currency ?? mainCurrency;
 
   const amountCents = parseAmountToCents(amount);
   const installmentCount = Number(installments);
   const installmentPreview = isCard && amountCents && Number.isInteger(installmentCount) && installmentCount > 1 && installmentCount <= MAX_INSTALLMENTS
-    ? format(messages.add.monthlyInstallment, { count: installmentCount, amount: formatCents(splitInstallments(amountCents, installmentCount)[0], currency) })
+    ? format(messages.add.monthlyInstallment, { count: installmentCount, amount: formatCentsIn(splitInstallments(amountCents, installmentCount)[0], methodCurrency, mainCurrency) })
     : messages.add.singlePayment;
 
   function applyUsual(itemId: string | null) {
@@ -82,7 +84,7 @@ export function ExpenseForm({ locale, today, items, categories, methods, message
       <input name="locale" type="hidden" value={locale} />
       {initial ? <input name="id" type="hidden" value={initial.id} /> : null}
       <Field error={errors.amount} errors={messages.errors} htmlFor="amount" label={messages.add.amount}>
-        <AmountInput autoFocus={!initial} onChange={setAmount} value={amount} />
+        <AmountInput autoFocus={!initial} currency={methodCurrency} onChange={setAmount} value={amount} />
       </Field>
 
       <ItemField

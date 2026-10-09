@@ -43,6 +43,7 @@
     "edit": "Editar"
   },
   "month": {
+    "confirmDeleteExchange": "¿Eliminar este cambio de moneda?",
     "charges": "Se carga {date}",
     "charged": "Cargado {date}",
     "goalToGo": "Meta {goal} · faltan {amount}",
@@ -109,6 +110,13 @@
     "addFirst": "Agregar ingreso"
   },
   "add": {
+    "exchange": "Cambio",
+    "exchangeGave": "Diste",
+    "exchangeGot": "Recibiste",
+    "exchangeHint": "Mueve dinero entre tus carteras al tipo de cambio que te dieron. No es gasto ni ingreso.",
+    "saveExchange": "Guardar cambio",
+    "exchangeTitle": "Cambio de moneda",
+    "currency": "Moneda",
     "expense": "Gasto",
     "income": "Ingreso",
     "amount": "Monto",
@@ -131,8 +139,14 @@
     "itemCategory": "En {category}"
   },
   "settings": {
+    "addWallet": "Agregar una cartera en otra moneda",
+    "walletCurrency": "Moneda",
+    "walletName": "Nombre",
+    "walletNamePlaceholder": "p. ej. Dólares",
+    "archiveWallet": "Archivar cartera",
+    "confirmArchiveWallet": "¿Archivar esta cartera? Sus registros la conservan; solo dejará de ofrecerse para nuevos.",
     "currency": "Moneda principal",
-    "currencyHint": "Los montos se muestran en esta moneda. Cambiarla solo cambia la etiqueta; no los convierte.",
+    "currencyHint": "El balance, lo necesario por día y los promedios están en esta moneda. Los montos en otras monedas (como una cartera en dólares) se muestran aparte, sin convertirlos.",
     "incomeGroups": "Grupos de ingreso",
     "incomeGroupsHint": "Agrupa fuentes para ver su ingreso neto, como Plataformas (Uber, Didi) después de los gastos del carro.",
     "groupsEmpty": "Todavía no hay grupos de ingreso.",
@@ -190,6 +204,8 @@
     "rhythmDaysHint": "Días del mes separados por comas. Un día después del fin de mes cae en su último día."
   },
   "errors": {
+    "exchangeCurrencies": "Elige dos monedas distintas.",
+    "walletExists": "Ya hay una cartera en esta moneda.",
     "amount": "Ingresa un monto mayor a cero, con hasta dos decimales.",
     "description": "Agrega una descripción breve.",
     "date": "Elige una fecha válida.",

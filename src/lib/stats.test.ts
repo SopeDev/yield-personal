@@ -127,3 +127,22 @@ test("the editor names group stats from the group list even in a month without t
   assert.equal(statShown("groupNet:rideshare", ctx), false);
   assert.deepEqual(availableStats(ctx, [{ id: "rideshare" }]).filter((ref) => ref.startsWith("group")), ["groupGross:rideshare", "groupNet:rideshare"]);
 });
+
+test("other currencies are noted beside the main currency's figures, never added to them", () => {
+  const data: LedgerData = {
+    categories: [food, car], purchases: [purchase("gas", "2026-10-02", 40000, car)], incomes: [income("i1", "2026-10-03", 150000, uber)],
+    incomeGroups: [], definitions: [], overrides: [], recurringHistory: [], statements: [], savingsMovements: [],
+  };
+  const summary = summarizeMonth(data, "2026-10");
+  const others = [{ currency: "USD", incomeCents: 30000, spendingCents: 2500, toPayCents: 2500, outstandingCents: 0 }];
+  const ctx = monthStatContext({
+    view: { ...summary, purchases: data.purchases, others }, today: "2026-10-10", settings: noSettings,
+    cashOnHandCents: 500000, otherCash: [{ currency: "USD", cents: 12000 }],
+  });
+  const [incomeStat, spendingStat, outstandingStat, cashStat] = resolveStats(["income", "spending", "outstanding", "cashOnHand"], ctx, en).map((stat) => stat.value);
+  assert.deepEqual(incomeStat, { cents: 150000, note: { text: "+ US$300.00", tone: "muted" } });
+  assert.deepEqual(spendingStat, { cents: 40000, note: { text: "+ US$25.00", tone: "muted" } });
+  // Nothing outstanding in dollars, so no note.
+  assert.equal(outstandingStat?.note, undefined);
+  assert.deepEqual(cashStat, { cents: 500000, tone: "gain", note: { text: "+ US$120.00", tone: "muted" } });
+});

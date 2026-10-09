@@ -22,7 +22,16 @@ export default async function IncomePage({ params, searchParams }: PageProps<"/[
   const messages = getDictionary(locale);
 
   const [view, cardSettings] = await Promise.all([loadMonthView(userId, month, currentMonthKey()), loadCardSettings(userId, "income")]);
-  const { incomes, income } = view;
+  // The card and source totals are the main currency's; income in other currencies is listed and totalled apart.
+  const { income, lists: { incomes } } = view;
+  const otherBySource = [...incomes.filter((item) => (item.currency ?? view.currency) !== view.currency)
+    .reduce((totals, item) => {
+      const key = `${item.source.id}:${item.currency}`;
+      const current = totals.get(key) ?? { source: item.source, currency: item.currency ?? view.currency, totalCents: 0 };
+      current.totalCents += item.amountCents;
+      return totals.set(key, current);
+    }, new Map<string, { source: (typeof incomes)[number]["source"]; currency: string; totalCents: number }>())
+    .values()];
   const today = todayKey();
   const summary = summaryCardFor("income", { view, today, ...cardSettings });
   const groupNames = new Map(income.byGroup.map(({ group }) => [group.id, group.name]));
@@ -33,12 +42,15 @@ export default async function IncomePage({ params, searchParams }: PageProps<"/[
 
       <SummaryCard context={summary.context} customizeHref={`/${locale}/settings/cards/income`} layout={summary.layout} messages={messages} />
 
-      {income.bySource.length > 0 ? (
+      {income.bySource.length > 0 || otherBySource.length > 0 ? (
         <Section title={messages.income.bySource}>
           <Card>
             <dl className="divide-y divide-border">
               {income.bySource.map(({ source, totalCents }) => (
                 <Row key={source.id} label={source.name}><Money cents={totalCents} /></Row>
+              ))}
+              {otherBySource.map(({ source, currency, totalCents }) => (
+                <Row key={`${source.id}:${currency}`} label={`${source.name} · ${currency}`}><Money cents={totalCents} currency={currency} /></Row>
               ))}
             </dl>
           </Card>
@@ -63,6 +75,7 @@ export default async function IncomePage({ params, searchParams }: PageProps<"/[
                     {day.items.map((item) => (
                       <EntryRow
                         cents={item.amountCents}
+                        currency={item.currency}
                         color="var(--color-gain)"
                         details={item.note ?? (item.source.groupId ? groupNames.get(item.source.groupId) : undefined) ?? messages.month.income}
                         href={`/${locale}/edit/income/${item.id}`}

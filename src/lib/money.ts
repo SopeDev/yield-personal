@@ -9,21 +9,30 @@ export function isCurrency(value: string): value is Currency {
   return (CURRENCIES as readonly string[]).includes(value);
 }
 
-// One format for both languages ("$1,230.00"), with the currency's own short symbol ("$", "€").
+/** A stored currency code as a known currency; anything else (or none, in records made before currencies) is the default. */
+export function currencyOf(value: string | null | undefined): Currency {
+  return value && isCurrency(value) ? value : DEFAULT_CURRENCY;
+}
+
+// One format for both languages ("$1,230.00"), with the currency's own short symbol ("$", "€"). An amount outside
+// the main currency uses a distinct symbol instead ("US$", "MX$", "CA$", "€"), so dollars never read as pesos.
 const formats = new Map<string, Intl.NumberFormat>();
-function currencyFormat(currency: Currency, wholeUnits = false) {
-  const key = `${currency}:${wholeUnits}`;
+function currencyFormat(code: string, { wholeUnits = false, distinct = false } = {}) {
+  const currency = currencyOf(code);
+  const key = `${currency}:${wholeUnits}:${distinct}`;
   let numberFormat = formats.get(key);
   if (!numberFormat) {
-    numberFormat = new Intl.NumberFormat("es-MX", { style: "currency", currency, currencyDisplay: "narrowSymbol", ...(wholeUnits ? { maximumFractionDigits: 0 } : {}) });
+    numberFormat = distinct
+      ? new Intl.NumberFormat("en-GB", { style: "currency", currency, currencyDisplay: "symbol", ...(wholeUnits ? { maximumFractionDigits: 0 } : {}) })
+      : new Intl.NumberFormat("es-MX", { style: "currency", currency, currencyDisplay: "narrowSymbol", ...(wholeUnits ? { maximumFractionDigits: 0 } : {}) });
     formats.set(key, numberFormat);
   }
   return numberFormat;
 }
 
-/** The currency's short symbol, as amounts show it ("$", "€"). */
-export function currencySymbol(currency: Currency) {
-  return currencyFormat(currency).formatToParts(0).find((part) => part.type === "currency")?.value ?? currency;
+/** The currency's symbol, as amounts show it: short ("$", "€"), or `distinct` ("US$") outside the main currency. */
+export function currencySymbol(currency: string, distinct = false) {
+  return currencyFormat(currency, { distinct }).formatToParts(0).find((part) => part.type === "currency")?.value ?? currency;
 }
 
 /** Parses user input like "1,230.50" or "$410" into cents (hundredths). Returns null when invalid or not positive. */
@@ -35,14 +44,22 @@ export function parseAmountToCents(input: string): number | null {
   return cents > 0 && Number.isSafeInteger(cents) ? cents : null;
 }
 
-/** An amount stored in hundredths ("cents"), in the given currency: "$1,230.00". */
-export function formatCents(cents: number, currency: Currency) {
-  return currencyFormat(currency).format(cents / 100);
+/**
+ * An amount stored in hundredths ("cents"), in the given currency: "$1,230.00", or with a `distinct` symbol
+ * ("US$1,230.00") when it isn't in the main currency.
+ */
+export function formatCents(cents: number, currency: string, distinct = false) {
+  return currencyFormat(currency, { distinct }).format(cents / 100);
+}
+
+/** An amount in its own currency, with a distinct symbol unless that's the main currency. */
+export function formatCentsIn(cents: number, currency: string, mainCurrency: string) {
+  return formatCents(cents, currency, currencyOf(currency) !== currencyOf(mainCurrency));
 }
 
 /** Whole units ("$1,230"), for dense grids where cents don't fit. */
-export function formatWholeUnits(cents: number, currency: Currency) {
-  return currencyFormat(currency, true).format(Math.round(cents / 100));
+export function formatWholeUnits(cents: number, currency: string) {
+  return currencyFormat(currency, { wholeUnits: true }).format(Math.round(cents / 100));
 }
 
 /** Largest amount the amount input accepts: 9,999,999.99. */

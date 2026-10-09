@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { Fragment, type ReactNode } from "react";
-import { deleteIncome, deletePurchase } from "@/app/actions/entries";
+import { deleteExchange, deleteIncome, deletePurchase } from "@/app/actions/entries";
 import { setOccurrencePaid } from "@/app/actions/recurring";
 import { DeleteButton } from "@/components/delete-button";
 import { EntryRow } from "@/components/entry-row";
 import { Money } from "@/components/money";
 import { StatementRow } from "@/components/statement-row";
 import { SummaryCard } from "@/components/summary-card";
-import { formatCents } from "@/lib/money";
+import { formatCentsIn } from "@/lib/money";
 import { MonthNav } from "@/components/month-nav";
 import { OccurrenceAmountForm } from "@/components/occurrence-amount-form";
 import { PaidCheck, PaidCheckForm, StatusBadge } from "@/components/paid-toggle";
@@ -28,7 +28,11 @@ import { monthFromSearchParam } from "@/lib/search-params";
 import { currentMonthKey, todayKey } from "@/lib/today";
 import { cn } from "@/lib/cn";
 
-type DayItem = { kind: "purchase"; entry: MonthSpendingEntry; date: Date } | { kind: "income"; income: LedgerIncome; date: Date };
+type Exchange = Awaited<ReturnType<typeof loadMonthView>>["lists"]["exchanges"][number];
+type DayItem =
+  | { kind: "purchase"; entry: MonthSpendingEntry; date: Date }
+  | { kind: "income"; income: LedgerIncome; date: Date }
+  | { kind: "exchange"; exchange: Exchange; date: Date };
 
 export default async function MonthPage({ params, searchParams }: PageProps<"/[locale]/month">) {
   const { locale } = await params;
@@ -46,13 +50,18 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
     loadCardSettings(userId, "month"),
   ]);
 
-  const { cards, entries, incomes, occurrences, statements, spending, cashFlow } = view;
+  // Listed in every currency; the summary card and By category are the main currency's.
+  const { cards, statements, spending, lists: { entries, incomes, occurrences, statementsClosing, carriedStatements, carriedOccurrences, exchanges } } = view;
   const statementCards = new Map(cards.map((card) => [card.id, card]));
   // Active methods to move a month's bill to, plus its current one if since archived.
-  const methodOptions = methods.map((method) => ({ id: method.id, label: paymentMethodLabel(method, messages.common.cash), color: method.color, isCard: method.kind === "CARD" }));
-  const methodOptionsFor = (current: LedgerPaymentMethod) => methodOptions.some((option) => option.id === current.id)
-    ? methodOptions
-    : [...methodOptions, { id: current.id, label: paymentMethodLabel(current, messages.common.cash), color: current.color, isCard: current.kind === "CARD" }];
+  // A bill moves only between methods in its own currency: amounts are never converted.
+  const methodOptions = methods.map((method) => ({ id: method.id, label: paymentMethodLabel(method, messages.common.cash), color: method.color, isCard: method.kind === "CARD", currency: method.currency }));
+  const methodOptionsFor = (current: LedgerPaymentMethod) => {
+    const sameCurrency = methodOptions.filter((option) => option.currency === (current.currency ?? view.currency));
+    return sameCurrency.some((option) => option.id === current.id)
+      ? sameCurrency
+      : [...sameCurrency, { id: current.id, label: paymentMethodLabel(current, messages.common.cash), color: current.color, isCard: current.kind === "CARD", currency: current.currency ?? view.currency }];
+  };
   const toggleLabels = { paid: messages.common.paid, markPaid: messages.common.markPaid, markUnpaid: messages.common.markUnpaid };
 
   // Installments of purchases made in earlier months are listed apart from this month's days.
@@ -63,6 +72,7 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
   const dayItems: DayItem[] = [
     ...visibleEntries.filter((entry) => entry.installmentNumber === 1).map((entry) => ({ kind: "purchase" as const, entry, date: entry.purchase.date })),
     ...(itemFilter ? [] : incomes).map((item) => ({ kind: "income" as const, income: item, date: item.date })),
+    ...(itemFilter ? [] : exchanges).map((exchange) => ({ kind: "exchange" as const, exchange, date: exchange.date })),
   ].sort((a, b) => b.date.getTime() - a.date.getTime());
   const today = todayKey();
   const summary = summaryCardFor("month", { view, today, ...cardSettings });
@@ -79,6 +89,7 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
       <EntryRow
         cents={entry.amountCents}
         color={purchase.paymentMethod.color}
+        currency={purchase.paymentMethod.currency}
         details={details}
         href={`/${locale}/edit/purchase/${purchase.id}`}
         key={purchase.id}
@@ -88,7 +99,6 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
     );
   }
 
-  /** A recurring payment's month; a carried one (an unpaid cash bill from an earlier month) also names its month. */
   /**
    * A recurring payment's month, dated by what happens that day: a cash bill is due (yellow 1–2 days before,
    * red on the day and after, until paid); a card bill is charged to the card, which its statement then pays.
@@ -139,12 +149,12 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
             {occurrence.estimated ? (
               // Paid by confirming it, so it shows its status instead of a paid check.
               <>
-                <span className="font-mono tabular-nums">≈ {formatCents(occurrence.amountCents, cardSettings.settings.currency)}</span>
+                <span className="font-mono tabular-nums">≈ {formatCentsIn(occurrence.amountCents, recurring.paymentMethod.currency ?? view.currency, view.currency)}</span>
                 <StatusBadge labels={messages.common} paid={status.paid} />
               </>
             ) : (
               <>
-                <Money cents={occurrence.amountCents} />
+                <Money cents={occurrence.amountCents} currency={recurring.paymentMethod.currency} />
                 {recurring.paymentMethod.kind === "CASH" ? (
                   <PaidCheck formId={paidFormId} labels={toggleLabels} paid={status.paid} />
                 ) : (
@@ -175,12 +185,12 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
 
       <SummaryCard context={summary.context} customizeHref={`/${locale}/settings/cards/month`} layout={summary.layout} messages={messages} />
 
-      {cashFlow.carriedStatements.length > 0 || cashFlow.carriedOccurrences.length > 0 ? (
+      {carriedStatements.length > 0 || carriedOccurrences.length > 0 ? (
         <Section title={messages.month.carriedTitle}>
           <Card className="border-loss/40">
             <ul className="divide-y divide-border">
-              {cashFlow.carriedOccurrences.map((occurrence) => occurrenceRow(occurrence))}
-              {cashFlow.carriedStatements.map((statement) => (
+              {carriedOccurrences.map((occurrence) => occurrenceRow(occurrence))}
+              {carriedStatements.map((statement) => (
                 <StatementRow card={statementCards.get(statement.paymentMethodId)} key={`${statement.paymentMethodId}-${statement.month}`} locale={locale} messages={messages} statement={statement} today={today} />
               ))}
             </ul>
@@ -205,11 +215,11 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
         </Section>
       )}
 
-      {cashFlow.statementsClosing.length > 0 ? (
+      {statementsClosing.length > 0 ? (
         <Section title={messages.month.statements}>
           <Card>
             <ul className="divide-y divide-border">
-              {cashFlow.statementsClosing.map((statement) => (
+              {statementsClosing.map((statement) => (
                 <StatementRow card={statementCards.get(statement.paymentMethodId)} key={`${statement.paymentMethodId}-${statement.month}`} locale={locale} messages={messages} statement={statement} today={today} />
               ))}
             </ul>
@@ -246,9 +256,23 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
                 <Card>
                   <ul className="divide-y divide-border">
                     {day.items.map((item) =>
-                      item.kind === "purchase" ? purchaseRow(item.entry) : (
+                      item.kind === "purchase" ? purchaseRow(item.entry) : item.kind === "exchange" ? (
+                        <EntryRow
+                          cents={item.exchange.toCents}
+                          color="var(--color-muted-foreground)"
+                          currency={item.exchange.toCurrency}
+                          details={[
+                            `${formatCentsIn(item.exchange.fromCents, item.exchange.fromCurrency, view.currency)} → ${formatCentsIn(item.exchange.toCents, item.exchange.toCurrency, view.currency)}`,
+                            item.exchange.note,
+                          ].filter(Boolean).join(" · ")}
+                          key={item.exchange.id}
+                          title={messages.add.exchangeTitle}
+                          trailing={<DeleteButton action={deleteExchange} confirmMessage={messages.month.confirmDeleteExchange} id={item.exchange.id} label={messages.common.delete} locale={locale} />}
+                        />
+                      ) : (
                         <EntryRow
                           cents={item.income.amountCents}
+                          currency={item.income.currency}
                           color="var(--color-gain)"
                           details={[messages.month.income, item.income.note].filter(Boolean).join(" · ")}
                           href={`/${locale}/edit/income/${item.income.id}`}

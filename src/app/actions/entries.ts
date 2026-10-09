@@ -6,7 +6,8 @@ import { z } from "zod";
 import { db } from "@/db/client";
 import { MAX_INSTALLMENTS } from "@/lib/installments";
 import { resolveItem } from "@/lib/item-resolution";
-import { parseAmountToCents } from "@/lib/money";
+import { isCurrency, parseAmountToCents } from "@/lib/money";
+import { getMainCurrency } from "@/lib/queries";
 import { dateFromKey, isDateKey } from "@/lib/months";
 import { localeFromForm, requireActionUserId } from "./action-user";
 import type { FormState } from "./form-state";
@@ -81,8 +82,11 @@ async function parseIncome(userId: string, formData: FormData, { isEdit }: { isE
 
   const source = await db.incomeSource.findFirst({ where: { id: sourceId, userId, ...(isEdit ? {} : { archivedAt: null }) }, select: { id: true } });
   if (!source) return { fieldErrors: { sourceId: "source" } as FormState["fieldErrors"] };
+  // Income lands in the cash wallet of its currency (the main currency when the form doesn't ask).
+  const currency = readText(formData, "currency") || await getMainCurrency(userId);
+  if (!isCurrency(currency)) return { fieldErrors: { currency: "generic" } as FormState["fieldErrors"] };
 
-  return { data: { sourceId, date: dateFromKey(date), amountCents: amountCents!, note: note || null }, month: date.slice(0, 7) };
+  return { data: { sourceId, date: dateFromKey(date), amountCents: amountCents!, currency, note: note || null }, month: date.slice(0, 7) };
 }
 
 export async function createPurchase(_state: FormState, formData: FormData): Promise<FormState> {
@@ -158,5 +162,45 @@ export async function deleteIncome(formData: FormData) {
   const id = readText(formData, "id");
   if (!isUuid(id)) return;
   await db.income.deleteMany({ where: { id, userId } });
+  revalidatePath(`/${localeFromForm(formData)}`, "layout");
+}
+
+/**
+ * Records money changed from one currency to another: what left the `from` currency's cash wallet and what arrived
+ * in the `to` currency's. It's neither spending nor income, so it only moves money on hand.
+ */
+export async function createExchange(_state: FormState, formData: FormData): Promise<FormState> {
+  const userId = await requireActionUserId();
+  const locale = localeFromForm(formData);
+  const date = readText(formData, "date");
+  const fromCurrency = readText(formData, "fromCurrency");
+  const toCurrency = readText(formData, "toCurrency");
+  const fromCents = parseAmountToCents(readText(formData, "fromAmount"));
+  const toCents = parseAmountToCents(readText(formData, "toAmount"));
+  const note = readText(formData, "note");
+
+  const fieldErrors: FormState["fieldErrors"] = {};
+  if (!isDateKey(date)) fieldErrors.date = "date";
+  if (!fromCents) fieldErrors.fromAmount = "amount";
+  if (!toCents) fieldErrors.toAmount = "amount";
+  if (!isCurrency(fromCurrency) || !isCurrency(toCurrency) || fromCurrency === toCurrency) fieldErrors.toCurrency = "exchangeCurrencies";
+  if (note.length > MAX_NOTE_LENGTH) fieldErrors.note = "generic";
+  if (Object.keys(fieldErrors).length > 0) return { fieldErrors };
+
+  const id = readClientId(formData);
+  const existing = id ? await db.currencyExchange.findUnique({ where: { id }, select: { userId: true } }) : null;
+  if (existing && existing.userId !== userId) return { error: "generic" };
+  if (!existing) {
+    await db.currencyExchange.create({ data: { id, userId, date: dateFromKey(date), fromCurrency, fromCents: fromCents!, toCurrency, toCents: toCents!, note: note || null } });
+  }
+  revalidatePath(`/${locale}`, "layout");
+  redirect(`/${locale}/month?m=${date.slice(0, 7)}`);
+}
+
+export async function deleteExchange(formData: FormData) {
+  const userId = await requireActionUserId();
+  const id = readText(formData, "id");
+  if (!isUuid(id)) return;
+  await db.currencyExchange.deleteMany({ where: { id, userId } });
   revalidatePath(`/${localeFromForm(formData)}`, "layout");
 }

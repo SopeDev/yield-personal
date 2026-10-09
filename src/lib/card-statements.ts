@@ -3,7 +3,7 @@ import { addMonths, monthKeyOf, type MonthKey } from "./months";
 import { occurrencesForMonth, type ConfirmedAmount, type OccurrenceOverride, type RecurringDefinition, type RecurringOccurrence } from "./recurring";
 import { buildStatements, type Statement } from "./statements";
 
-type Card = { id: string; closingDay: number | null; paymentDays: number | null };
+type Card = { id: string; closingDay: number | null; paymentDays: number | null; currency?: string };
 type CardPurchase = { id: string; date: Date; amountCents: number; installmentCount: number; note: string | null; item: { name: string }; paymentMethod: { id: string } };
 
 /**
@@ -29,7 +29,7 @@ export function statementsForCards({ cards, purchases, definitions, overrides, r
   return cards.flatMap((card) => {
     if (card.closingDay == null || card.paymentDays == null) return [];
     return buildStatements(
-      { id: card.id, closingDay: card.closingDay, paymentDays: card.paymentDays },
+      { id: card.id, closingDay: card.closingDay, paymentDays: card.paymentDays, currency: card.currency },
       purchases
         .filter((purchase) => purchase.paymentMethod.id === card.id)
         .map((purchase) => ({ ...purchase, description: purchase.item.name })),

@@ -4,15 +4,17 @@ import Link from "next/link";
 import { useState, type ComponentProps } from "react";
 import type { Messages } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
+import { ExchangeForm } from "./exchange-form";
 import { ExpenseForm } from "./expense-form";
 import { IncomeForm } from "./income-form";
 import { Card } from "./section";
 
-type EntryType = "expense" | "income";
+export type EntryType = "expense" | "income" | "exchange";
 
 /**
- * Quick add with Expense and Income tabs. Switching tabs keeps the typed amount, and the URL follows the tab so
- * a reload opens the same one.
+ * Quick add with Expense and Income tabs, plus Exchange once there are cash wallets in several currencies.
+ * Switching between Expense and Income keeps the typed amount, and the URL follows the tab so a reload opens the
+ * same one.
  */
 export function AddEntry({ locale, messages, initialType, expense, income }: {
   locale: string;
@@ -26,17 +28,19 @@ export function AddEntry({ locale, messages, initialType, expense, income }: {
 
   function switchTo(next: EntryType) {
     setType(next);
-    window.history.replaceState(null, "", `/${locale}/add${next === "income" ? "?type=income" : ""}`);
+    window.history.replaceState(null, "", `/${locale}/add${next === "expense" ? "" : `?type=${next}`}`);
   }
 
+  const canExchange = income.currencies.length > 1;
   const tabs = [
     { type: "expense", label: messages.add.expense },
     { type: "income", label: messages.add.income },
+    ...(canExchange ? [{ type: "exchange", label: messages.add.exchange }] as const : []),
   ] as const;
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-surface p-1" role="tablist">
+      <div className={cn("grid gap-1 rounded-xl border border-border bg-surface p-1", canExchange ? "grid-cols-3" : "grid-cols-2")} role="tablist">
         {tabs.map((tab) => (
           <button
             aria-selected={tab.type === type}
@@ -53,6 +57,8 @@ export function AddEntry({ locale, messages, initialType, expense, income }: {
 
       {type === "expense" ? (
         <ExpenseForm {...expense} amount={amount} locale={locale} messages={messages} onAmountChange={setAmount} />
+      ) : type === "exchange" && canExchange ? (
+        <ExchangeForm currencies={income.currencies} locale={locale} messages={messages} today={income.today} />
       ) : income.sources.length > 0 ? (
         <IncomeForm {...income} amount={amount} locale={locale} messages={messages} onAmountChange={setAmount} />
       ) : (

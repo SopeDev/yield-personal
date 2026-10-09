@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { amountAfterInput, currencySymbol, formatAmountInput, formatCents, formatWholeUnits, parseAmountToCents } from "./money";
+import { amountAfterInput, currencySymbol, formatAmountInput, formatCents, formatCentsIn, formatWholeUnits, parseAmountToCents } from "./money";
 
 test("parses amounts into centavos", () => {
   assert.equal(parseAmountToCents("410"), 41000);
@@ -21,6 +21,13 @@ test("formats amounts in the user's currency", () => {
   assert.equal(formatCents(123000, "EUR"), "€1,230.00");
   assert.equal(currencySymbol("CAD"), "$");
   assert.equal(currencySymbol("EUR"), "€");
+});
+
+test("amounts outside the main currency get a symbol that can't be mistaken for it", () => {
+  assert.equal(formatCentsIn(30000, "USD", "MXN"), "US$300.00");
+  assert.equal(formatCentsIn(30000, "MXN", "USD"), "MX$300.00");
+  assert.equal(formatCentsIn(30000, "MXN", "MXN"), "$300.00");
+  assert.equal(currencySymbol("USD", true), "US$");
 });
 
 test("formats whole units for dense grids", () => {

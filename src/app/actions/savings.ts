@@ -3,8 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db/client";
-import { parseAmountToCents } from "@/lib/money";
+import { isCurrency, parseAmountToCents } from "@/lib/money";
 import { dateFromKey, isDateKey } from "@/lib/months";
+import { getMainCurrency } from "@/lib/queries";
 import { localeFromForm, requireActionUserId } from "./action-user";
 import type { FormState } from "./form-state";
 
@@ -73,7 +74,10 @@ export async function createGoalFund(_state: FormState, formData: FormData): Pro
   if (!targetCents) fieldErrors.target = "amount";
   if (Object.keys(fieldErrors).length > 0) return { fieldErrors };
 
-  await db.savingsFund.create({ data: { userId, kind: "GOAL", name, targetCents } });
+  // A goal saves in one currency, moved from and to that currency's cash wallet.
+  const currency = readText(formData, "currency") || await getMainCurrency(userId);
+  if (!isCurrency(currency)) return { fieldErrors: { currency: "generic" } };
+  await db.savingsFund.create({ data: { userId, kind: "GOAL", name, targetCents, currency } });
   revalidatePath(`/${localeFromForm(formData)}`, "layout");
   return {};
 }

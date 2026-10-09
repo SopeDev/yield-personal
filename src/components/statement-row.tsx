@@ -44,7 +44,7 @@ export function StatementRow({ statement, card, today, locale, messages }: {
         <p className={cn("truncate text-sm text-muted-foreground", closed && !statement.paid && "font-medium text-gain")}>{closingLabel}</p>
         <p className={cn("truncate text-sm", due.tone, due.tone !== "text-muted-foreground" && "font-medium")}>{due.text}</p>
       </Link>
-      <Money cents={statement.totalCents} />
+      <Money cents={statement.totalCents} currency={statement.currency} />
       <PaidToggle
         action={setStatementPaid}
         fields={{ locale, paymentMethodId: statement.paymentMethodId, statementMonth: statement.month }}

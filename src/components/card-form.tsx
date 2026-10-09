@@ -6,13 +6,22 @@ import type { FormState } from "@/app/actions/form-state";
 import type { Messages } from "@/i18n/dictionaries";
 import { DEFAULT_PAYMENT_DAYS, MAX_PAYMENT_DAYS } from "@/lib/statements";
 import { CARD_COLORS, MAX_STATEMENT_DAY } from "@/lib/payment-methods";
-import { Field, inputClass, SubmitButton } from "./form-controls";
+import { Chip, Field, inputClass, SubmitButton } from "./form-controls";
 
 /** Values of an existing card being edited. */
 export type CardInitial = { id: string; name: string; color: string; closingDay: number; paymentDays: number };
 
-/** Adds a card, or edits one when `initial` is given. */
-export function CardForm({ locale, messages, usedColors, initial }: { locale: string; messages: Messages; usedColors: string[]; initial?: CardInitial }) {
+/**
+ * Adds a card, or edits one when `initial` is given. A new card picks its currency from `currencies` (the main one
+ * first); it's fixed after that, since changing it would relabel every charge.
+ */
+export function CardForm({ locale, messages, usedColors, initial, currencies = [] }: {
+  locale: string;
+  messages: Messages;
+  usedColors: string[];
+  initial?: CardInitial;
+  currencies?: { code: string; name: string }[];
+}) {
   const [state, formAction, pending] = useActionState<FormState, FormData>(initial ? updateCard : createCard, {});
   const errors = state.fieldErrors ?? {};
   const selectedColor = initial?.color ?? CARD_COLORS.find((color) => !usedColors.includes(color)) ?? CARD_COLORS[0];
@@ -25,6 +34,16 @@ export function CardForm({ locale, messages, usedColors, initial }: { locale: st
       <Field error={errors.name} errors={messages.errors} htmlFor={`${idPrefix}-name`} label={messages.settings.cardName}>
         <input className={inputClass} defaultValue={initial?.name} id={`${idPrefix}-name`} maxLength={40} name="name" placeholder={messages.settings.cardNamePlaceholder} required />
       </Field>
+
+      {!initial && currencies.length > 1 ? (
+        <Field error={errors.currency} errors={messages.errors} label={messages.settings.walletCurrency}>
+          <div className="flex flex-wrap gap-2">
+            {currencies.map((currency, index) => (
+              <Chip defaultChecked={index === 0} key={currency.code} label={`${currency.code} · ${currency.name}`} name="currency" value={currency.code} />
+            ))}
+          </div>
+        </Field>
+      ) : null}
 
       <Field error={errors.color} errors={messages.errors} label={messages.settings.color}>
         <div className="flex flex-wrap gap-3">

@@ -17,19 +17,26 @@ export type StatNote = { text: string; tone: StatTone };
 /** A figure ready to show, or null when it has no value this month (shown as "–"). */
 export type StatValue = { cents: number; tone?: StatTone; note?: StatNote } | null;
 
+/** A month's totals in a currency other than the main one. */
+export type OtherCurrencyTotals = { currency: string; incomeCents: number; spendingCents: number; toPayCents: number; outstandingCents: number };
+
 /** Settings that shape month figures; the income rhythm defaults to daily. */
 export type StatSettings = { balanceGoalCents: number | null; historyStartMonth: MonthKey | null; incomeRhythm?: IncomeRhythm; currency?: Currency };
 
 /** A month's figures from which every stat is calculated, plus money on hand, which is the same in every month. */
-export function monthStatContext({ view, today, settings, cashOnHandCents = null, incomeGroups = [] }: {
+export function monthStatContext({ view, today, settings, cashOnHandCents = null, otherCash = [], incomeGroups = [] }: {
   view: Pick<MonthSummary, "month" | "entries" | "incomes" | "income" | "spending" | "cashFlow" | "savingsNetCents" | "balanceCents"> & {
     purchases: LedgerPurchase[];
+    /** Each other currency's totals this month, noted beside the main currency's (never added to them). */
+    others?: OtherCurrencyTotals[];
   };
   /** Today as "YYYY-MM-DD". */
   today: string;
   settings: StatSettings;
-  /** Money on hand now (`loadCashOnHand`), or null when it isn't set or loaded. */
+  /** Money on hand now in the main currency's wallet (`loadCashOnHand`), or null when it isn't set or loaded. */
   cashOnHandCents?: number | null;
+  /** Money on hand in wallets of other currencies, noted beside it. */
+  otherCash?: { currency: string; cents: number }[];
   /** Income groups to name in group stats even in a month without their income, as the card editor lists them. */
   incomeGroups?: { id: string; name: string }[];
 }) {
@@ -45,7 +52,9 @@ export function monthStatContext({ view, today, settings, cashOnHandCents = null
   return {
     ...view,
     currency: settings.currency ?? DEFAULT_CURRENCY,
+    others: view.others ?? [],
     cashOnHandCents,
+    otherCash,
     incomeGroups,
     goalCents,
     rhythm,
@@ -71,6 +80,17 @@ type StatDefinition = {
   shown?: (context: StatContext, param: string) => boolean;
   value: (context: StatContext, messages: Messages, param: string) => StatValue;
 };
+
+/** A value with a note below it, leaving the note out entirely when there is none. */
+function withNote(value: Exclude<StatValue, null>, note: StatNote | undefined): StatValue {
+  return note ? { ...value, note } : value;
+}
+
+/** "+ US$120.00" for each other currency with an amount of this kind this month, or none. */
+function othersNote(others: OtherCurrencyTotals[], field: Exclude<keyof OtherCurrencyTotals, "currency">): StatNote | undefined {
+  const parts = others.filter((other) => other[field] !== 0).map((other) => `+ ${formatCents(other[field], other.currency, true)}`);
+  return parts.length > 0 ? { text: parts.join(" · "), tone: "muted" } : undefined;
+}
 
 const signTone = (cents: number): StatTone => (cents < 0 ? "loss" : "gain");
 const zeroIsGain = (cents: number): StatTone | undefined => (cents === 0 ? "gain" : undefined);
@@ -101,37 +121,36 @@ const STATS = {
   },
   income: {
     label: (_, messages) => messages.month.income,
-    value: ({ income }) => ({ cents: income.totalCents }),
+    value: ({ income, others }) => withNote({ cents: income.totalCents }, othersNote(others, "incomeCents")),
   },
   /** Total income, with the number of days that had any. */
   totalIncome: {
     label: (_, messages) => messages.income.total,
-    value: ({ income }, messages) => ({
-      cents: income.totalCents,
-      tone: "gain",
-      note: income.daysWithIncome === 0 ? undefined : {
-        text: income.daysWithIncome === 1 ? messages.income.daysWithIncomeOne : format(messages.income.daysWithIncome, { count: income.daysWithIncome }),
-        tone: "muted",
-      },
-    }),
+    value: ({ income, others }, messages) => {
+      const days = income.daysWithIncome === 0 ? null
+        : income.daysWithIncome === 1 ? messages.income.daysWithIncomeOne : format(messages.income.daysWithIncome, { count: income.daysWithIncome });
+      const otherIncome = othersNote(others, "incomeCents")?.text ?? null;
+      const text = [otherIncome, days].filter(Boolean).join(" · ");
+      return withNote({ cents: income.totalCents, tone: "gain" }, text ? { text, tone: "muted" } : undefined);
+    },
   },
   spending: {
     label: (_, messages) => messages.month.spending,
-    value: ({ spending }) => ({ cents: spending.totalCents }),
+    value: ({ spending, others }) => withNote({ cents: spending.totalCents }, othersNote(others, "spendingCents")),
   },
   toPay: {
     label: (_, messages) => messages.month.toPay,
-    value: ({ cashFlow }) => ({ cents: cashFlow.toPayCents }),
+    value: ({ cashFlow, others }) => withNote({ cents: cashFlow.toPayCents }, othersNote(others, "toPayCents")),
   },
   /** Unpaid bills and statements, noting what was carried from earlier months. */
   outstanding: {
     label: (_, messages) => messages.month.outstanding,
-    value: ({ cashFlow, currency }, messages) => ({
+    value: ({ cashFlow, currency, others }, messages) => ({
       cents: cashFlow.outstandingCents,
       tone: cashFlow.outstandingCents > 0 ? "warning" : undefined,
       note: cashFlow.carriedOutstandingCents > 0
         ? { text: format(messages.month.includesCarried, { amount: formatCents(cashFlow.carriedOutstandingCents, currency) }), tone: "loss" }
-        : undefined,
+        : othersNote(others, "outstandingCents"),
     }),
   },
   /** Income needed per remaining day; with a goal, the goal's daily target leads and breaking even is noted below. */
@@ -224,7 +243,11 @@ const STATS = {
   /** Money on hand right now (cash, debit, and app balances outside savings), whatever the month; none until set in Settings. */
   cashOnHand: {
     label: (_, messages) => messages.month.cashOnHand,
-    value: ({ cashOnHandCents }) => (cashOnHandCents === null ? null : { cents: cashOnHandCents, tone: signTone(cashOnHandCents) }),
+    // Wallets in other currencies are noted, never added: currencies aren't converted.
+    value: ({ cashOnHandCents, otherCash }) => (cashOnHandCents === null ? null : withNote(
+      { cents: cashOnHandCents, tone: signTone(cashOnHandCents) },
+      otherCash.length > 0 ? { text: otherCash.map((cash) => `+ ${formatCents(cash.cents, cash.currency, true)}`).join(" · "), tone: "muted" } : undefined,
+    )),
   },
   /** An income group's gross; the parameter is the group's id. */
   groupGross: {

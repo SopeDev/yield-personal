@@ -78,7 +78,7 @@ export default async function CardsPage({ params }: PageProps<"/[locale]/cards">
               {installmentsOwedCents > 0 ? (
                 <p className="text-right text-xs text-muted-foreground">
                   {messages.cards.msiOwed}
-                  <Money cents={installmentsOwedCents} className="block text-sm text-foreground" />
+                  <Money cents={installmentsOwedCents} className="block text-sm text-foreground" currency={card.currency} />
                 </p>
               ) : null}
             </div>
@@ -109,7 +109,7 @@ export default async function CardsPage({ params }: PageProps<"/[locale]/cards">
                             >
                               {stateLabels[state]}
                             </span>
-                            <Money cents={statement.totalCents} />
+                            <Money cents={statement.totalCents} currency={card.currency} />
                           </summary>
                           <ul className="border-t border-border bg-background/40">
                             {statement.charges.map((charge) => (
@@ -124,7 +124,7 @@ export default async function CardsPage({ params }: PageProps<"/[locale]/cards">
                                     ].filter(Boolean).join(" · ")}
                                   </p>
                                 </div>
-                                <Money cents={charge.amountCents} />
+                                <Money cents={charge.amountCents} currency={card.currency} />
                               </li>
                             ))}
                           </ul>

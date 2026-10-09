@@ -131,7 +131,7 @@ async function findOwnedRecurring(userId: string, formData: FormData) {
   if (!isUuid(id) || !isMonthKey(month)) return null;
   const recurring = await db.recurringPayment.findFirst({
     where: { id, userId },
-    select: { id: true, amountCents: true, isVariable: true, dayOfMonth: true, paymentMethod: { select: { id: true, kind: true } } },
+    select: { id: true, amountCents: true, isVariable: true, dayOfMonth: true, paymentMethod: { select: { id: true, kind: true, currency: true } } },
   });
   return recurring ? { recurring, month: dateFromKey(`${month}-01`) } : null;
 }
@@ -187,7 +187,8 @@ export async function setOccurrenceAmount(_state: FormState, formData: FormData)
   const requestedMethodId = readText(formData, "paymentMethodId") || recurring.paymentMethod.id;
   const methodChanged = requestedMethodId !== recurring.paymentMethod.id;
   const method = methodChanged
-    ? await db.paymentMethod.findFirst({ where: { id: requestedMethodId, userId, archivedAt: null }, select: { id: true, kind: true } })
+    // Only to a method in the bill's currency: switching never converts the amount.
+    ? await db.paymentMethod.findFirst({ where: { id: requestedMethodId, userId, archivedAt: null, currency: recurring.paymentMethod.currency }, select: { id: true, kind: true, currency: true } })
     : recurring.paymentMethod;
   if (!method) return { fieldErrors: { paymentMethodId: "paymentMethod" } };
 

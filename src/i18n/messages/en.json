@@ -43,6 +43,7 @@
     "edit": "Edit"
   },
   "month": {
+    "confirmDeleteExchange": "Delete this exchange?",
     "charges": "Charges {date}",
     "charged": "Charged {date}",
     "goalToGo": "Goal {goal} · {amount} to go",
@@ -109,6 +110,13 @@
     "addFirst": "Add income"
   },
   "add": {
+    "exchange": "Exchange",
+    "exchangeGave": "You gave",
+    "exchangeGot": "You got",
+    "exchangeHint": "Moves money between your cash wallets at the rate you got. It isn't spending or income.",
+    "saveExchange": "Save exchange",
+    "exchangeTitle": "Exchange",
+    "currency": "Currency",
     "expense": "Expense",
     "income": "Income",
     "amount": "Amount",
@@ -131,8 +139,14 @@
     "itemCategory": "In {category}"
   },
   "settings": {
+    "addWallet": "Add a wallet in another currency",
+    "walletCurrency": "Currency",
+    "walletName": "Name",
+    "walletNamePlaceholder": "e.g. Dollars",
+    "archiveWallet": "Archive wallet",
+    "confirmArchiveWallet": "Archive this wallet? Its records keep it; it just won't be offered for new ones.",
     "currency": "Main currency",
-    "currencyHint": "Amounts are shown in this currency. Changing it relabels them; it doesn't convert them.",
+    "currencyHint": "Balance, needed per day, and averages are in this currency. Amounts in other currencies (like a dollar wallet) are shown on their own, never converted.",
     "incomeGroups": "Income groups",
     "incomeGroupsHint": "Group sources to see their net income, like Rideshare (Uber, Didi) after Car spending.",
     "groupsEmpty": "No income groups yet.",
@@ -190,6 +204,8 @@
     "rhythmDaysHint": "Days of the month, separated by commas. A day past the month’s end falls on its last day."
   },
   "errors": {
+    "exchangeCurrencies": "Choose two different currencies.",
+    "walletExists": "There's already a wallet in this currency.",
     "amount": "Enter an amount greater than zero, with up to two decimals.",
     "description": "Add a short description.",
     "date": "Choose a valid date.",

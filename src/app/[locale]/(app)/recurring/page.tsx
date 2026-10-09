@@ -63,7 +63,7 @@ export default async function RecurringPage({ params }: PageProps<"/[locale]/rec
                         </p>
                       </div>
                       <span className={definition.isVariable ? "text-muted-foreground" : undefined}>
-                        {definition.isVariable ? "≈ " : ""}<Money cents={definition.amountCents} />
+                        {definition.isVariable ? "≈ " : ""}<Money cents={definition.amountCents} currency={definition.paymentMethod.currency} />
                       </span>
                     </summary>
                     <div className="border-t border-border bg-background/40">

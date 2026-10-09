@@ -10,6 +10,7 @@ import { categoryLabel } from "@/lib/categories";
 import { cn } from "@/lib/cn";
 import { formatDayHeading } from "@/lib/dates";
 import { loadSavingsView } from "@/lib/month-view";
+import { getActivePaymentMethods, getMainCurrency, walletCurrencies } from "@/lib/queries";
 import { currentMonthKey, todayKey } from "@/lib/today";
 
 const HISTORY_LIMIT = 20;
@@ -30,7 +31,10 @@ export default async function SavingsPage({ params }: PageProps<"/[locale]/savin
   const messages = getDictionary(locale);
   const today = todayKey();
 
-  const { average, installmentsOwedCents, movements, funds } = await loadSavingsView(userId, currentMonthKey());
+  const [{ average, installmentsOwedCents, movements, funds }, methods, mainCurrency] = await Promise.all([
+    loadSavingsView(userId, currentMonthKey()), getActivePaymentMethods(userId), getMainCurrency(userId),
+  ]);
+  const currencies = walletCurrencies(mainCurrency, methods);
   const emergency = funds.find((fund) => fund.kind === "EMERGENCY");
   const goals = funds.filter((fund) => fund.kind === "GOAL");
   const fundLabel = (fund: (typeof funds)[number]) => (fund.kind === "EMERGENCY" ? messages.savings.emergencyFund : (fund.name ?? ""));
@@ -125,7 +129,7 @@ export default async function SavingsPage({ params }: PageProps<"/[locale]/savin
                     <summary className="block cursor-pointer list-none space-y-2 px-4 py-3">
                       <div className="flex items-center justify-between gap-3">
                         <p className="truncate font-medium">{goal.name}</p>
-                        <p className="text-sm"><Money cents={goal.balanceCents} /> <span className="text-muted-foreground">/ <Money cents={goal.goalCents} /></span></p>
+                        <p className="text-sm"><Money cents={goal.balanceCents} currency={goal.currency} /> <span className="text-muted-foreground">/ <Money cents={goal.goalCents} currency={goal.currency} /></span></p>
                       </div>
                       <Progress balanceCents={goal.balanceCents} goalCents={goal.goalCents} />
                     </summary>
@@ -143,7 +147,7 @@ export default async function SavingsPage({ params }: PageProps<"/[locale]/savin
           ) : null}
           <details className={goals.length > 0 ? "border-t border-border" : undefined}>
             <summary className="flex min-h-12 cursor-pointer items-center px-4 font-medium text-primary">{messages.savings.addGoal}</summary>
-            <GoalForm locale={locale} messages={messages} />
+            <GoalForm currencies={currencies} locale={locale} messages={messages} />
           </details>
         </Card>
       </Section>
@@ -162,7 +166,7 @@ export default async function SavingsPage({ params }: PageProps<"/[locale]/savin
                       {[formatDayHeading(movement.date, today, locale, messages.common), movement.note].filter(Boolean).join(" · ")}
                     </p>
                   </div>
-                  <Money cents={movement.amountCents} className={movement.amountCents > 0 ? "text-gain" : "text-loss"} signed />
+                  <Money cents={movement.amountCents} className={movement.amountCents > 0 ? "text-gain" : "text-loss"} currency={movement.currency} signed />
                   <DeleteButton action={deleteSavingsMovement} confirmMessage={messages.savings.confirmDelete} id={movement.id} label={messages.common.delete} locale={locale} />
                 </li>
               ))}

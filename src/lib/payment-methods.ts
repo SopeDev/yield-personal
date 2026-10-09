@@ -8,6 +8,10 @@ export const MAX_STATEMENT_DAY = 31;
 
 type LabelledPaymentMethod = { kind: "CASH" | "CARD"; name: string };
 
+/** The name every user's first cash wallet is created with; it shows translated. */
+export const DEFAULT_CASH_NAME = "Cash";
+
+/** A card or a cash wallet you named shows its name; the first cash wallet shows "Cash" in the interface language. */
 export function paymentMethodLabel(method: LabelledPaymentMethod, cashLabel: string) {
-  return method.kind === "CASH" ? cashLabel : method.name;
+  return method.kind === "CASH" && method.name === DEFAULT_CASH_NAME ? cashLabel : method.name;
 }

@@ -9,8 +9,8 @@ import { inputClass } from "@/components/input-class";
 import { isLocale, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { requireUserId } from "@/lib/auth-user";
-import { loadCashOnHand } from "@/lib/ledger-data";
-import { loadMonthView } from "@/lib/month-view";
+import { getCashWallets, loadCashOnHand } from "@/lib/ledger-data";
+import { loadMonthView, splitCash } from "@/lib/month-view";
 import { getIncomeGroupsForManagement, getUserSettings } from "@/lib/queries";
 import {
   availableStats, cardLayout, isSummaryCardId, MAX_GRID_STATS, monthStatContext, statLabel, statShown, type StatRef, type SummaryCardId, type SummaryCardLayout,
@@ -27,13 +27,14 @@ export default async function SummaryCardEditorPage({ params }: PageProps<"/[loc
   const today = todayKey();
   const currentMonth = currentMonthKey();
 
-  const settingsWithCash = getUserSettings(userId).then(async (settings) => ({ settings, cashOnHandCents: await loadCashOnHand(userId, settings.cashCount) }));
-  const [view, { settings, cashOnHandCents }, groups] = await Promise.all([
+  const settingsWithCash = Promise.all([getUserSettings(userId), getCashWallets(userId)])
+    .then(async ([settings, wallets]) => ({ settings, ...splitCash(await loadCashOnHand(userId, wallets), settings.currency) }));
+  const [view, { settings, cashOnHandCents, otherCash }, groups] = await Promise.all([
     loadMonthView(userId, currentMonth, currentMonth),
     settingsWithCash,
     getIncomeGroupsForManagement(userId),
   ]);
-  const context = monthStatContext({ view, today, settings, cashOnHandCents, incomeGroups: groups });
+  const context = monthStatContext({ view, today, settings, cashOnHandCents, otherCash, incomeGroups: groups });
   const layout = cardLayout(card, settings.summaryCards, context);
   const customized = settings.summaryCards[card] !== undefined;
   const choices = availableStats(context, groups.filter((group) => !group.archivedAt));

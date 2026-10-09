@@ -87,7 +87,13 @@ export function EmergencyMonthsForm({ locale, fundId, coverMonths, messages }: {
 }
 
 /** Adds a savings goal, or edits one when `initial` is given. */
-export function GoalForm({ locale, messages, initial }: { locale: string; messages: Messages; initial?: { id: string; name: string; target: string } }) {
+/** Adds a savings goal, or edits one when `initial` is given. A new goal picks its currency from `currencies` (the main one first). */
+export function GoalForm({ locale, messages, initial, currencies = [] }: {
+  locale: string;
+  messages: Messages;
+  initial?: { id: string; name: string; target: string };
+  currencies?: string[];
+}) {
   const [state, formAction, pending] = useActionState<FormState, FormData>(initial ? updateSavingsFund : createGoalFund, {});
   const errors = state.fieldErrors ?? {};
   const idPrefix = initial ? `goal-${initial.id}` : "goal-new";
@@ -98,6 +104,13 @@ export function GoalForm({ locale, messages, initial }: { locale: string; messag
       <Field error={errors.name} errors={messages.errors} htmlFor={`${idPrefix}-name`} label={messages.savings.goalName}>
         <input className={inputClass} defaultValue={initial?.name} id={`${idPrefix}-name`} maxLength={40} name="name" placeholder={messages.savings.goalNamePlaceholder} required />
       </Field>
+      {!initial && currencies.length > 1 ? (
+        <Field error={errors.currency} errors={messages.errors} label={messages.add.currency}>
+          <div className="flex flex-wrap gap-2">
+            {currencies.map((code, index) => <Chip defaultChecked={index === 0} key={code} label={code} name="currency" value={code} />)}
+          </div>
+        </Field>
+      ) : null}
       <Field error={errors.target} errors={messages.errors} htmlFor={`${idPrefix}-target`} label={messages.savings.target}>
         <MoneyInput className={`${inputClass} font-mono`} defaultValue={initial?.target} id={`${idPrefix}-target`} name="target" />
       </Field>

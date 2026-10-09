@@ -11,7 +11,8 @@ import { loadCashOnHand } from "@/lib/ledger-data";
 import { isCurrency, parseAmountToCents } from "@/lib/money";
 import { isIncomeRhythmKind, parsePayDays } from "@/lib/income-rhythm";
 import { dateFromKey, isDateKey, isMonthKey } from "@/lib/months";
-import { CARD_COLORS, MAX_STATEMENT_DAY } from "@/lib/payment-methods";
+import { CARD_COLORS, CASH_COLOR, MAX_STATEMENT_DAY } from "@/lib/payment-methods";
+import { getMainCurrency } from "@/lib/queries";
 import { MAX_PAYMENT_DAYS } from "@/lib/statements";
 import { localeFromForm, requireActionUserId } from "./action-user";
 import type { FormState } from "./form-state";
@@ -48,7 +49,10 @@ export async function createCard(_state: FormState, formData: FormData): Promise
   const parsed = parseCard(formData);
   if (!parsed.data) return { fieldErrors: parsed.fieldErrors };
 
-  await db.paymentMethod.create({ data: { userId, kind: "CARD", ...parsed.data } });
+  // A card's currency is set once: changing it later would relabel every charge on it.
+  const currency = readText(formData, "currency") || await getMainCurrency(userId);
+  if (!isCurrency(currency)) return { fieldErrors: { currency: "generic" } };
+  await db.paymentMethod.create({ data: { userId, kind: "CARD", currency, ...parsed.data } });
   revalidatePath(`/${localeFromForm(formData)}`, "layout");
   return {};
 }
@@ -266,15 +270,44 @@ export async function clearBalanceGoal(formData: FormData) {
 
 export type CashOnHandState = FormState & { offByCents?: number | null };
 
-/** Sets money on hand to what the user counted, returning how far it was from the tracked amount (null the first time). */
+/** Sets a cash wallet's money on hand to what the user counted, returning how far it was from the tracked amount (null the first time). */
 export async function setCashOnHand(_state: CashOnHandState, formData: FormData): Promise<CashOnHandState> {
   const userId = await requireActionUserId();
   const cents = parseAmountToCents(readText(formData, "amount"));
   if (cents === null) return { fieldErrors: { amount: "amount" } };
-  const trackedCents = await loadCashOnHand(userId);
-  await db.user.update({ where: { id: userId }, data: { cashOnHandCents: cents, cashOnHandSetAt: new Date() } });
+  const walletId = readText(formData, "walletId");
+  const wallets = await loadCashOnHand(userId);
+  const tracked = wallets.find(({ wallet }) => wallet.id === walletId);
+  if (!tracked) return { error: "generic" };
+  await db.paymentMethod.update({ where: { id: walletId }, data: { cashCountCents: cents, cashCountedAt: new Date() } });
   revalidatePath(`/${localeFromForm(formData)}`, "layout");
-  return { savedAt: Date.now(), offByCents: trackedCents === null ? null : cents - trackedCents };
+  return { savedAt: Date.now(), offByCents: tracked.cents === null ? null : cents - tracked.cents };
+}
+
+/** Adds a cash wallet for money on hand in another currency; there's one wallet per currency. */
+export async function createCashWallet(_state: FormState, formData: FormData): Promise<FormState> {
+  const userId = await requireActionUserId();
+  const currency = readText(formData, "currency");
+  if (!isCurrency(currency)) return { fieldErrors: { currency: "generic" } };
+  const name = readText(formData, "name") || currency;
+  if (name.length > MAX_NAME_LENGTH) return { fieldErrors: { name: "name" } };
+  const existing = await db.paymentMethod.findFirst({ where: { userId, kind: "CASH", currency, archivedAt: null }, select: { id: true } });
+  if (existing) return { fieldErrors: { currency: "walletExists" } };
+
+  await db.paymentMethod.create({ data: { userId, kind: "CASH", name, color: CASH_COLOR, currency } });
+  revalidatePath(`/${localeFromForm(formData)}`, "layout");
+  return {};
+}
+
+/** Archives a cash wallet other than the first; its records keep it, but it can't be chosen for new ones. */
+export async function archiveCashWallet(formData: FormData) {
+  const userId = await requireActionUserId();
+  const id = readText(formData, "id");
+  if (!z.uuid().safeParse(id).success) return;
+  const first = await db.paymentMethod.findFirst({ where: { userId, kind: "CASH" }, orderBy: { createdAt: "asc" }, select: { id: true } });
+  if (first?.id === id) return;
+  await db.paymentMethod.updateMany({ where: { id, userId, kind: "CASH" }, data: { archivedAt: new Date() } });
+  revalidatePath(`/${localeFromForm(formData)}`, "layout");
 }
 
 /** Sets when income arrives: daily, weekly or every two weeks from a payday, or on days of the month. */
@@ -315,7 +348,7 @@ export async function clearHistoryStart(formData: FormData) {
   revalidatePath(`/${localeFromForm(formData)}`, "layout");
 }
 
-/** Sets the main currency. Amounts are relabeled, not converted. */
+/** Sets the main currency: the one headline figures use. Records keep their own currencies; nothing is converted. */
 export async function setCurrency(formData: FormData) {
   const userId = await requireActionUserId();
   const currency = readText(formData, "currency");
