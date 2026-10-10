@@ -324,12 +324,34 @@
     "outstanding": "Outstanding",
     "income": "Income",
     "balance": "Balance",
-    "previous": "Previous 12 months",
-    "next": "Next 12 months",
+    "previous": "Previous year",
+    "next": "Next year",
     "item": "Item",
     "noItems": "No spending",
     "filteredBy": "Showing {item}",
-    "clearFilter": "Show all"
+    "clearFilter": "Show all",
+    "toDate": "To date",
+    "upcoming": "Upcoming",
+    "saved": "Saved",
+    "averageBalance": "Avg. balance",
+    "bestMonth": "Best month",
+    "monthsCounted": "Months counted",
+    "goalReachedIn": "Goal reached {count} of {total} months",
+    "overMonths": "Over {count} months",
+    "overMonthsOne": "Over 1 month",
+    "noMonths": "No months of this year count yet: they haven't started, or come before \"Count history from\" in Settings.",
+    "countedNote": "Counts this year's months that have started, from \"Count history from\" in Settings on, since earlier months may hold only some records.",
+    "aboutBalance": "What the year has left you so far: each month's income minus everything paid out that month, added up.",
+    "aboutIncome": "Everything received in the year's months so far.",
+    "aboutToPay": "Money that left in the year's months so far: cash purchases and bills, card statements, and money moved into savings.",
+    "aboutSpending": "What you bought in the year's months so far: purchases, installments, and recurring bills.",
+    "aboutSaved": "Money moved into savings, less what was taken out, in the year's months so far. It counts in To pay, but never against your goal.",
+    "aboutAverageBalance": "What a typical month of this year has left you: the year's balance divided by the months counted.",
+    "aboutBestMonth": "The month of this year with the highest balance so far.",
+    "chartTitle": "Balance by month",
+    "goalLine": "Goal {goal}",
+    "notStarted": "Hasn't started yet",
+    "beforeHistory": "Before \"Count history from\""
   },
   "edit": {
     "purchaseTitle": "Edit expense",
@@ -517,6 +539,8 @@
     "beforeFirstPayday": "Shown after the month's first payday.",
     "perDayWorked": "Days without income aren't counted, unlike Daily income, which counts every day so far.",
     "cashNotCounted": "Count what you have in Settings to start tracking it.",
-    "cashCards": "Card purchases leave it only when their statement is paid, and bills still pending aren't taken out."
+    "cashCards": "Card purchases leave it only when their statement is paid, and bills still pending aren't taken out.",
+    "monthCount": "{count} months",
+    "monthCountOne": "1 month"
   }
 }

@@ -99,6 +99,8 @@ Last updated: 2026-10-10
 
 - Explained stats: tapping any stat on the month or income card (ⓘ beside its label) opens a sheet with what it is and its live working from this month's figures (e.g. Income − To pay = Balance; what's still to cover ÷ days left + everyday spending per day = Needed per day), with notes on what goes in and why a stat shows "–". Every stat has a description, shown in the Customize editor too, whose "Add a stat" dropdown became a list with descriptions. Cash flow now returns its parts, days off its work days needed, and money on hand how it moved since its count. A test runs every stat's working and checks it comes to the value shown.
 
+- Year view: calendar years (January through December, navigated by year) with a year card (balance and goal months, income, to pay, spending, saved, average and best month, each with its working) and a balance-by-month chart with the goal line, both counting the months that started from "Count history from" on. Upcoming months in the grid show what's already scheduled, muted, outside the "To date" total. The summary card's look is now a shared `StatsCard`, and stat workings can count months.
+
 ## Next
 
 - Rename the stat labels new users find ambiguous (Spending / To pay / Outstanding, Daily income vs. Daily avg. gross), keeping the explanations in step.

@@ -25,7 +25,7 @@ export type StatValue = ({ cents: number; days?: never } | { days: number; cents
 /** How a line of a stat's working joins the lines above it, or "=" for what they come to. */
 export type StatOp = "+" | "−" | "÷" | "=";
 /** A figure in a stat's working: an amount, a number of days, or a number of paydays. */
-export type StatFigure = { cents: number } | { days: number } | { paydays: number };
+export type StatFigure = { cents: number } | { days: number } | { paydays: number } | { months: number };
 export type StatLine = { op?: StatOp; label: string; figure: StatFigure };
 /**
  * How a stat is worked out this month, from the month's own figures: blocks of lines read top to bottom like a

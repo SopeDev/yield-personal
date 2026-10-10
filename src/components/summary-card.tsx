@@ -8,7 +8,8 @@ import type { Locale } from "@/i18n/config";
 import { format, type Messages } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
 import {
-  explainStat, resolveStats, statDescription, type ResolvedStat, type StatContext, type StatFigure, type StatTone, type StatValue, type SummaryCardLayout,
+  explainStat, resolveStats, statDescription, type ResolvedStat, type StatContext, type StatExplanation as StatExplanationLines, type StatFigure, type StatTone,
+  type StatValue, type SummaryCardLayout,
 } from "@/lib/stats";
 
 const toneClass: Record<StatTone, string> = { gain: "text-gain", loss: "text-loss", warning: "text-warning", muted: "text-muted-foreground" };
@@ -24,14 +25,39 @@ export function SummaryCard({ layout, context, messages, locale, customizeHref }
   locale: Locale;
   customizeHref?: string;
 }) {
-  const [headline] = resolveStats([layout.headline], context, messages);
-  const grid = resolveStats(layout.grid, context, messages);
-  const explained = (stat: ResolvedStat, trigger: ReactNode, triggerClassName: string) => (
+  const explained = (stat: ResolvedStat): CardStat => ({
+    key: stat.ref,
+    label: stat.label,
+    value: stat.value,
+    description: statDescription(stat.ref, context, messages),
+    explanation: explainStat(stat.ref, context, messages, locale),
+  });
+  const [headline] = resolveStats([layout.headline], context, messages).map(explained);
+  const card = <StatsCard grid={resolveStats(layout.grid, context, messages).map(explained)} headline={headline} messages={messages} />;
+  if (!customizeHref) return card;
+  return (
+    <div>
+      {card}
+      <div className="flex justify-end">
+        <Link className="inline-flex min-h-9 items-center px-1 text-xs font-medium text-muted-foreground hover:text-foreground" href={customizeHref}>
+          {messages.summary.customize}
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+/** A figure on a card, with what it is and how it is worked out, shown when it is tapped. */
+export type CardStat = { key: string; label: string; value: StatValue; description: string; explanation: StatExplanationLines };
+
+/** The summary card's look, whatever calculated its figures: a headline above a two-column grid, each figure tappable. */
+export function StatsCard({ headline, grid, messages }: { headline?: CardStat; grid: CardStat[]; messages: Messages }) {
+  const explained = (stat: CardStat, trigger: ReactNode, triggerClassName: string) => (
     <InfoDialog closeLabel={messages.common.close} label={trigger} title={stat.label} triggerClassName={triggerClassName}>
-      <StatExplanation context={context} locale={locale} messages={messages} stat={stat} />
+      <StatExplanation description={stat.description} explanation={stat.explanation} messages={messages} />
     </InfoDialog>
   );
-  const card = (
+  return (
     // Clips the cells' hover tint to the card's rounded corners; the dialogs open above everything regardless.
     <Card className="overflow-hidden">
       {headline ? (
@@ -52,23 +78,12 @@ export function SummaryCard({ layout, context, messages, locale, customizeHref }
       {/* A stat left alone on the last row takes the whole row. */}
       <div className="grid grid-cols-2 divide-x divide-border text-center [&>*:nth-child(n+3)]:border-t [&>*:nth-child(n+3)]:border-border [&>*:last-child:nth-child(odd)]:col-span-2">
         {grid.map((stat) => (
-          <div key={stat.ref}>
+          <div key={stat.key}>
             {explained(stat, <StatCell messages={messages} stat={stat} />, "block h-full w-full px-2 py-3 text-center transition hover:bg-background/60")}
           </div>
         ))}
       </div>
     </Card>
-  );
-  if (!customizeHref) return card;
-  return (
-    <div>
-      {card}
-      <div className="flex justify-end">
-        <Link className="inline-flex min-h-9 items-center px-1 text-xs font-medium text-muted-foreground hover:text-foreground" href={customizeHref}>
-          {messages.summary.customize}
-        </Link>
-      </div>
-    </div>
   );
 }
 
@@ -90,7 +105,7 @@ function Figure({ value, messages, className }: { value: NonNullable<StatValue>;
   return <span className={cn("font-mono tabular-nums", className)}>{text}</span>;
 }
 
-function StatCell({ stat: { label, value }, messages }: { stat: ResolvedStat; messages: Messages }) {
+function StatCell({ stat: { label, value }, messages }: { stat: CardStat; messages: Messages }) {
   return (
     <>
       <StatLabel label={label} messages={messages} />
@@ -106,21 +121,21 @@ function StatCell({ stat: { label, value }, messages }: { stat: ResolvedStat; me
   );
 }
 
-/** A figure in a stat's working: an amount, or a number of days or paydays. */
+/** A figure in a stat's working: an amount, or a number of days, paydays, or months. */
 function WorkingFigure({ figure, messages }: { figure: StatFigure; messages: Messages }) {
   if ("cents" in figure) return <Money cents={figure.cents} />;
-  const text = "days" in figure
-    ? (figure.days === 1 ? messages.month.dayCountOne : format(messages.month.dayCount, { count: figure.days }))
-    : (figure.paydays === 1 ? messages.explain.paydayCountOne : format(messages.explain.paydayCount, { count: figure.paydays }));
+  const count = (value: number, one: string, many: string) => (value === 1 ? one : format(many, { count: value }));
+  const text = "days" in figure ? count(figure.days, messages.month.dayCountOne, messages.month.dayCount)
+    : "paydays" in figure ? count(figure.paydays, messages.explain.paydayCountOne, messages.explain.paydayCount)
+      : count(figure.months, messages.explain.monthCountOne, messages.explain.monthCount);
   return <span className="font-mono tabular-nums">{text}</span>;
 }
 
-/** What a stat is, then how this month's figures come to it, line by line like a receipt, then notes. */
-function StatExplanation({ stat, context, messages, locale }: { stat: ResolvedStat; context: StatContext; messages: Messages; locale: Locale }) {
-  const { blocks, notes } = explainStat(stat.ref, context, messages, locale);
+/** What a stat is, then how its figures come to it, line by line like a receipt, then notes. */
+function StatExplanation({ description, explanation: { blocks, notes }, messages }: { description: string; explanation: StatExplanationLines; messages: Messages }) {
   return (
     <>
-      <p className="px-4 py-3 text-sm text-muted-foreground">{statDescription(stat.ref, context, messages)}</p>
+      <p className="px-4 py-3 text-sm text-muted-foreground">{description}</p>
       {blocks.map((lines, index) => (
         <dl className="border-t border-border py-1 text-sm" key={index}>
           {lines.map((line, lineIndex) => (

@@ -1,27 +1,33 @@
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { BalanceChart, type ChartBar } from "@/components/balance-chart";
 import { ScrollToEnd } from "@/components/scroll-to-end";
+import { StatsCard } from "@/components/summary-card";
 import { isLocale, type Locale } from "@/i18n/config";
-import { getDictionary } from "@/i18n/dictionaries";
+import { format, getDictionary } from "@/i18n/dictionaries";
 import { requireUserId } from "@/lib/auth-user";
 import { categoryLabel } from "@/lib/categories";
 import { cn } from "@/lib/cn";
 import { formatMonth } from "@/lib/dates";
-import { formatWholeUnits } from "@/lib/money";
-import { addMonths, type MonthKey } from "@/lib/months";
-import { loadYearView, YEAR_MONTHS } from "@/lib/month-view";
-import { getMainCurrency } from "@/lib/queries";
-import { monthFromSearchParam } from "@/lib/search-params";
+import { formatCents, formatWholeUnits } from "@/lib/money";
+import type { MonthKey } from "@/lib/months";
+import { loadYearView } from "@/lib/month-view";
+import { getUserSettings } from "@/lib/queries";
 import { currentMonthKey } from "@/lib/today";
 import { buildYearGrid, type GridRow } from "@/lib/year-grid";
+import { summarizeYear, yearCardStats, type YearBar } from "@/lib/year-summary";
 
 const cellClass = "whitespace-nowrap px-3 py-2 text-right font-mono tabular-nums";
 const stickyClass = "sticky left-0 z-10 max-w-36 truncate border-r border-border px-3 py-2 text-left";
 
-function monthHeading(month: MonthKey, locale: Locale, showYear: boolean) {
-  const date = new Date(`${month}-01T00:00:00Z`);
-  const label = new Intl.DateTimeFormat(locale, { month: "short", timeZone: "UTC" }).format(date).replace(".", "");
-  return { label: label.charAt(0).toUpperCase() + label.slice(1), year: showYear ? month.slice(0, 4) : null };
+function monthName(month: MonthKey, locale: Locale, style: "short" | "narrow") {
+  const label = new Intl.DateTimeFormat(locale, { month: style, timeZone: "UTC" }).format(new Date(`${month}-01T00:00:00Z`)).replace(".", "");
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+/** The calendar year asked for in the address ("?year=2026"), else the current one. */
+function yearFromSearchParam(value: string | string[] | undefined, currentYear: number) {
+  return typeof value === "string" && /^\d{4}$/.test(value) ? Number(value) : currentYear;
 }
 
 export default async function YearPage({ params, searchParams }: PageProps<"/[locale]/year">) {
@@ -30,11 +36,38 @@ export default async function YearPage({ params, searchParams }: PageProps<"/[lo
   const userId = await requireUserId(locale);
   const messages = getDictionary(locale);
   const currentMonth = currentMonthKey();
-  const endMonth = monthFromSearchParam((await searchParams).end, currentMonth);
+  const year = yearFromSearchParam((await searchParams).year, Number(currentMonth.slice(0, 4)));
 
-  const [{ months, categories }, currency] = await Promise.all([loadYearView(userId, endMonth), getMainCurrency(userId)]);
-  const grid = buildYearGrid(months, categories);
-  const startMonth = grid.monthKeys[0];
+  const [{ months, categories, currency }, settings] = await Promise.all([loadYearView(userId, `${year}-12` as MonthKey), getUserSettings(userId)]);
+  const grid = buildYearGrid(months, categories, { through: currentMonth });
+  const summary = summarizeYear({ months, currentMonth, historyStart: settings.historyStartMonth, goalCents: settings.balanceGoalCents });
+  const card = yearCardStats(summary, { messages, locale });
+  const isCurrentYear = grid.monthKeys.includes(currentMonth);
+  const goal = settings.balanceGoalCents === null ? null : formatCents(settings.balanceGoalCents, currency);
+  const chartBars = summary.bars.map((bar): ChartBar => {
+    const name = formatMonth(bar.month, locale);
+    const note = barNote(bar);
+    const amountText = bar.balanceCents === null ? null : formatCents(bar.balanceCents, currency);
+    return {
+      initial: monthName(bar.month, locale, "narrow"),
+      name,
+      cents: bar.balanceCents,
+      note,
+      description: [name, amountText, note?.text].filter(Boolean).join(", "),
+    };
+  });
+
+  /** Under a month's amount: its progress toward the goal, or why it has no bar. */
+  function barNote(bar: YearBar): ChartBar["note"] {
+    if (bar.upcoming) return { text: messages.year.notStarted, tone: "muted" };
+    if (bar.balanceCents === null) return { text: messages.year.beforeHistory, tone: "muted" };
+    if (goal === null || bar.goalLeftCents === null) return null;
+    if (bar.goalReached) return { text: format(messages.month.goalReached, { goal }), tone: "gain" };
+    const left = formatCents(bar.goalLeftCents, currency);
+    return bar.month === currentMonth
+      ? { text: format(messages.month.goalToGo, { goal, amount: left }), tone: "muted" }
+      : { text: format(messages.month.goalMissed, { goal, amount: left }), tone: "loss" };
+  }
 
   /** An estimated amount (it includes an unconfirmed variable bill) is marked with "≈". */
   function amount(cents: number, className?: string, estimated = false) {
@@ -42,8 +75,10 @@ export default async function YearPage({ params, searchParams }: PageProps<"/[lo
     return <span className={className}>{estimated ? "≈ " : null}{formatWholeUnits(cents, currency)}</span>;
   }
 
+  /** The current month is tinted; months still to come show what's already scheduled, muted. */
   function columnClass(index: number) {
-    return grid.monthKeys[index] === currentMonth ? "bg-primary/5" : undefined;
+    const month = grid.monthKeys[index];
+    return month === currentMonth ? "bg-primary/5" : month > currentMonth ? "opacity-50" : undefined;
   }
 
   function summaryRow(label: string, row: GridRow, options: { strong?: boolean; tone?: (cents: number) => string | undefined } = {}) {
@@ -63,34 +98,42 @@ export default async function YearPage({ params, searchParams }: PageProps<"/[lo
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <Link aria-label={messages.year.previous} className={navClass} href={`/${locale}/year?end=${addMonths(endMonth, -YEAR_MONTHS)}`}>
+        <Link aria-label={messages.year.previous} className={navClass} href={`/${locale}/year?year=${year - 1}`}>
           <ChevronLeft aria-hidden="true" className="size-5" />
         </Link>
-        <h1 className="text-center font-display text-lg font-semibold">
-          {formatMonth(startMonth, locale)} – {formatMonth(endMonth, locale)}
-        </h1>
-        <Link aria-label={messages.year.next} className={navClass} href={`/${locale}/year?end=${addMonths(endMonth, YEAR_MONTHS)}`}>
+        <h1 className="text-center font-display text-lg font-semibold">{year}</h1>
+        <Link aria-label={messages.year.next} className={navClass} href={`/${locale}/year?year=${year + 1}`}>
           <ChevronRight aria-hidden="true" className="size-5" />
         </Link>
       </div>
 
-      <ScrollToEnd className="-mx-4 overflow-x-auto border-y border-border sm:mx-0 sm:rounded-2xl sm:border">
+      <StatsCard grid={card.grid} headline={card.headline} messages={messages} />
+
+      <BalanceChart
+        bars={chartBars}
+        goalCents={settings.balanceGoalCents}
+        goalLabel={goal === null ? null : format(messages.year.goalLine, { goal })}
+        // Starts on the current month, else the year's last month with a bar.
+        selected={isCurrentYear ? grid.monthKeys.indexOf(currentMonth) : Math.max(0, chartBars.findLastIndex((bar) => bar.cents !== null))}
+        title={messages.year.chartTitle}
+      />
+
+      <ScrollToEnd className="-mx-4 overflow-x-auto border-y border-border sm:mx-0 sm:rounded-2xl sm:border" target={isCurrentYear ? "[data-current]" : undefined}>
         <table className="w-max min-w-full border-separate border-spacing-0 text-sm">
           <thead>
             <tr className="text-xs text-muted-foreground">
               <th className={cn(stickyClass, "bg-background font-medium")} scope="col">{messages.year.item}</th>
-              {grid.monthKeys.map((month, index) => {
-                const heading = monthHeading(month, locale, index === 0 || month.endsWith("-01"));
-                return (
-                  <th className={cn("whitespace-nowrap px-3 py-2 text-right font-medium", columnClass(index))} key={month} scope="col">
-                    <Link className="hover:text-foreground" href={`/${locale}/month?m=${month}`}>
-                      {heading.label}
-                      {heading.year ? <span className="block text-[10px] text-subtle">{heading.year}</span> : null}
-                    </Link>
-                  </th>
-                );
-              })}
-              <th className="border-l border-border px-3 py-2 text-right font-medium" scope="col">{messages.year.total}</th>
+              {grid.monthKeys.map((month, index) => (
+                <th
+                  className={cn("whitespace-nowrap px-3 py-2 text-right font-medium", columnClass(index))}
+                  data-current={month === currentMonth ? "" : undefined}
+                  key={month}
+                  scope="col"
+                >
+                  <Link className="hover:text-foreground" href={`/${locale}/month?m=${month}`}>{monthName(month, locale, "short")}</Link>
+                </th>
+              ))}
+              <th className="border-l border-border px-3 py-2 text-right font-medium" scope="col">{isCurrentYear ? messages.year.toDate : messages.year.total}</th>
             </tr>
           </thead>
 
