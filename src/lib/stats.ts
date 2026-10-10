@@ -2,7 +2,7 @@ import { format, type Messages } from "../i18n/dictionaries";
 import { categoryLabel } from "./categories";
 import { dailyNet, daysOff, goalProgress, neededPerDay, typicalDailySpending } from "./daily-balance";
 import { incomePerPayday, neededPerPayday, type IncomeRhythm } from "./income-rhythm";
-import type { LedgerPurchase } from "./ledger";
+import type { LedgerIncome, LedgerPurchase } from "./ledger";
 import { DEFAULT_CURRENCY, formatCents, type Currency } from "./money";
 import type { MonthSummary } from "./month-summary";
 import type { MonthKey } from "./months";
@@ -26,7 +26,9 @@ export type StatSettings = { balanceGoalCents: number | null; historyStartMonth:
 /** A month's figures from which every stat is calculated, plus money on hand, which is the same in every month. */
 export function monthStatContext({ view, today, settings, cashOnHandCents = null, otherCash = [], incomeGroups = [] }: {
   view: Pick<MonthSummary, "month" | "entries" | "incomes" | "income" | "spending" | "cashFlow" | "savingsNetCents" | "balanceCents"> & {
+    /** Recent purchases and incomes (back to the history window), for figures from past spending and work. */
     purchases: LedgerPurchase[];
+    recentIncomes?: LedgerIncome[];
     /** Each other currency's totals this month, noted beside the main currency's (never added to them). */
     others?: OtherCurrencyTotals[];
   };
@@ -67,7 +69,8 @@ export function monthStatContext({ view, today, settings, cashOnHandCents = null
       month, today, rhythm, toPayCents: cashFlow.toPayCents, incomeCents: income.totalCents, goalProgressCents, goalCents, typicalDailyCents: typicalDay.cents,
     }),
     daysOff: daysOff({
-      month, today, entries, incomes, workCategoryIds, livingDailyCents: livingDay.cents,
+      month, today, historyStart: settings.historyStartMonth, purchases: view.purchases, incomes: view.recentIncomes ?? incomes,
+      workCategoryIds, livingDailyCents: livingDay.cents,
       toPayCents: cashFlow.toPayCents, incomeCents: income.totalCents, savingsNetCents, goalCents,
     }),
     paydayIncome: dayNet ? incomePerPayday({ month, today, rhythm, incomeCents: dayNet.incomeCents, everydaySpendingCents: dayNet.spendingCents }) : null,
@@ -188,7 +191,7 @@ const STATS = {
     },
   },
   /**
-   * Days off left this month at the current pace of work (daily income only); with a goal, the goal's days lead and
+   * Days off left this month at the recent pace of work (daily income only); with a goal, the goal's days lead and
    * breaking even is noted below.
    */
   daysOff: {

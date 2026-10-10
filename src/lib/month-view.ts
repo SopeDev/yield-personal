@@ -18,7 +18,7 @@ export const CARRY_UNPAID_MONTHS = 12;
 
 /**
  * The current month also carries unpaid statements and cash bills from earlier months; other months show only
- * their own. Recent purchases are loaded too, for typical daily spending (needed per day).
+ * their own. Recent purchases and incomes are loaded too, for typical daily spending and the pace of work.
  *
  * Currencies are never converted: the month's figures (and `purchases`, for typical spending) are the main
  * currency's, `lists` holds the records of every currency to list them, and `others` totals each other currency.
@@ -45,6 +45,7 @@ export async function loadMonthView(userId: string, month: MonthKey, currentMont
     cards,
     statements: data.statements,
     purchases: main.data.purchases,
+    recentIncomes: main.data.incomes,
     lists: {
       entries: newestFirst(summaries.flatMap((summary) => summary.entries), (entry) => entry.purchase.date),
       incomes: newestFirst(summaries.flatMap((summary) => summary.incomes), (income) => income.date),

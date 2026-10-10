@@ -48,17 +48,30 @@ export function typicalDailySpending({ purchases, today, historyStart = null, ex
   historyStart?: MonthKey | null;
   excludeCategoryIds?: string[];
 }) {
+  const { fromKey, days } = historyWindow(today, historyStart);
+  if (days < 1) return { days: 0, cents: 0 };
+  const spentCents = everydaySpending(purchases, { fromKey, today, include: (categoryId) => !excludeCategoryIds.includes(categoryId) });
+  return { days, cents: Math.round(spentCents / days) };
+}
+
+/** The days figures from past spending look back over: the last full months through today, from `historyStart` on. */
+function historyWindow(today: string, historyStart: MonthKey | null) {
   const lookback = addMonths(today.slice(0, 7) as MonthKey, -TYPICAL_SPENDING_MONTHS);
   const from = historyStart && historyStart > lookback ? historyStart : lookback;
   const fromKey = `${from}-01`;
-  const days = Math.round((Date.parse(`${today}T00:00:00Z`) - Date.parse(`${fromKey}T00:00:00Z`)) / 86_400_000) + 1;
-  if (days < 1) return { days: 0, cents: 0 };
+  return { fromKey, days: Math.round((Date.parse(`${today}T00:00:00Z`) - Date.parse(`${fromKey}T00:00:00Z`)) / 86_400_000) + 1 };
+}
 
-  const spentCents = purchases
-    .filter((purchase) => isEveryday(purchase.item.category) && !excludeCategoryIds.includes(purchase.item.category.id))
+/** Everyday purchases (without installments of earlier purchases) made from `fromKey` through `today` in the included categories. */
+function everydaySpending(purchases: Pick<LedgerPurchase, "date" | "amountCents" | "installmentCount" | "item">[], { fromKey, today, include }: {
+  fromKey: string;
+  today: string;
+  include: (categoryId: string) => boolean;
+}) {
+  return purchases
+    .filter((purchase) => isEveryday(purchase.item.category) && include(purchase.item.category.id))
     .filter((purchase) => dateKeyOf(purchase.date) >= fromKey && dateKeyOf(purchase.date) <= today)
     .reduce((sum, purchase) => sum + (consumptionInMonth(purchase, monthKeyOf(purchase.date))?.amountCents ?? 0), 0);
-  return { days, cents: Math.round(spentCents / days) };
 }
 
 /**
@@ -88,19 +101,22 @@ export function neededPerDay({ month, today, toPayCents, incomeCents, savingsNet
 }
 
 /**
- * Days off left this month at the current pace of work, assuming the days off come after the work. A day worked
- * is a day with income so far this month; it earns the average income per day worked minus the average everyday
+ * Days off left this month at the recent pace of work, assuming the days off come after the work. The pace looks
+ * back over the same days as typical daily spending (the last full months through today, from `historyStart` on):
+ * a day worked is a day with income, and earns the average income per day worked minus the average everyday
  * spending in `workCategoryIds` (the costs of working, like gas, which a day off doesn't spend). Every day left,
  * worked or not, costs `livingDailyCents` (typical daily spending without those categories). The work days still
  * needed cover the month's total to pay (`days`) or also the balance goal (`forGoalDays`), rounded so the days off
  * never fall short; never below zero or above the days left (today included). Null outside the current month, before
  * any income, or when a day worked costs as much as it earns.
  */
-export function daysOff({ month, today, entries, incomes, workCategoryIds, livingDailyCents, toPayCents, incomeCents, savingsNetCents = 0, goalCents = null }: {
+export function daysOff({ month, today, historyStart = null, purchases, incomes, workCategoryIds, livingDailyCents, toPayCents, incomeCents, savingsNetCents = 0, goalCents = null }: {
   month: MonthKey;
   today: string;
-  entries: MonthSpendingEntry[];
-  incomes: LedgerIncome[];
+  historyStart?: MonthKey | null;
+  /** Purchases and incomes reaching back over the history window; earlier and later ones are ignored. */
+  purchases: Pick<LedgerPurchase, "date" | "amountCents" | "installmentCount" | "item">[];
+  incomes: Pick<LedgerIncome, "date" | "amountCents">[];
   workCategoryIds: string[];
   livingDailyCents: number;
   toPayCents: number;
@@ -109,14 +125,11 @@ export function daysOff({ month, today, entries, incomes, workCategoryIds, livin
   goalCents?: number | null;
 }) {
   if (month !== today.slice(0, 7)) return null;
-  const passed = (date: Date) => dateKeyOf(date) <= today;
-  const worked = incomes.filter((income) => passed(income.date));
+  const { fromKey } = historyWindow(today, historyStart);
+  const worked = incomes.filter((income) => dateKeyOf(income.date) >= fromKey && dateKeyOf(income.date) <= today);
   const workDays = new Set(worked.map((income) => dateKeyOf(income.date))).size;
   const grossCents = worked.reduce((sum, income) => sum + income.amountCents, 0);
-  const workCostCents = entries
-    .filter((entry) => entry.installmentNumber === 1 && isEveryday(entry.purchase.item.category) && passed(entry.purchase.date))
-    .filter((entry) => workCategoryIds.includes(entry.purchase.item.category.id))
-    .reduce((sum, entry) => sum + entry.amountCents, 0);
+  const workCostCents = everydaySpending(purchases, { fromKey, today, include: (categoryId) => workCategoryIds.includes(categoryId) });
   // Net earned over all the days worked; per day worked it is this ÷ workDays, kept whole to round exactly.
   const netCents = grossCents - workCostCents;
   if (workDays === 0 || netCents <= 0) return null;
