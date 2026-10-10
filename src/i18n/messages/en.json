@@ -90,7 +90,12 @@
     "incomePerPayday": "Income per payday",
     "paydaysLeft": "{count} paydays left",
     "paydaysLeftOne": "1 payday left",
-    "noPaydaysLeft": "No paydays left"
+    "noPaydaysLeft": "No paydays left",
+    "daysOff": "Days off left",
+    "daysOffBreakEven": "{count} to break even",
+    "daysOffOf": "of {count} days left",
+    "dayCount": "{count} days",
+    "dayCountOne": "1 day"
   },
   "income": {
     "deductions": "Deductions",

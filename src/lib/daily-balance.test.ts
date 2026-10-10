@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { dailyNet, goalProgress, neededPerDay, typicalDailySpending } from "./daily-balance";
+import { dailyNet, daysOff, goalProgress, neededPerDay, typicalDailySpending } from "./daily-balance";
 import type { LedgerCategory, LedgerPurchase, MonthSpendingEntry } from "./ledger";
 import { dateFromKey } from "./months";
 
 const food = { id: "food", key: "food", name: null, sortOrder: 1, kind: "EVERYDAY" as const };
+const car = { id: "car", key: "car", name: null, sortOrder: 2, kind: "EVERYDAY" as const };
 const extras = { id: "extras", key: "extras", name: null, sortOrder: 3, kind: "OCCASIONAL" as const };
 const cash = { id: "cash", kind: "CASH" as const, name: "Cash", color: "#00c896" };
 const uber = { id: "uber", name: "Uber", groupId: "rideshare" };
@@ -74,4 +75,34 @@ test("needed per day adds a typical day's spending to the month's bills", () => 
   assert.equal(needed?.cents, 73493);
   // Income already covers the bills, but the coming days still cost something.
   assert.equal(neededPerDay({ month: "2026-10", today: "2026-10-05", toPayCents: 100000, incomeCents: 370000, typicalDailyCents: 15000 })?.cents, 5000);
+});
+
+test("typical daily spending can leave out the costs of working", () => {
+  const purchases = [entry("2026-10-02", 20000).purchase, entry("2026-10-03", 50000, { category: car }).purchase];
+  assert.deepEqual(typicalDailySpending({ purchases, today: "2026-10-05", historyStart: "2026-10", excludeCategoryIds: ["car"] }), { days: 5, cents: 4000 });
+});
+
+test("days off left at the current pace, with gas spent only on days worked", () => {
+  // October 9 after nine days worked: 14,780.48 gross and 4,819 in gas, so 1,106.83 net per day worked; 165.87 a day to live.
+  const october = {
+    month: "2026-10" as const,
+    today: "2026-10-09",
+    entries: [entry("2026-10-02", 481900, { category: car }), entry("2026-10-03", 149284)],
+    incomes: Array.from({ length: 9 }, (_, day) => ({
+      id: String(day), date: dateFromKey(`2026-10-0${day + 1}`), amountCents: day === 0 ? 164232 : 164227, note: null, source: uber,
+    })),
+    workCategoryIds: ["car"],
+    livingDailyCents: 16587,
+    toPayCents: 2850504,
+    incomeCents: 1478048,
+  };
+  // 23 days left: 15.85 days of work break even and 19.46 reach a 4,000 goal, leaving 7 and 3 days off.
+  assert.deepEqual(daysOff({ ...october, goalCents: 400000 }), { daysLeft: 23, workDays: 9, netPerWorkDayCents: 110683, days: 7, forGoalDays: 3 });
+  // Far behind there are no days off; far ahead every day left is one.
+  assert.equal(daysOff({ ...october, toPayCents: 5000000 })?.days, 0);
+  assert.equal(daysOff({ ...october, toPayCents: 0, livingDailyCents: 0 })?.days, 23);
+  // Nothing to go on outside the current month, before any income, or when working costs more than it earns.
+  assert.equal(daysOff({ ...october, today: "2026-11-01" }), null);
+  assert.equal(daysOff({ ...october, incomes: [] }), null);
+  assert.equal(daysOff({ ...october, entries: [entry("2026-10-02", 2000000, { category: car })] }), null);
 });

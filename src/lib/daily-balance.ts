@@ -40,11 +40,13 @@ export const TYPICAL_SPENDING_MONTHS = 3;
  * What an ordinary day costs: everyday purchases (as in `dailyNet`: everyday categories, without
  * recurring bills or installments of earlier purchases) from the last full months through today, divided by
  * those days. Months before `historyStart` are skipped, since they may hold only partial records.
+ * `excludeCategoryIds` leaves out categories that aren't spent every day, like the costs of working.
  */
-export function typicalDailySpending({ purchases, today, historyStart = null }: {
+export function typicalDailySpending({ purchases, today, historyStart = null, excludeCategoryIds = [] }: {
   purchases: Pick<LedgerPurchase, "date" | "amountCents" | "installmentCount" | "item">[];
   today: string;
   historyStart?: MonthKey | null;
+  excludeCategoryIds?: string[];
 }) {
   const lookback = addMonths(today.slice(0, 7) as MonthKey, -TYPICAL_SPENDING_MONTHS);
   const from = historyStart && historyStart > lookback ? historyStart : lookback;
@@ -53,7 +55,8 @@ export function typicalDailySpending({ purchases, today, historyStart = null }: 
   if (days < 1) return { days: 0, cents: 0 };
 
   const spentCents = purchases
-    .filter((purchase) => isEveryday(purchase.item.category) && dateKeyOf(purchase.date) >= fromKey && dateKeyOf(purchase.date) <= today)
+    .filter((purchase) => isEveryday(purchase.item.category) && !excludeCategoryIds.includes(purchase.item.category.id))
+    .filter((purchase) => dateKeyOf(purchase.date) >= fromKey && dateKeyOf(purchase.date) <= today)
     .reduce((sum, purchase) => sum + (consumptionInMonth(purchase, monthKeyOf(purchase.date))?.amountCents ?? 0), 0);
   return { days, cents: Math.round(spentCents / days) };
 }
@@ -81,6 +84,55 @@ export function neededPerDay({ month, today, toPayCents, incomeCents, savingsNet
     typicalDailyCents,
     cents: perDay(toPayCents - incomeCents),
     forGoalCents: goalCents === null ? null : perDay(goalCents - goalProgress({ balanceCents: incomeCents - toPayCents, savingsNetCents })),
+  };
+}
+
+/**
+ * Days off left this month at the current pace of work, assuming the days off come after the work. A day worked
+ * is a day with income so far this month; it earns the average income per day worked minus the average everyday
+ * spending in `workCategoryIds` (the costs of working, like gas, which a day off doesn't spend). Every day left,
+ * worked or not, costs `livingDailyCents` (typical daily spending without those categories). The work days still
+ * needed cover the month's total to pay (`days`) or also the balance goal (`forGoalDays`), rounded so the days off
+ * never fall short; never below zero or above the days left (today included). Null outside the current month, before
+ * any income, or when a day worked costs as much as it earns.
+ */
+export function daysOff({ month, today, entries, incomes, workCategoryIds, livingDailyCents, toPayCents, incomeCents, savingsNetCents = 0, goalCents = null }: {
+  month: MonthKey;
+  today: string;
+  entries: MonthSpendingEntry[];
+  incomes: LedgerIncome[];
+  workCategoryIds: string[];
+  livingDailyCents: number;
+  toPayCents: number;
+  incomeCents: number;
+  savingsNetCents?: number;
+  goalCents?: number | null;
+}) {
+  if (month !== today.slice(0, 7)) return null;
+  const passed = (date: Date) => dateKeyOf(date) <= today;
+  const worked = incomes.filter((income) => passed(income.date));
+  const workDays = new Set(worked.map((income) => dateKeyOf(income.date))).size;
+  const grossCents = worked.reduce((sum, income) => sum + income.amountCents, 0);
+  const workCostCents = entries
+    .filter((entry) => entry.installmentNumber === 1 && isEveryday(entry.purchase.item.category) && passed(entry.purchase.date))
+    .filter((entry) => workCategoryIds.includes(entry.purchase.item.category.id))
+    .reduce((sum, entry) => sum + entry.amountCents, 0);
+  // Net earned over all the days worked; per day worked it is this ÷ workDays, kept whole to round exactly.
+  const netCents = grossCents - workCostCents;
+  if (workDays === 0 || netCents <= 0) return null;
+
+  const daysLeft = daysInMonth(month) - Number(today.slice(8, 10)) + 1;
+  // Days off = days left − (shortfall + living costs of the days left) ÷ net per day worked, rounded down.
+  const off = (shortfallCents: number) => {
+    const days = Math.floor((daysLeft * netCents - (shortfallCents + livingDailyCents * daysLeft) * workDays) / netCents);
+    return Math.min(daysLeft, Math.max(0, days));
+  };
+  return {
+    daysLeft,
+    workDays,
+    netPerWorkDayCents: Math.round(netCents / workDays),
+    days: off(toPayCents - incomeCents),
+    forGoalDays: goalCents === null ? null : off(goalCents - goalProgress({ balanceCents: incomeCents - toPayCents, savingsNetCents })),
   };
 }
 

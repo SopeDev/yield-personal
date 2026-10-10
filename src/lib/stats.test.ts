@@ -146,3 +146,18 @@ test("other currencies are noted beside the main currency's figures, never added
   assert.equal(outstandingStat?.note, undefined);
   assert.deepEqual(cashStat, { cents: 500000, tone: "gain", note: { text: "+ US$120.00", tone: "muted" } });
 });
+
+test("days off left lead with the goal's and note breaking even, and only with daily income", () => {
+  // Two days worked: 2,000 gross less 400 gas, so 800 net a day; 22 days left from Oct 10.
+  const incomes = [income("u1", "2026-10-01", 100000, uber), income("u2", "2026-10-03", 100000, uber)];
+  const withGoal = context(incomes, { settings: { ...noSettings, balanceGoalCents: 1000000 } });
+  assert.deepEqual(resolveStats(["daysOff"], withGoal, en)[0], {
+    ref: "daysOff", label: "Days off left", value: { days: 11, tone: "gain", note: { text: "22 to break even", tone: "muted" } },
+  });
+  // Without a goal: income already covers the month, so every day left is free.
+  assert.deepEqual(resolveStats(["daysOff"], context(incomes), en)[0].value, { days: 22, tone: "gain", note: { text: "of 22 days left", tone: "muted" } });
+  assert.equal(resolveStats(["daysOff"], context([]), en)[0].value, null);
+  const paydays = context(incomes, { settings: { ...noSettings, incomeRhythm: { kind: "MONTH_DAYS", days: [1, 15] } } });
+  assert.deepEqual(labels(["daysOff"], paydays), []);
+  assert.equal(availableStats(paydays, []).includes("daysOff"), false);
+});
