@@ -1,6 +1,6 @@
 import { format, type Messages } from "../i18n/dictionaries";
 import { categoryLabel } from "./categories";
-import { dailyNet, goalProgress, neededPerDay, typicalDailySpending } from "./daily-balance";
+import { dailyNet, daysOff, goalProgress, neededPerDay, typicalDailySpending } from "./daily-balance";
 import { incomePerPayday, neededPerPayday, type IncomeRhythm } from "./income-rhythm";
 import type { LedgerPurchase } from "./ledger";
 import { DEFAULT_CURRENCY, formatCents, type Currency } from "./money";
@@ -14,8 +14,8 @@ import type { MonthKey } from "./months";
 
 export type StatTone = "gain" | "loss" | "warning" | "muted";
 export type StatNote = { text: string; tone: StatTone };
-/** A figure ready to show, or null when it has no value this month (shown as "–"). */
-export type StatValue = { cents: number; tone?: StatTone; note?: StatNote } | null;
+/** A figure ready to show (an amount, or a number of days), or null when it has no value this month (shown as "–"). */
+export type StatValue = ({ cents: number; days?: never } | { days: number; cents?: never }) & { tone?: StatTone; note?: StatNote } | null;
 
 /** A month's totals in a currency other than the main one. */
 export type OtherCurrencyTotals = { currency: string; incomeCents: number; spendingCents: number; toPayCents: number; outstandingCents: number };
@@ -49,6 +49,9 @@ export function monthStatContext({ view, today, settings, cashOnHandCents = null
     month, today, toPayCents: cashFlow.toPayCents, incomeCents: income.totalCents, savingsNetCents, goalCents, typicalDailyCents: typicalDay.cents,
   });
   const goalProgressCents = goalProgress({ balanceCents, savingsNetCents });
+  // The categories income groups deduct are the costs of working, spent only on days worked.
+  const workCategoryIds = income.deductCategoryIds;
+  const livingDay = typicalDailySpending({ purchases: view.purchases, today, historyStart: settings.historyStartMonth, excludeCategoryIds: workCategoryIds });
   return {
     ...view,
     currency: settings.currency ?? DEFAULT_CURRENCY,
@@ -62,6 +65,10 @@ export function monthStatContext({ view, today, settings, cashOnHandCents = null
     needed,
     neededPayday: neededPerPayday({
       month, today, rhythm, toPayCents: cashFlow.toPayCents, incomeCents: income.totalCents, goalProgressCents, goalCents, typicalDailyCents: typicalDay.cents,
+    }),
+    daysOff: daysOff({
+      month, today, entries, incomes, workCategoryIds, livingDailyCents: livingDay.cents,
+      toPayCents: cashFlow.toPayCents, incomeCents: income.totalCents, savingsNetCents, goalCents,
     }),
     paydayIncome: dayNet ? incomePerPayday({ month, today, rhythm, incomeCents: dayNet.incomeCents, everydaySpendingCents: dayNet.spendingCents }) : null,
     // The day's target is the goal's when one is set; average daily income is gross, like the target.
@@ -178,6 +185,22 @@ const STATS = {
         tone: targetCents === null ? undefined : dailyIncomeCents >= targetCents ? "gain" : "warning",
         note: { text: format(messages.month.netPerDay, { amount: formatCents(dayNet.averageCents, currency) }), tone: "muted" },
       };
+    },
+  },
+  /**
+   * Days off left this month at the current pace of work (daily income only); with a goal, the goal's days lead and
+   * breaking even is noted below.
+   */
+  daysOff: {
+    label: (_, messages) => messages.month.daysOff,
+    shown: (context) => !notDaily(context),
+    value: ({ daysOff }, messages) => {
+      if (!daysOff) return null;
+      const tone = (days: number): StatTone => (days === 0 ? "warning" : "gain");
+      if (daysOff.forGoalDays !== null) {
+        return { days: daysOff.forGoalDays, tone: tone(daysOff.forGoalDays), note: { text: format(messages.month.daysOffBreakEven, { count: daysOff.days }), tone: "muted" } };
+      }
+      return { days: daysOff.days, tone: tone(daysOff.days), note: { text: format(messages.month.daysOffOf, { count: daysOff.daysLeft }), tone: "muted" } };
     },
   },
   /**
@@ -364,6 +387,7 @@ export function availableStats(context: StatContext, groups: { id: string }[]): 
   return (Object.keys(STATS) as StatId[]).flatMap((id): StatRef[] => {
     if (id === "groupGross" || id === "groupNet") return groups.map((group) => `${id}:${group.id}` as const);
     if ((id === "neededPerPayday" || id === "incomePerPayday") && !notDaily(context)) return [];
+    if (id === "daysOff" && notDaily(context)) return [];
     return [id];
   });
 }

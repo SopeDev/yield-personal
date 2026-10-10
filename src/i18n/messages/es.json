@@ -90,7 +90,12 @@
     "incomePerPayday": "Ingreso por pago",
     "paydaysLeft": "Quedan {count} pagos",
     "paydaysLeftOne": "Queda 1 pago",
-    "noPaydaysLeft": "Sin pagos restantes"
+    "noPaydaysLeft": "Sin pagos restantes",
+    "daysOff": "Días libres",
+    "daysOffBreakEven": "{count} para cubrir el mes",
+    "daysOffOf": "de {count} días restantes",
+    "dayCount": "{count} días",
+    "dayCountOne": "1 día"
   },
   "income": {
     "deductions": "Deducciones",
