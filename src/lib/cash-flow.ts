@@ -50,10 +50,15 @@ export function monthCashFlow({ month, purchases, occurrences, statements, savin
   const unpaidStatements = statementsClosing.filter((statement) => !statement.paid);
   const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
 
+  const cashBillsCents = sum(cashOccurrences.map((occurrence) => occurrence.amountCents));
+  const statementsClosingCents = sum(statementsClosing.map((statement) => statement.totalCents));
+
   return {
-    toPayCents:
-      savingsNetCents +
-      cashPurchasesCents + sum(cashOccurrences.map((occurrence) => occurrence.amountCents)) + sum(statementsClosing.map((statement) => statement.totalCents)),
+    toPayCents: savingsNetCents + cashPurchasesCents + cashBillsCents + statementsClosingCents,
+    /** The parts of the total to pay besides savings, for showing how it adds up. */
+    cashPurchasesCents,
+    cashBillsCents,
+    statementsClosingCents,
     /** Unpaid items belonging to this month. */
     outstandingCents: sum(unpaidOccurrences.map((occurrence) => occurrence.amountCents)) + sum(unpaidStatements.map((statement) => statement.totalCents)),
     /** Unpaid statements and cash bills from earlier months, counted in their own month's totals and shown here as a reminder. */

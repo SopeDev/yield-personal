@@ -63,6 +63,7 @@ model User {
   incomeSources        IncomeSource[]
   incomeGroups         IncomeGroup[]
   incomes              Income[]
+  recurringIncomes     RecurringIncome[]
   recurringPayments    RecurringPayment[]
   recurringOccurrences RecurringOccurrence[]
   statementPayments    StatementPayment[]
@@ -205,15 +206,16 @@ model ExpenseItem {
 
 /// Where income comes from. Its group, if any, decides which spending its net income is after.
 model IncomeSource {
-  id         String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId     String       @map("user_id") @db.Uuid
-  groupId    String?      @map("group_id") @db.Uuid
-  name       String
-  archivedAt DateTime?    @map("archived_at") @db.Timestamptz(6)
-  createdAt  DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  group      IncomeGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
-  incomes    Income[]
+  id               String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId           String            @map("user_id") @db.Uuid
+  groupId          String?           @map("group_id") @db.Uuid
+  name             String
+  archivedAt       DateTime?         @map("archived_at") @db.Timestamptz(6)
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group            IncomeGroup?      @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  incomes          Income[]
+  recurringIncomes RecurringIncome[]
 
   @@index([userId])
   @@index([groupId])
@@ -248,23 +250,53 @@ model IncomeGroupDeduction {
   @@map("income_group_deductions")
 }
 
-/// Gross income, in centavos.
+/// Gross income, in centavos. Income received for a recurring income's payday links to it (`recurringIncomeId`,
+/// `expectedOn` the payday), which stops that payday counting as expected.
 model Income {
+  id                String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId            String           @map("user_id") @db.Uuid
+  sourceId          String           @map("source_id") @db.Uuid
+  date              DateTime         @db.Date
+  amountCents       Int              @map("amount_cents")
+  /// Received in this currency, into the cash wallet of the same currency.
+  currency          String           @default("MXN")
+  note              String?
+  recurringIncomeId String?          @map("recurring_income_id") @db.Uuid
+  expectedOn        DateTime?        @map("expected_on") @db.Date
+  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  source            IncomeSource     @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  recurringIncome   RecurringIncome? @relation(fields: [recurringIncomeId], references: [id], onDelete: SetNull)
+
+  @@unique([recurringIncomeId, expectedOn])
+  @@index([userId, date])
+  @@map("incomes")
+}
+
+/// Income expected on a schedule, like a salary every two weeks: `amountCents` from `source`, in `currency`, weekly
+/// or every two weeks counted from `anchor` (any payday), or on the days of the month in `payDays`; never daily.
+/// Paydays count from `startsOn` (the day it was added or rescheduled, or a later first payday). Each payday stays
+/// expected in its month until income is received for it.
+model RecurringIncome {
   id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId      String       @map("user_id") @db.Uuid
   sourceId    String       @map("source_id") @db.Uuid
-  date        DateTime     @db.Date
   amountCents Int          @map("amount_cents")
-  /// Received in this currency, into the cash wallet of the same currency.
   currency    String       @default("MXN")
-  note        String?
+  rhythm      IncomeRhythm
+  anchor      DateTime?    @db.Date
+  payDays     Int[]        @default([]) @map("pay_days")
+  startsOn    DateTime     @map("starts_on") @db.Date
   createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   source      IncomeSource @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  incomes     Income[]
 
-  @@index([userId, date])
-  @@map("incomes")
+  @@index([userId])
+  @@index([sourceId])
+  @@map("recurring_incomes")
 }
 
 /// A bill that repeats every `intervalMonths` months from `startMonth` (first day of a month) through `endMonth`

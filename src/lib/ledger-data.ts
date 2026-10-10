@@ -2,12 +2,13 @@ import "server-only";
 
 import { db } from "@/db/client";
 import { statementsForCards } from "@/lib/card-statements";
-import { cashOnHandCents, type CashCount, type PaidBill } from "@/lib/cash-on-hand";
+import { cashOnHandParts, type CashCount, type CashOnHandParts, type PaidBill } from "@/lib/cash-on-hand";
 import { earliestContributingMonth } from "@/lib/installments";
 import type { LedgerIncomeGroup } from "@/lib/ledger";
 import type { LedgerData } from "@/lib/month-summary";
-import { addMonths, dateFromKey, monthKeyOf, monthRange, type MonthKey } from "@/lib/months";
+import { addMonths, dateFromKey, dateKeyOf, monthKeyOf, monthRange, type MonthKey } from "@/lib/months";
 import { occurrencesForMonth, type ConfirmedAmount, type OccurrenceOverride, type RecurringDefinition } from "@/lib/recurring";
+import { recurringIncomeRhythmOf, type RecurringIncomeDefinition } from "@/lib/recurring-income";
 import { dateKeyInAppZone, monthKeyInAppZone, todayKey } from "@/lib/today";
 
 const categorySelect = { id: true, key: true, name: true, sortOrder: true, kind: true } as const;
@@ -38,6 +39,22 @@ export async function getRecurringDefinitions(userId: string): Promise<Recurring
     orderBy: [{ dayOfMonth: "asc" }, { item: { name: "asc" } }],
   });
   return rows.map(({ createdAt, ...recurring }) => ({ ...recurring, addedMonth: monthKeyInAppZone(createdAt) }));
+}
+
+/** Recurring income, with its schedule; a stored schedule that is incomplete is left out. */
+export async function getRecurringIncomes(userId: string): Promise<RecurringIncomeDefinition[]> {
+  const rows = await db.recurringIncome.findMany({
+    where: { userId },
+    select: {
+      id: true, amountCents: true, currency: true, rhythm: true, anchor: true, payDays: true, startsOn: true,
+      source: { select: { id: true, name: true, groupId: true } },
+    },
+    orderBy: [{ createdAt: "asc" }],
+  });
+  return rows.flatMap(({ rhythm: kind, anchor, payDays, startsOn, ...recurring }) => {
+    const rhythm = recurringIncomeRhythmOf({ kind, anchor: anchor ? dateKeyOf(anchor) : null, days: payDays });
+    return rhythm ? [{ ...recurring, rhythm, startsOn: dateKeyOf(startsOn) }] : [];
+  });
 }
 
 /** Every confirmed or changed recurring amount, by item, for estimating variable bills. */
@@ -126,7 +143,10 @@ export async function loadLedgerRange(userId: string, from: MonthKey, to: MonthK
     }),
     db.income.findMany({
       where: { userId, date: { gte: monthRange(purchasesFrom && purchasesFrom < from ? purchasesFrom : from).start, lt: monthRange(to).end } },
-      select: { id: true, date: true, amountCents: true, note: true, currency: true, source: { select: { id: true, name: true, groupId: true } } },
+      select: {
+        id: true, date: true, amountCents: true, note: true, currency: true, recurringIncomeId: true, expectedOn: true,
+        source: { select: { id: true, name: true, groupId: true } },
+      },
       orderBy: [{ date: "desc" }, { createdAt: "desc" }],
     }),
     getOccurrenceOverrides(userId, statementsFrom, addMonths(to, 1)),
@@ -209,10 +229,10 @@ export async function getCashWallets(userId: string): Promise<CashWallet[]> {
  * Money on hand in each cash wallet now (null for one not counted yet): its count, moved by the records in its
  * currency since then. Callers that already loaded the wallets pass them, saving a read before the rest.
  */
-export async function loadCashOnHand(userId: string, knownWallets?: CashWallet[]): Promise<{ wallet: CashWallet; cents: number | null }[]> {
+export async function loadCashOnHand(userId: string, knownWallets?: CashWallet[]): Promise<{ wallet: CashWallet; cents: number | null; parts: CashOnHandParts | null }[]> {
   const wallets = knownWallets ?? await getCashWallets(userId);
   const counts = wallets.flatMap((wallet) => (wallet.count ? [wallet.count] : []));
-  if (counts.length === 0) return wallets.map((wallet) => ({ wallet, cents: null }));
+  if (counts.length === 0) return wallets.map((wallet) => ({ wallet, cents: null, parts: null }));
 
   const today = todayKey();
   const firstDay = counts.map((count) => count.day).sort()[0];
@@ -228,23 +248,21 @@ export async function loadCashOnHand(userId: string, knownWallets?: CashWallet[]
   ]);
 
   return wallets.map((wallet) => {
-    if (!wallet.count) return { wallet, cents: null };
+    if (!wallet.count) return { wallet, cents: null, parts: null };
     const { currency } = wallet;
     const transfers = exchanges.flatMap((exchange) => [
       ...(exchange.toCurrency === currency ? [{ date: exchange.date, createdAt: exchange.createdAt, amountCents: exchange.toCents }] : []),
       ...(exchange.fromCurrency === currency ? [{ date: exchange.date, createdAt: exchange.createdAt, amountCents: -exchange.fromCents }] : []),
     ]);
-    return {
-      wallet,
-      cents: cashOnHandCents({
-        count: wallet.count,
-        today,
-        incomes: incomes.filter((income) => income.currency === currency),
-        cashPurchases: cashPurchases.filter((purchase) => purchase.paymentMethodId === wallet.id),
-        savingsMovements: savingsMovements.filter((movement) => movement.fund.currency === currency),
-        paidBills: paidBills.filter((bill) => (bill.paymentMethodId ? bill.paymentMethodId === wallet.id : bill.currency === currency)),
-        transfers,
-      }),
-    };
+    const parts = cashOnHandParts({
+      count: wallet.count,
+      today,
+      incomes: incomes.filter((income) => income.currency === currency),
+      cashPurchases: cashPurchases.filter((purchase) => purchase.paymentMethodId === wallet.id),
+      savingsMovements: savingsMovements.filter((movement) => movement.fund.currency === currency),
+      paidBills: paidBills.filter((bill) => (bill.paymentMethodId ? bill.paymentMethodId === wallet.id : bill.currency === currency)),
+      transfers,
+    });
+    return { wallet, cents: parts.cents, parts };
   });
 }

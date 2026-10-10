@@ -88,9 +88,8 @@ export function neededPerDay({ month, today, toPayCents, incomeCents, savingsNet
   goalCents?: number | null;
   typicalDailyCents?: number;
 }) {
-  const currentMonth = today.slice(0, 7);
-  if (month < currentMonth) return null;
-  const daysLeft = month === currentMonth ? daysInMonth(month) - Number(today.slice(8, 10)) + 1 : daysInMonth(month);
+  const daysLeft = daysLeftIn(month, today);
+  if (daysLeft === null) return null;
   const perDay = (shortfallCents: number) => Math.max(0, Math.ceil(shortfallCents / daysLeft + typicalDailyCents));
   return {
     daysLeft,
@@ -98,6 +97,48 @@ export function neededPerDay({ month, today, toPayCents, incomeCents, savingsNet
     cents: perDay(toPayCents - incomeCents),
     forGoalCents: goalCents === null ? null : perDay(goalCents - goalProgress({ balanceCents: incomeCents - toPayCents, savingsNetCents })),
   };
+}
+
+/** Days left in a month, today included: all of a month still to come, none (null) for one that has ended. */
+export function daysLeftIn(month: MonthKey, today: string) {
+  const currentMonth = today.slice(0, 7);
+  if (month < currentMonth) return null;
+  return month === currentMonth ? daysInMonth(month) - Number(today.slice(8, 10)) + 1 : daysInMonth(month);
+}
+
+/**
+ * Income per day at the recent pace: income over the same days as typical daily spending (the last full months
+ * through today, from `historyStart` on), divided by all those days, so days off count. Recurring income is left
+ * out by the caller, since its paydays are expected instead.
+ */
+export function incomePace({ incomes, today, historyStart = null }: {
+  incomes: Pick<LedgerIncome, "date" | "amountCents">[];
+  today: string;
+  historyStart?: MonthKey | null;
+}) {
+  const { fromKey, days } = historyWindow(today, historyStart);
+  if (days < 1) return { days: 0, cents: 0 };
+  const cents = incomes
+    .filter((income) => dateKeyOf(income.date) >= fromKey && dateKeyOf(income.date) <= today)
+    .reduce((sum, income) => sum + income.amountCents, 0);
+  return { days, cents: Math.round(cents / days) };
+}
+
+/**
+ * Where the month's balance is headed: its balance so far, plus recurring income still expected, plus each day left
+ * (today included) at the recent pace of other income minus typical daily spending. Null for a month that has ended.
+ */
+export function projectedBalance({ month, today, balanceCents, expectedCents, paceDailyCents, typicalDailyCents }: {
+  month: MonthKey;
+  today: string;
+  balanceCents: number;
+  expectedCents: number;
+  paceDailyCents: number;
+  typicalDailyCents: number;
+}) {
+  const daysLeft = daysLeftIn(month, today);
+  if (daysLeft === null) return null;
+  return { daysLeft, cents: balanceCents + expectedCents + (paceDailyCents - typicalDailyCents) * daysLeft };
 }
 
 /**
@@ -135,17 +176,19 @@ export function daysOff({ month, today, historyStart = null, purchases, incomes,
   if (workDays === 0 || netCents <= 0) return null;
 
   const daysLeft = daysInMonth(month) - Number(today.slice(8, 10)) + 1;
-  // Days off = days left − (shortfall + living costs of the days left) ÷ net per day worked, rounded down.
-  const off = (shortfallCents: number) => {
-    const days = Math.floor((daysLeft * netCents - (shortfallCents + livingDailyCents * daysLeft) * workDays) / netCents);
-    return Math.min(daysLeft, Math.max(0, days));
-  };
+  // Work days needed = (shortfall + living costs of the days left) ÷ net per day worked, rounded up; the rest are days off.
+  const workDaysFor = (shortfallCents: number) => Math.max(0, Math.ceil(((shortfallCents + livingDailyCents * daysLeft) * workDays) / netCents));
+  const off = (workDaysNeeded: number) => Math.max(0, daysLeft - workDaysNeeded);
+  const workDaysNeeded = workDaysFor(toPayCents - incomeCents);
+  const forGoalWorkDaysNeeded = goalCents === null ? null : workDaysFor(goalCents - goalProgress({ balanceCents: incomeCents - toPayCents, savingsNetCents }));
   return {
     daysLeft,
     workDays,
     netPerWorkDayCents: Math.round(netCents / workDays),
-    days: off(toPayCents - incomeCents),
-    forGoalDays: goalCents === null ? null : off(goalCents - goalProgress({ balanceCents: incomeCents - toPayCents, savingsNetCents })),
+    workDaysNeeded,
+    forGoalWorkDaysNeeded,
+    days: off(workDaysNeeded),
+    forGoalDays: forGoalWorkDaysNeeded === null ? null : off(forGoalWorkDaysNeeded),
   };
 }
 

@@ -53,7 +53,7 @@ export default async function CardsPage({ params }: PageProps<"/[locale]/cards">
         <h1 className="font-display text-2xl font-semibold">{messages.cards.title}</h1>
         <Card className="px-4 py-8 text-center">
           <p className="text-muted-foreground">{messages.cards.empty}</p>
-          <Link className="mt-4 inline-flex min-h-11 items-center rounded-xl bg-primary px-5 font-semibold text-primary-foreground" href={`/${locale}/settings`}>
+          <Link className="mt-4 inline-flex min-h-11 items-center rounded-xl bg-primary px-5 font-semibold text-primary-foreground" href={`/${locale}/settings/money`}>
             {messages.add.goToSettings}
           </Link>
         </Card>

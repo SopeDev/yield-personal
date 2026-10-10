@@ -1,19 +1,19 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronDown, ChevronLeft, ChevronUp, X } from "lucide-react";
+import { ChevronDown, ChevronUp, Plus, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { resetSummaryCard, saveSummaryCard } from "@/app/actions/summary-cards";
 import { Card, Section } from "@/components/section";
+import { SubpageHeader } from "@/components/settings-layout";
 import { SummaryCard } from "@/components/summary-card";
 import { inputClass } from "@/components/input-class";
 import { isLocale, type Locale } from "@/i18n/config";
-import { getDictionary } from "@/i18n/dictionaries";
+import { format, getDictionary } from "@/i18n/dictionaries";
 import { requireUserId } from "@/lib/auth-user";
 import { getCashWallets, loadCashOnHand } from "@/lib/ledger-data";
 import { loadMonthView, splitCash } from "@/lib/month-view";
 import { getIncomeGroupsForManagement, getUserSettings } from "@/lib/queries";
 import {
-  availableStats, cardLayout, isSummaryCardId, MAX_GRID_STATS, monthStatContext, statLabel, statShown, type StatRef, type SummaryCardId, type SummaryCardLayout,
+  availableStats, cardLayout, isSummaryCardId, MAX_GRID_STATS, monthStatContext, statDescription, statLabel, statShown, type StatRef, type SummaryCardId, type SummaryCardLayout,
 } from "@/lib/stats";
 import { currentMonthKey, todayKey } from "@/lib/today";
 
@@ -29,12 +29,12 @@ export default async function SummaryCardEditorPage({ params }: PageProps<"/[loc
 
   const settingsWithCash = Promise.all([getUserSettings(userId), getCashWallets(userId)])
     .then(async ([settings, wallets]) => ({ settings, ...splitCash(await loadCashOnHand(userId, wallets), settings.currency) }));
-  const [view, { settings, cashOnHandCents, otherCash }, groups] = await Promise.all([
+  const [view, { settings, cashOnHandCents, cashOnHandParts, otherCash }, groups] = await Promise.all([
     loadMonthView(userId, currentMonth, currentMonth),
     settingsWithCash,
     getIncomeGroupsForManagement(userId),
   ]);
-  const context = monthStatContext({ view, today, settings, cashOnHandCents, otherCash, incomeGroups: groups });
+  const context = monthStatContext({ view, today, settings, cashOnHandCents, cashOnHandParts, otherCash, incomeGroups: groups });
   const layout = cardLayout(card, settings.summaryCards, context);
   const customized = settings.summaryCards[card] !== undefined;
   const choices = availableStats(context, groups.filter((group) => !group.archivedAt));
@@ -42,6 +42,7 @@ export default async function SummaryCardEditorPage({ params }: PageProps<"/[loc
   const headlineChoices = choices.includes(layout.headline) ? choices : [layout.headline, ...choices];
   const addable = choices.filter((ref) => !layout.grid.includes(ref));
   const label = (ref: StatRef) => statLabel(ref, context, messages);
+  const description = (ref: StatRef) => statDescription(ref, context, messages);
   const backHref = `/${locale}/${card === "month" ? "month" : "income"}`;
 
   const moved = (index: number, offset: number) => {
@@ -53,16 +54,10 @@ export default async function SummaryCardEditorPage({ params }: PageProps<"/[loc
 
   return (
     <div className="space-y-7">
-      <div className="space-y-1">
-        <Link className="-ml-1 inline-flex min-h-9 items-center gap-1 text-sm font-medium text-muted-foreground" href={backHref}>
-          <ChevronLeft aria-hidden="true" className="size-4" />
-          {messages.summary.back}
-        </Link>
-        <h1 className="font-display text-2xl font-semibold">{card === "month" ? messages.summary.monthTitle : messages.summary.incomeTitle}</h1>
-      </div>
+      <SubpageHeader backHref={backHref} backLabel={messages.summary.back} title={card === "month" ? messages.summary.monthTitle : messages.summary.incomeTitle} />
 
       <Section title={messages.summary.preview}>
-        <SummaryCard context={context} layout={layout} messages={messages} />
+        <SummaryCard context={context} layout={layout} locale={locale} messages={messages} />
       </Section>
 
       <Section title={messages.summary.headline}>
@@ -89,7 +84,8 @@ export default async function SummaryCardEditorPage({ params }: PageProps<"/[loc
                 <li className="flex items-center gap-1 py-2 pl-4 pr-2" key={ref}>
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium">{label(ref)}</p>
-                    {statShown(ref, context) ? null : <p className="truncate text-xs text-muted-foreground">{messages.summary.hiddenNow}</p>}
+                    <p className="text-xs text-muted-foreground">{description(ref)}</p>
+                    {statShown(ref, context) ? null : <p className="truncate text-xs font-medium text-muted-foreground">{messages.summary.hiddenNow}</p>}
                   </div>
                   <LayoutForm card={card} locale={locale} next={index > 0 ? moved(index, -1) : layout}>
                     <button aria-label={messages.summary.moveUp} className={iconButton} disabled={index === 0} title={messages.summary.moveUp} type="submit">
@@ -110,18 +106,38 @@ export default async function SummaryCardEditorPage({ params }: PageProps<"/[loc
               ))}
             </ul>
           )}
-          {addable.length > 0 && layout.grid.length < MAX_GRID_STATS ? (
-            <LayoutForm card={card} className="flex gap-2 border-t border-border p-4" locale={locale} next={layout}>
-              <select aria-label={messages.summary.addStat} className={inputClass} defaultValue="" key={layout.grid.join()} name="add" required>
-                <option disabled value="">{messages.summary.addStat}</option>
-                {addable.map((ref) => <option key={ref} value={ref}>{label(ref)}</option>)}
-              </select>
-              <button className="min-h-12 shrink-0 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground" type="submit">{messages.summary.add}</button>
-            </LayoutForm>
-          ) : null}
         </Card>
         <p className="px-1 text-xs text-muted-foreground">{messages.summary.statsHint} {messages.summary.hiddenHint}</p>
       </Section>
+
+      {/* Listed with what each stat is, so one can be chosen before adding it. */}
+      {addable.length > 0 && layout.grid.length < MAX_GRID_STATS ? (
+        <Section title={messages.summary.addStat}>
+          <Card>
+            <ul className="divide-y divide-border">
+              {addable.map((ref) => (
+                <li className="flex items-center gap-2 py-2 pl-4 pr-2" key={ref}>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium">{label(ref)}</p>
+                    <p className="text-xs text-muted-foreground">{description(ref)}</p>
+                    {statShown(ref, context) ? null : <p className="truncate text-xs font-medium text-muted-foreground">{messages.summary.hiddenNow}</p>}
+                  </div>
+                  <LayoutForm card={card} locale={locale} next={{ ...layout, grid: [...layout.grid, ref] }}>
+                    <button
+                      aria-label={format(messages.summary.addNamed, { stat: label(ref) })}
+                      className="flex size-11 items-center justify-center rounded-full text-primary transition hover:bg-primary/10"
+                      title={format(messages.summary.addNamed, { stat: label(ref) })}
+                      type="submit"
+                    >
+                      <Plus aria-hidden="true" className="size-5" />
+                    </button>
+                  </LayoutForm>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        </Section>
+      ) : null}
 
       {customized ? (
         <form action={resetSummaryCard}>

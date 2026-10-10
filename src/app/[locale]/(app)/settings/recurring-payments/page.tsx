@@ -3,6 +3,7 @@ import { DeleteButton } from "@/components/delete-button";
 import { Money } from "@/components/money";
 import { RecurringForm } from "@/components/recurring-form";
 import { Card, Section } from "@/components/section";
+import { SubpageHeader } from "@/components/settings-layout";
 import { isLocale } from "@/i18n/config";
 import { format, getDictionary } from "@/i18n/dictionaries";
 import { requireUserId } from "@/lib/auth-user";
@@ -14,7 +15,8 @@ import { paymentMethodLabel } from "@/lib/payment-methods";
 import { getActivePaymentMethods, getActiveCategories, getActiveItems } from "@/lib/queries";
 import { currentMonthKey } from "@/lib/today";
 
-export default async function RecurringPage({ params }: PageProps<"/[locale]/recurring">) {
+/** Bills that repeat: add, edit (from this month on), and stop them; stopped ones are listed below. */
+export default async function RecurringPaymentsPage({ params }: PageProps<"/[locale]/settings/recurring-payments">) {
   const { locale } = await params;
   if (!isLocale(locale)) return null;
   const userId = await requireUserId(locale);
@@ -34,10 +36,7 @@ export default async function RecurringPage({ params }: PageProps<"/[locale]/rec
 
   return (
     <div className="space-y-7">
-      <div>
-        <h1 className="font-display text-2xl font-semibold">{messages.recurring.title}</h1>
-        <p className="mt-2 text-sm text-muted-foreground">{messages.recurring.description}</p>
-      </div>
+      <SubpageHeader backHref={`/${locale}/settings`} backLabel={messages.settings.title} description={messages.recurring.description} title={messages.recurring.title} />
 
       <Card>
         {active.length === 0 ? (

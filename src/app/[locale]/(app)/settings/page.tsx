@@ -1,61 +1,22 @@
-import Link from "next/link";
-import { ChevronDown, ChevronRight, ChevronUp, RotateCcw } from "lucide-react";
+import { Banknote, Globe, HandCoins, List, Repeat, Tags, Target } from "lucide-react";
 import { signOut } from "@/auth";
-import { archiveCard, archiveCashWallet, archiveCategory, archiveIncomeGroup, archiveIncomeSource, moveCategory, restoreCategory, setCurrency, setLocale } from "@/app/actions/settings";
-import { ActionButton } from "@/components/action-button";
-import { BalanceGoalForm } from "@/components/balance-goal-form";
-import { CashOnHandForm } from "@/components/cash-on-hand-form";
-import { CashWalletForm } from "@/components/cash-wallet-form";
-import { HistoryStartForm } from "@/components/history-start-form";
-import { IncomeRhythmForm } from "@/components/income-rhythm-form";
-import { CategoryForm } from "@/components/category-form";
-import { categoryLabel } from "@/lib/categories";
-import { CardForm } from "@/components/card-form";
-import { DeleteButton } from "@/components/delete-button";
-import { IncomeGroupForm } from "@/components/income-group-form";
-import { IncomeSourceForm } from "@/components/income-source-form";
 import { Card, Section } from "@/components/section";
-import { isLocale, locales } from "@/i18n/config";
-import { format, getDictionary } from "@/i18n/dictionaries";
+import { LinkRow } from "@/components/settings-layout";
+import { isLocale } from "@/i18n/config";
+import { getDictionary } from "@/i18n/dictionaries";
 import { requireUserId } from "@/lib/auth-user";
-import { loadCashOnHand } from "@/lib/ledger-data";
-import { getActiveIncomeSources, getActivePaymentMethods, getCategoriesForManagement, getIncomeGroupsForManagement, getUserSettings } from "@/lib/queries";
-import { cn } from "@/lib/cn";
-import { CURRENCIES } from "@/lib/money";
-import { todayKey } from "@/lib/today";
 
-const languageNames = { en: "English", es: "Español" } as const;
-
+/**
+ * Settings as a menu: setup pages first, then the lists kept for spending and income, each a single tap away and
+ * loading only what it shows. Each row says what its page holds, so the menu itself reads nothing.
+ */
 export default async function SettingsPage({ params }: PageProps<"/[locale]/settings">) {
   const { locale } = await params;
   if (!isLocale(locale)) return null;
-  const userId = await requireUserId(locale);
+  await requireUserId(locale);
   const messages = getDictionary(locale);
-
-  const [methods, sources, allCategories, { balanceGoalCents: goalCents, historyStartMonth, rhythmParts, currency }, groups, wallets] = await Promise.all([
-    getActivePaymentMethods(userId),
-    getActiveIncomeSources(userId),
-    getCategoriesForManagement(userId),
-    getUserSettings(userId),
-    getIncomeGroupsForManagement(userId),
-    loadCashOnHand(userId),
-  ]);
-  const categories = allCategories.filter((category) => !category.archivedAt);
-  const archivedCategories = allCategories.filter((category) => category.archivedAt);
-  const cards = methods.filter((method) => method.kind === "CARD");
-  const currencyNames = new Intl.DisplayNames(locale, { type: "currency" });
-  const cardCurrencies = [currency, ...CURRENCIES.filter((code) => code !== currency)].map((code) => ({ code, name: currencyNames.of(code) ?? code }));
-  // Currencies that can still get a cash wallet.
-  const walletCurrencies = CURRENCIES.filter((code) => !wallets.some(({ wallet }) => wallet.currency === code)).map((code) => ({ code, name: currencyNames.of(code) ?? code }));
-  const activeGroups = groups.filter((group) => !group.archivedAt);
-  const groupNames = new Map(groups.map((group) => [group.id, group.name]));
-  // A source may stay in a group archived since, so its own group is always offered.
-  const groupsFor = (groupId: string | null) => {
-    const own = groups.find((group) => group.id === groupId && group.archivedAt);
-    return own ? [...activeGroups, own] : activeGroups;
-  };
-  const categoryNames = new Map(allCategories.map((category) => [category.id, categoryLabel(category, messages.categories)]));
-  const categoryOptions = categories.map((category) => ({ id: category.id, label: categoryLabel(category, messages.categories) }));
+  const { settings } = messages;
+  const href = (page: string) => `/${locale}/settings/${page}`;
 
   async function signOutAction() {
     "use server";
@@ -64,263 +25,32 @@ export default async function SettingsPage({ params }: PageProps<"/[locale]/sett
 
   return (
     <div className="space-y-8">
-      <h1 className="font-display text-2xl font-semibold">{messages.settings.title}</h1>
+      <h1 className="font-display text-2xl font-semibold">{settings.title}</h1>
 
-      <Section title={messages.settings.language}>
-        <div className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-surface p-1">
-          {locales.map((option) => (
-            <form action={setLocale} key={option}>
-              <input name="locale" type="hidden" value={option} />
-              <button
-                aria-pressed={option === locale}
-                className={cn("flex min-h-10 w-full items-center justify-center rounded-lg text-sm font-semibold transition", option === locale ? "bg-background text-foreground" : "text-muted-foreground")}
-                type="submit"
-              >
-                {languageNames[option]}
-              </button>
-            </form>
-          ))}
-        </div>
-      </Section>
+      <Card>
+        <ul className="divide-y divide-border">
+          <LinkRow hint={settings.generalHint} href={href("general")} icon={Globe} title={settings.groupGeneral} />
+          <LinkRow hint={settings.moneyHint} href={href("money")} icon={Banknote} title={settings.groupMoney} />
+          <LinkRow hint={settings.planningHint} href={href("planning")} icon={Target} title={settings.groupPlanning} />
+        </ul>
+      </Card>
 
-      <Section title={messages.settings.currency}>
-        <div className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-surface p-1">
-          {CURRENCIES.map((option) => (
-            <form action={setCurrency} key={option}>
-              <input name="locale" type="hidden" value={locale} />
-              <input name="currency" type="hidden" value={option} />
-              <button
-                aria-pressed={option === currency}
-                className={cn("flex min-h-10 w-full flex-col items-center justify-center rounded-lg px-2 py-1 text-sm font-semibold transition", option === currency ? "bg-background text-foreground" : "text-muted-foreground")}
-                type="submit"
-              >
-                {option}
-                <span className="text-xs font-normal text-muted-foreground">{currencyNames.of(option)}</span>
-              </button>
-            </form>
-          ))}
-        </div>
-        <p className="text-sm text-muted-foreground">{messages.settings.currencyHint}</p>
-      </Section>
-
-      <Section title={messages.month.cashOnHand}>
-        <Card>
-          {/* One cash wallet per currency; each is counted and tracked on its own, never converted. */}
-          <ul className="divide-y divide-border">
-            {wallets.map(({ wallet, cents }, index) => (
-              <li key={wallet.id}>
-                {wallets.length > 1 ? (
-                  <p className="px-4 pt-4 text-sm font-medium">{wallet.name} · {wallet.currency}</p>
-                ) : null}
-                <CashOnHandForm cents={cents} currency={wallet.currency} locale={locale} messages={messages} walletId={wallet.id} />
-                {index > 0 ? (
-                  <RemoveRow action={archiveCashWallet} confirmMessage={messages.settings.confirmArchiveWallet} id={wallet.id} label={messages.settings.archiveWallet} locale={locale} />
-                ) : null}
-              </li>
-            ))}
-          </ul>
-          {walletCurrencies.length > 0 ? (
-            <details className="border-t border-border">
-              <summary className="flex min-h-12 cursor-pointer items-center px-4 font-medium text-primary">{messages.settings.addWallet}</summary>
-              <CashWalletForm currencies={walletCurrencies} locale={locale} messages={messages} />
-            </details>
-          ) : null}
-        </Card>
-      </Section>
-
-      <Section title={messages.settings.goal}>
-        <Card>
-          <BalanceGoalForm goal={goalCents === null ? null : (goalCents / 100).toFixed(2)} locale={locale} messages={messages} />
-        </Card>
-      </Section>
-
-      <Section title={messages.settings.incomeRhythm}>
-        <Card>
-          <IncomeRhythmForm anchor={rhythmParts.anchor} days={rhythmParts.days} kind={rhythmParts.kind} locale={locale} messages={messages} today={todayKey()} />
-        </Card>
-      </Section>
-
-      <Section title={messages.settings.history}>
-        <Card>
-          <HistoryStartForm locale={locale} messages={messages} month={historyStartMonth} />
-        </Card>
-      </Section>
-
-      <div className="space-y-2">
-        <Link className="flex min-h-12 items-center justify-between rounded-2xl border border-border bg-surface px-4 font-medium" href={`/${locale}/recurring`}>
-          {messages.settings.recurringLink}
-          <ChevronRight aria-hidden="true" className="size-5 text-muted-foreground" />
-        </Link>
-        <Link className="flex min-h-12 items-center justify-between rounded-2xl border border-border bg-surface px-4 font-medium" href={`/${locale}/settings/items`}>
-          {messages.manage.itemsLink}
-          <ChevronRight aria-hidden="true" className="size-5 text-muted-foreground" />
-        </Link>
-      </div>
-
-      <Section title={messages.manage.categories}>
+      <Section title={settings.groupSpending}>
         <Card>
           <ul className="divide-y divide-border">
-            {categories.map((category, index) => (
-              <li key={category.id}>
-                <details>
-                  <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3">
-                    <span className="min-w-0 flex-1 truncate font-medium">{categoryLabel(category, messages.categories)}</span>
-                    {category.kind !== "EVERYDAY" ? <span className="rounded-full bg-background px-2.5 py-1 text-xs text-muted-foreground">{messages.manage[`kind${category.kind}`]}</span> : null}
-                    <span className="text-sm text-primary">{messages.common.edit}</span>
-                  </summary>
-                  <div className="border-t border-border bg-background/40">
-                    <div className="flex items-center justify-end gap-1 px-2 pt-2">
-                      <ActionButton action={moveCategory} disabled={index === 0} fields={{ id: category.id, direction: "up", locale }} label={messages.manage.moveUp}>
-                        <ChevronUp aria-hidden="true" className="size-4" />
-                      </ActionButton>
-                      <ActionButton action={moveCategory} disabled={index === categories.length - 1} fields={{ id: category.id, direction: "down", locale }} label={messages.manage.moveDown}>
-                        <ChevronDown aria-hidden="true" className="size-4" />
-                      </ActionButton>
-                    </div>
-                    <CategoryForm
-                      initial={{
-                        id: category.id,
-                        name: category.name ?? "",
-                        defaultLabel: category.key ? categoryLabel({ key: category.key, name: null }, messages.categories) : null,
-                        kind: category.kind,
-                      }}
-                      locale={locale}
-                      messages={messages}
-                    />
-                    {categories.length > 1 ? (
-                      <RemoveRow action={archiveCategory} confirmMessage={messages.manage.confirmArchiveCategory} id={category.id} label={messages.manage.archiveCategory} locale={locale} />
-                    ) : null}
-                  </div>
-                </details>
-              </li>
-            ))}
+            <LinkRow hint={settings.categoriesHint} href={href("categories")} icon={Tags} title={messages.manage.categories} />
+            <LinkRow hint={settings.itemsHint} href={href("items")} icon={List} title={messages.manage.itemsLink} />
+            <LinkRow hint={settings.recurringPaymentsHint} href={href("recurring-payments")} icon={Repeat} title={settings.recurringLink} />
           </ul>
-          <details className="border-t border-border">
-            <summary className="flex min-h-12 cursor-pointer items-center px-4 font-medium text-primary">{messages.manage.addCategory}</summary>
-            <CategoryForm locale={locale} messages={messages} />
-          </details>
-          {archivedCategories.length > 0 ? (
-            <div className="border-t border-border">
-              <p className="px-4 pt-3 text-xs font-semibold tracking-[0.14em] text-muted-foreground uppercase">{messages.manage.archivedCategories}</p>
-              <ul>
-                {archivedCategories.map((category) => (
-                  <li className="flex items-center gap-3 py-1 pl-4 pr-2 text-muted-foreground" key={category.id}>
-                    <span className="min-w-0 flex-1 truncate">{categoryLabel(category, messages.categories)}</span>
-                    <ActionButton action={restoreCategory} fields={{ id: category.id, locale }} label={messages.manage.restore}>
-                      <RotateCcw aria-hidden="true" className="size-4" />
-                    </ActionButton>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
         </Card>
       </Section>
 
-      <Section title={messages.settings.cards}>
+      <Section title={settings.groupIncome}>
         <Card>
-          {cards.length === 0 ? (
-            <p className="px-4 py-4 text-muted-foreground">{messages.settings.cardsEmpty}</p>
-          ) : (
-            <ul className="divide-y divide-border">
-              {cards.map((card) => (
-                <li key={card.id}>
-                  <details>
-                    <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3">
-                      <span aria-hidden="true" className="size-3 shrink-0 rounded-full" style={{ backgroundColor: card.color }} />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate font-medium">{card.name}{card.currency !== currency ? ` · ${card.currency}` : null}</p>
-                        <p className="text-sm text-muted-foreground">{format(messages.settings.cardDays, { closing: card.closingDay ?? "–", days: card.paymentDays ?? "–" })}</p>
-                      </div>
-                      <span className="text-sm text-primary">{messages.common.edit}</span>
-                    </summary>
-                    <div className="border-t border-border bg-background/40">
-                      <CardForm
-                        initial={{ id: card.id, name: card.name, color: card.color, closingDay: card.closingDay ?? 1, paymentDays: card.paymentDays ?? 15 }}
-                        locale={locale}
-                        messages={messages}
-                        usedColors={cards.map((other) => other.color)}
-                      />
-                      <RemoveRow action={archiveCard} confirmMessage={messages.settings.confirmRemove} id={card.id} label={messages.settings.remove} locale={locale} />
-                    </div>
-                  </details>
-                </li>
-              ))}
-            </ul>
-          )}
-          <details className="border-t border-border">
-            <summary className="flex min-h-12 cursor-pointer items-center px-4 font-medium text-primary">{messages.settings.addCard}</summary>
-            <CardForm currencies={cardCurrencies} locale={locale} messages={messages} usedColors={cards.map((card) => card.color)} />
-          </details>
-        </Card>
-      </Section>
-
-      <Section title={messages.settings.incomeSources}>
-        <Card>
-          {sources.length === 0 ? (
-            <p className="px-4 py-4 text-muted-foreground">{messages.settings.sourcesEmpty}</p>
-          ) : (
-            <ul className="divide-y divide-border">
-              {sources.map((source) => (
-                <li key={source.id}>
-                  <details>
-                    <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3">
-                      <p className="min-w-0 flex-1 truncate font-medium">{source.name}</p>
-                      {source.groupId && groupNames.has(source.groupId) ? (
-                        <span className="rounded-full bg-primary/15 px-2.5 py-1 text-xs font-medium text-primary">{groupNames.get(source.groupId)}</span>
-                      ) : null}
-                      <span className="text-sm text-primary">{messages.common.edit}</span>
-                    </summary>
-                    <div className="border-t border-border bg-background/40">
-                      <IncomeSourceForm groups={groupsFor(source.groupId)} initial={source} locale={locale} messages={messages} />
-                      <RemoveRow action={archiveIncomeSource} confirmMessage={messages.settings.confirmRemove} id={source.id} label={messages.settings.remove} locale={locale} />
-                    </div>
-                  </details>
-                </li>
-              ))}
-            </ul>
-          )}
-          <details className="border-t border-border">
-            <summary className="flex min-h-12 cursor-pointer items-center px-4 font-medium text-primary">{messages.settings.addSource}</summary>
-            <IncomeSourceForm groups={activeGroups} locale={locale} messages={messages} />
-          </details>
-        </Card>
-      </Section>
-
-      <Section title={messages.settings.incomeGroups}>
-        <Card>
-          <p className="px-4 pt-4 text-sm text-muted-foreground">{messages.settings.incomeGroupsHint}</p>
-          {activeGroups.length === 0 ? (
-            <p className="px-4 py-4 text-muted-foreground">{messages.settings.groupsEmpty}</p>
-          ) : (
-            <ul className="mt-3 divide-y divide-border border-t border-border">
-              {activeGroups.map((group) => (
-                <li key={group.id}>
-                  <details>
-                    <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3">
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate font-medium">{group.name}</p>
-                        {group.deductCategoryIds.length > 0 ? (
-                          <p className="truncate text-sm text-muted-foreground">
-                            {messages.settings.deducts} {group.deductCategoryIds.map((id) => categoryNames.get(id)).filter(Boolean).join(", ")}
-                          </p>
-                        ) : null}
-                      </div>
-                      <span className="text-sm text-primary">{messages.common.edit}</span>
-                    </summary>
-                    <div className="border-t border-border bg-background/40">
-                      <IncomeGroupForm categories={categoryOptions} initial={group} locale={locale} messages={messages} />
-                      <RemoveRow action={archiveIncomeGroup} confirmMessage={messages.settings.confirmArchiveGroup} id={group.id} label={messages.settings.archiveGroup} locale={locale} />
-                    </div>
-                  </details>
-                </li>
-              ))}
-            </ul>
-          )}
-          <details className="border-t border-border">
-            <summary className="flex min-h-12 cursor-pointer items-center px-4 font-medium text-primary">{messages.settings.addGroup}</summary>
-            <IncomeGroupForm categories={categoryOptions} locale={locale} messages={messages} />
-          </details>
+          <ul className="divide-y divide-border">
+            <LinkRow hint={settings.sourcesHint} href={href("income")} icon={HandCoins} title={settings.sourcesAndGroups} />
+            <LinkRow hint={settings.recurringIncomeHint} href={href("recurring-income")} icon={Repeat} title={settings.recurringIncomeLink} />
+          </ul>
         </Card>
       </Section>
 
@@ -329,22 +59,6 @@ export default async function SettingsPage({ params }: PageProps<"/[locale]/sett
           {messages.auth.signOut}
         </button>
       </form>
-    </div>
-  );
-}
-
-/** The remove or archive action shown under an edit form. */
-function RemoveRow({ action, id, locale, label, confirmMessage }: {
-  action: (formData: FormData) => Promise<void>;
-  id: string;
-  locale: string;
-  label: string;
-  confirmMessage: string;
-}) {
-  return (
-    <div className="flex items-center justify-end gap-2 px-4 pb-4 text-sm text-muted-foreground">
-      {label}
-      <DeleteButton action={action} confirmMessage={confirmMessage} id={id} label={label} locale={locale} />
     </div>
   );
 }

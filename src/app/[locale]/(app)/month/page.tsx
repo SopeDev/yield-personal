@@ -11,6 +11,7 @@ import { formatCentsIn } from "@/lib/money";
 import { MonthNav } from "@/components/month-nav";
 import { OccurrenceAmountForm } from "@/components/occurrence-amount-form";
 import { PaidCheck, PaidCheckForm, StatusBadge } from "@/components/paid-toggle";
+import { ReceiveIncomeForm } from "@/components/receive-income-form";
 import { Card, Section } from "@/components/section";
 import { isLocale } from "@/i18n/config";
 import { format, getDictionary } from "@/i18n/dictionaries";
@@ -18,10 +19,11 @@ import { requireUserId } from "@/lib/auth-user";
 import { occurrencePaymentStatus } from "@/lib/cash-flow";
 import { categoryLabel } from "@/lib/categories";
 import { daysBetween, formatDayHeading, formatShortDate, groupByDay } from "@/lib/dates";
-import { dateKeyOf } from "@/lib/months";
+import { dateFromKey, dateKeyOf } from "@/lib/months";
 import type { LedgerIncome, LedgerPaymentMethod, MonthSpendingEntry } from "@/lib/ledger";
 import { paymentMethodLabel } from "@/lib/payment-methods";
 import type { RecurringOccurrence } from "@/lib/recurring";
+import type { ExpectedPayday } from "@/lib/recurring-income";
 import { loadCardSettings, loadMonthView, summaryCardFor } from "@/lib/month-view";
 import { getActivePaymentMethods } from "@/lib/queries";
 import { monthFromSearchParam } from "@/lib/search-params";
@@ -51,7 +53,7 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
   ]);
 
   // Listed in every currency; the summary card and By category are the main currency's.
-  const { cards, statements, spending, lists: { entries, incomes, occurrences, statementsClosing, carriedStatements, carriedOccurrences, exchanges } } = view;
+  const { cards, statements, spending, lists: { entries, incomes, occurrences, statementsClosing, carriedStatements, carriedOccurrences, exchanges, expectedPaydays } } = view;
   const statementCards = new Map(cards.map((card) => [card.id, card]));
   // Active methods to move a month's bill to, plus its current one if since archived.
   // A bill moves only between methods in its own currency: amounts are never converted.
@@ -172,6 +174,49 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
     );
   };
 
+  /**
+   * A recurring income's payday: received (with what arrived), or expected (yellow once the day has passed). In the
+   * current month an expected one opens to record what arrived; later months only list them.
+   */
+  const paydayRow = ({ recurring, date, received }: ExpectedPayday) => {
+    const key = `${recurring.id}-${date}`;
+    const dot = <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full bg-gain" />;
+    if (received) {
+      return (
+        <li className="flex items-center gap-3 py-3 pl-4 pr-3" key={key}>
+          {dot}
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-medium">{recurring.source.name}</p>
+            <p className="truncate text-sm text-muted-foreground">{format(messages.month.receivedOn, { date: formatShortDate(received.date, locale) })}</p>
+          </div>
+          <Money cents={received.amountCents} currency={recurring.currency} />
+          <span className="rounded-full bg-primary/15 px-2.5 py-1 text-xs font-semibold text-primary">{messages.month.received}</span>
+        </li>
+      );
+    }
+    const header = (
+      <>
+        {dot}
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-medium">{recurring.source.name}</p>
+          <p className={cn("truncate text-sm text-muted-foreground", date < today && "font-medium text-warning")}>
+            {format(messages.month.expectedOn, { date: formatShortDate(dateFromKey(date), locale) })}
+          </p>
+        </div>
+        <Money cents={recurring.amountCents} className="text-muted-foreground" currency={recurring.currency} />
+      </>
+    );
+    if (month !== currentMonth) return <li className="flex items-center gap-3 py-3 pl-4 pr-3" key={key}>{header}</li>;
+    return (
+      <li key={key}>
+        <details>
+          <summary className="flex cursor-pointer list-none items-center gap-3 py-3 pl-4 pr-3">{header}</summary>
+          <ReceiveIncomeForm amount={(recurring.amountCents / 100).toFixed(2)} locale={locale} messages={messages} payday={date} recurringIncomeId={recurring.id} />
+        </details>
+      </li>
+    );
+  };
+
   return (
     <div className="space-y-7">
       <MonthNav labels={messages.common} locale={locale} month={month} path={`/${locale}/month`} />
@@ -183,7 +228,7 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
         </div>
       ) : null}
 
-      <SummaryCard context={summary.context} customizeHref={`/${locale}/settings/cards/month`} layout={summary.layout} messages={messages} />
+      <SummaryCard context={summary.context} customizeHref={`/${locale}/settings/cards/month`} layout={summary.layout} locale={locale} messages={messages} />
 
       {carriedStatements.length > 0 || carriedOccurrences.length > 0 ? (
         <Section title={messages.month.carriedTitle}>
@@ -199,11 +244,11 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
       ) : null}
 
       {itemFilter && visibleOccurrences.length === 0 ? null : (
-        <Section action={<Link className="text-sm font-medium text-primary" href={`/${locale}/recurring`}>{messages.common.manage}</Link>} title={messages.month.recurring}>
+        <Section action={<Link className="text-sm font-medium text-primary" href={`/${locale}/settings/recurring-payments`}>{messages.common.manage}</Link>} title={messages.month.recurring}>
           {visibleOccurrences.length === 0 ? (
             <Card className="px-4 py-6 text-center">
               <p className="text-muted-foreground">{messages.month.recurringEmpty}</p>
-              <Link className="mt-3 inline-flex min-h-11 items-center font-semibold text-primary" href={`/${locale}/recurring`}>{messages.month.addRecurring}</Link>
+              <Link className="mt-3 inline-flex min-h-11 items-center font-semibold text-primary" href={`/${locale}/settings/recurring-payments`}>{messages.month.addRecurring}</Link>
             </Card>
           ) : (
             <Card>
@@ -214,6 +259,15 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
           )}
         </Section>
       )}
+
+      {/* Paydays matter only while the month is still to come; what was received is listed in the entries too. */}
+      {!itemFilter && month >= currentMonth && expectedPaydays.length > 0 ? (
+        <Section action={<Link className="text-sm font-medium text-primary" href={`/${locale}/settings/recurring-income`}>{messages.common.manage}</Link>} title={messages.month.expectedTitle}>
+          <Card>
+            <ul className="divide-y divide-border">{expectedPaydays.map(paydayRow)}</ul>
+          </Card>
+        </Section>
+      ) : null}
 
       {statementsClosing.length > 0 ? (
         <Section title={messages.month.statements}>

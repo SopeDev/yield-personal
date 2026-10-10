@@ -23,6 +23,8 @@ export function AppShell({ children, locale, labels }: {
   const settingsHref = `/${locale}/settings`;
   const savingsHref = `/${locale}/savings`;
   const addActive = pathname === `/${locale}/add`;
+  // Settings stays marked on its subpages.
+  const settingsActive = pathname === settingsHref || pathname.startsWith(`${settingsHref}/`);
 
   return (
     <div className="min-h-svh">
@@ -41,9 +43,9 @@ export function AppShell({ children, locale, labels }: {
               <PiggyBank aria-hidden="true" className="size-5" />
             </Link>
             <Link
-              aria-current={pathname === settingsHref ? "page" : undefined}
+              aria-current={settingsActive ? "page" : undefined}
               aria-label={labels.settings}
-              className={cn("flex size-10 items-center justify-center rounded-full transition hover:bg-surface", pathname === settingsHref ? "text-primary" : "text-muted-foreground")}
+              className={cn("flex size-10 items-center justify-center rounded-full transition hover:bg-surface", settingsActive ? "text-primary" : "text-muted-foreground")}
               href={settingsHref}
             >
               <Settings aria-hidden="true" className="size-5" />

@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import en from "../i18n/messages/en.json";
+import es from "../i18n/messages/es.json";
 import type { LedgerIncome, LedgerPurchase } from "./ledger";
 import { summarizeMonth, type LedgerData } from "./month-summary";
 import { dateFromKey } from "./months";
+import type { RecurringIncomeDefinition } from "./recurring-income";
 import {
-  availableStats, cardLayout, defaultCardLayout, isStatRef, monthStatContext, parseSummaryCards, resolveStats, statLabel, statShown, type StatRef, type StatSettings,
+  availableStats, cardLayout, defaultCardLayout, explainStat, isStatRef, monthStatContext, parseSummaryCards, resolveStats, statDescription, statLabel, statShown,
+  type StatFigure, type StatRef, type StatSettings,
 } from "./stats";
 
 const food = { id: "food", key: "food", name: null, sortOrder: 0, kind: "EVERYDAY" as const };
@@ -24,7 +27,7 @@ function income(id: string, date: string, amountCents: number, source: LedgerInc
 const uber = { id: "uber", name: "Uber", groupId: "rideshare" };
 const salary = { id: "salary", name: "Salary", groupId: null };
 
-function context(incomes: LedgerIncome[], { today = "2026-10-10", settings = noSettings, cashOnHandCents = null as number | null } = {}) {
+function context(incomes: LedgerIncome[], { today = "2026-10-10", settings = noSettings, cashOnHandCents = null as number | null, recurringIncomes = [] as RecurringIncomeDefinition[] } = {}) {
   const data: LedgerData = {
     categories: [food, car],
     purchases: [purchase("gas", "2026-10-02", 40000, car), purchase("pho", "2026-10-04", 20000, food)],
@@ -37,18 +40,19 @@ function context(incomes: LedgerIncome[], { today = "2026-10-10", settings = noS
     savingsMovements: [],
   };
   const summary = summarizeMonth(data, "2026-10");
-  return monthStatContext({ view: { ...summary, purchases: data.purchases }, today, settings, cashOnHandCents });
+  return monthStatContext({ view: { ...summary, purchases: data.purchases, recurringIncomes }, today, settings, cashOnHandCents });
 }
 
 const labels = (refs: StatRef[], ctx: ReturnType<typeof context>) => resolveStats(refs, ctx, en).map((stat) => stat.label);
 
-test("the month card shows balance with goal progress, then its six stats in order", () => {
+test("the month card shows balance with goal progress, then its stats in order", () => {
   const ctx = context([income("u1", "2026-10-01", 100000, uber)], { settings: { balanceGoalCents: 50000, historyStartMonth: null } });
   const monthCard = defaultCardLayout("month", ctx);
   const [balance] = resolveStats([monthCard.headline], ctx, en);
   // Balance: 1,000 income − 600 paid in cash; 100 short of the 500 goal.
   assert.deepEqual(balance.value, { cents: 40000, tone: "gain", note: { text: "Goal $500.00 · $100.00 to go", tone: "muted" } });
-  assert.deepEqual(labels(monthCard.grid, ctx), ["Income", "Outstanding", "Spending", "To pay", "Needed per day", "Daily income"]);
+  // Expected income stays hidden without recurring income.
+  assert.deepEqual(labels(monthCard.grid, ctx), ["Income", "Outstanding", "Spending", "To pay", "Needed per day", "Daily income", "Projected balance"]);
 });
 
 test("figures that have no value this month read as none", () => {
@@ -92,8 +96,8 @@ test("with paydays, the month card swaps the daily pair for needed and income pe
   const settings: StatSettings = { ...noSettings, incomeRhythm: { kind: "MONTH_DAYS", days: [1, 15] } };
   const ctx = context([income("s1", "2026-10-01", 100000, salary)], { settings });
   const card = defaultCardLayout("month", ctx);
-  assert.deepEqual(card.grid.slice(4), ["neededPerPayday", "incomePerPayday"]);
-  const [needed, perPayday] = resolveStats(card.grid.slice(4), ctx, en);
+  assert.deepEqual(card.grid.slice(4, 6), ["neededPerPayday", "incomePerPayday"]);
+  const [needed, perPayday] = resolveStats(card.grid.slice(4, 6), ctx, en);
   assert.equal(needed.label, "Needed per payday");
   assert.equal(needed.value?.note?.text, "1 payday left");
   // Income per payday: 1,000 over one payday passed, net of 600 everyday spending.
@@ -160,4 +164,139 @@ test("days off left lead with the goal's and note breaking even, and only with d
   const paydays = context(incomes, { settings: { ...noSettings, incomeRhythm: { kind: "MONTH_DAYS", days: [1, 15] } } });
   assert.deepEqual(labels(["daysOff"], paydays), []);
   assert.equal(availableStats(paydays, []).includes("daysOff"), false);
+});
+
+test("the projected balance adds expected recurring income and the recent pace of other income, less typical spending", () => {
+  // A salary on the 1st and 15th: the 1st was received, the 15th is still expected.
+  const pay: RecurringIncomeDefinition = { id: "pay", source: salary, amountCents: 300000, rhythm: { kind: "MONTH_DAYS", days: [1, 15] }, startsOn: "2026-10-01" };
+  const received = { ...income("s1", "2026-10-01", 300000, salary), recurringIncomeId: "pay", expectedOn: dateFromKey("2026-10-01") };
+  const ctx = context([income("u1", "2026-10-01", 100000, uber), received], { settings: { ...noSettings, balanceGoalCents: 700000 }, recurringIncomes: [pay] });
+  const [projected, expected, needed] = resolveStats(["projectedBalance", "expectedIncome", "neededPerDay"], ctx, en);
+  // From Jul 1 to Oct 10 (102 days): Uber's 1,000 is 9.80 a day (the salary isn't pace), 600 everyday spending 5.88.
+  // Balance 4,000 − 600 = 3,400, + 3,000 expected, + 22 days left × (9.80 − 5.88).
+  assert.deepEqual(projected.value, { cents: 648624, tone: "gain", note: { text: "Goal $7,000.00 · $513.76 short", tone: "warning" } });
+  assert.deepEqual(expected.value, { cents: 300000, note: { text: "1 payday left", tone: "muted" } });
+  // The expected salary counts as coming: (7,000 − 6,400) ÷ 22 days + 5.88 a day, rounded up.
+  assert.equal(needed.value?.cents, 3316);
+
+  // Without a goal, the note names what is expected; with no recurring income, expected income is hidden.
+  assert.deepEqual(resolveStats(["projectedBalance"], context([received], { recurringIncomes: [pay] }), en)[0].value?.note, { text: "incl. $3,000.00 expected", tone: "muted" });
+  assert.deepEqual(labels(["projectedBalance", "expectedIncome"], context([])), ["Projected balance"]);
+  // A month that has ended has nothing left to project.
+  assert.deepEqual(labels(["projectedBalance", "expectedIncome"], context([], { today: "2026-11-05", recurringIncomes: [pay] })), []);
+});
+
+/** Runs each block of a stat's working like a receipt, checking every "=" line is what the lines above come to. */
+function assertWorkingAddsUp(ref: StatRef, ctx: ReturnType<typeof context>) {
+  const figureOf = (figure: StatFigure) => ("cents" in figure ? figure.cents : "days" in figure ? figure.days : figure.paydays);
+  for (const lines of explainStat(ref, ctx, en, "en").blocks) {
+    let total = figureOf(lines[0].figure);
+    assert.equal(lines[0].op, undefined, `${ref} starts its working with an operation`);
+    for (const line of lines.slice(1)) {
+      const figure = figureOf(line.figure);
+      if (line.op === "+") total += figure;
+      else if (line.op === "−") total -= figure;
+      else if (line.op === "÷") total /= figure;
+      else {
+        // Results are rounded (up, for what's needed), never below zero, and an amount over the goal is shown as such.
+        const close = Math.abs(Math.abs(total) - Math.abs(figure)) <= 1 || (figure === 0 && total <= 0);
+        assert.ok(close, `${ref}: "${line.label}" is ${figure}, but its lines come to ${total}`);
+        total = figure;
+      }
+    }
+  }
+}
+
+test("each stat's working comes to the value it shows", () => {
+  const pay: RecurringIncomeDefinition = { id: "pay", source: salary, amountCents: 300000, rhythm: { kind: "MONTH_DAYS", days: [1, 15] }, startsOn: "2026-10-01" };
+  const received = { ...income("s1", "2026-10-01", 300000, salary), recurringIncomeId: "pay", expectedOn: dateFromKey("2026-10-01") };
+  const incomes = [income("u1", "2026-10-01", 100000, uber), income("u2", "2026-10-03", 100000, uber), received];
+  const parts = { countedCents: 346300, countedOn: "2026-10-07", incomeCents: 120000, purchasesCents: 15000, billsCents: 80000, savingsCents: 30000, transfersCents: -5000, cents: 336300 };
+  const contexts = [
+    context(incomes, { settings: { ...noSettings, balanceGoalCents: 700000 }, recurringIncomes: [pay] }),
+    context(incomes, { recurringIncomes: [pay] }),
+    context(incomes, { settings: { ...noSettings, balanceGoalCents: 700000, incomeRhythm: { kind: "MONTH_DAYS", days: [1, 15] } } }),
+    context(incomes, { settings: { ...noSettings, incomeRhythm: { kind: "WEEKLY", anchor: "2026-10-02" } } }),
+  ].map((ctx) => ({ ...ctx, cashOnHandCents: parts.cents, cashOnHandParts: parts }));
+  for (const ctx of contexts) {
+    const refs = availableStats(ctx, [{ id: "rideshare" }]).filter((ref) => statShown(ref, ctx));
+    assert.ok(refs.length >= 15);
+    for (const ref of refs) {
+      assertWorkingAddsUp(ref, ctx);
+      assert.notEqual(statDescription(ref, ctx, en), "");
+      assert.notEqual(statDescription(ref, ctx, es), "");
+    }
+  }
+});
+
+test("the balance's working shows income less what was paid out, then how far it is from the goal", () => {
+  const savings: LedgerData["savingsMovements"][number] = { id: "m1", fundId: "ef", date: dateFromKey("2026-10-05"), amountCents: 20000, note: null };
+  const data: LedgerData = {
+    categories: [food, car], purchases: [purchase("pho", "2026-10-04", 20000, food)], incomes: [income("u1", "2026-10-01", 100000, uber)],
+    incomeGroups: [], definitions: [], overrides: [], recurringHistory: [], statements: [], savingsMovements: [savings],
+  };
+  const summary = summarizeMonth(data, "2026-10");
+  const ctx = monthStatContext({ view: { ...summary, purchases: data.purchases }, today: "2026-10-10", settings: { ...noSettings, balanceGoalCents: 90000 } });
+  const working = explainStat("balance", ctx, en, "en");
+  // 1,000 income − (200 pho + 200 into savings) = 600; the 900 goal less 600 and the 200 saved leaves 100.
+  assert.deepEqual(working.blocks, [
+    [
+      { op: undefined, label: "Income", figure: { cents: 100000 } },
+      { op: "−", label: "To pay", figure: { cents: 40000 } },
+      { op: "=", label: "Balance", figure: { cents: 60000 } },
+    ],
+    [
+      { op: undefined, label: "Goal", figure: { cents: 90000 } },
+      { op: "−", label: "Balance", figure: { cents: 60000 } },
+      { op: "−", label: "Moved into savings", figure: { cents: 20000 } },
+      { op: "=", label: "Still to go", figure: { cents: 10000 } },
+    ],
+  ]);
+  assert.deepEqual(working.notes, ["Money moved into savings counts toward the goal."]);
+  // To pay names its parts, savings included.
+  assert.deepEqual(explainStat("toPay", ctx, en, "en").blocks[0].map((line) => [line.op, line.label, line.figure]), [
+    [undefined, "Cash purchases", { cents: 20000 }],
+    ["+", "Moved into savings", { cents: 20000 }],
+    ["=", "To pay", { cents: 40000 }],
+  ]);
+});
+
+test("needed per day works from what's still to cover over the days left, plus everyday spending", () => {
+  const pay: RecurringIncomeDefinition = { id: "pay", source: salary, amountCents: 300000, rhythm: { kind: "MONTH_DAYS", days: [1, 15] }, startsOn: "2026-10-01" };
+  const received = { ...income("s1", "2026-10-01", 300000, salary), recurringIncomeId: "pay", expectedOn: dateFromKey("2026-10-01") };
+  const ctx = context([income("u1", "2026-10-01", 100000, uber), received], { settings: { ...noSettings, balanceGoalCents: 700000 }, recurringIncomes: [pay] });
+  const working = explainStat("neededPerDay", ctx, en, "en");
+  assert.deepEqual(working.blocks[0].map((line) => [line.op, line.label, line.figure]), [
+    [undefined, "Goal", { cents: 700000 }],
+    ["+", "To pay", { cents: 60000 }],
+    ["−", "Income", { cents: 400000 }],
+    ["−", "Expected income", { cents: 300000 }],
+    ["=", "Still to cover", { cents: 60000 }],
+    ["÷", "Days left", { days: 22 }],
+    ["+", "Everyday spending per day", { cents: 588 }],
+    ["=", "Needed per day", { cents: 3316 }],
+  ]);
+  assert.deepEqual(working.notes, [
+    "Without the goal, $0.00 a day covers the month.",
+    "Everyday spending per day is your purchases in everyday categories over the last 102 days, divided by them. Recurring bills and installments of earlier purchases aren't included.",
+  ]);
+});
+
+test("a stat with no value says why instead of working it out", () => {
+  assert.deepEqual(explainStat("neededPerDay", context([], { today: "2026-11-05" }), en, "en"), {
+    blocks: [], notes: ["This month has ended, so there are no days left to count."],
+  });
+  assert.deepEqual(explainStat("cashOnHand", context([]), es, "es").notes, ["Cuenta lo que tienes en Ajustes para empezar a seguirlo."]);
+});
+
+test("cash on hand works from its count, dated in the locale, with each kind of record since", () => {
+  const parts = { countedCents: 346300, countedOn: "2026-10-07", incomeCents: 120000, purchasesCents: 0, billsCents: 80000, savingsCents: -20000, transfersCents: 0, cents: 406300 };
+  const ctx = { ...context([]), cashOnHandCents: parts.cents, cashOnHandParts: parts };
+  assert.deepEqual(explainStat("cashOnHand", ctx, es, "es").blocks[0].map((line) => [line.op, line.label]), [
+    [undefined, "Contado el 7 oct"],
+    ["+", "Ingresos desde entonces"],
+    ["−", "Pagos y estados de cuenta pagados desde entonces"],
+    ["+", "Sacado de ahorros desde entonces"],
+    ["=", "Disponible"],
+  ]);
 });

@@ -2,11 +2,12 @@ import "server-only";
 
 import { averageMonthlySpending } from "@/lib/averages";
 import { TYPICAL_SPENDING_MONTHS } from "@/lib/daily-balance";
-import { getCashWallets, getExchanges, getSavingsFunds, loadCashOnHand, loadLedgerRange } from "@/lib/ledger-data";
+import { getCashWallets, getExchanges, getRecurringIncomes, getSavingsFunds, loadCashOnHand, loadLedgerRange } from "@/lib/ledger-data";
 import { getMainCurrency, getUserSettings } from "@/lib/queries";
 import { cardLayout, monthStatContext, type SummaryCardId } from "@/lib/stats";
 import { currenciesIn, forCurrency, summarizeMonth, type MonthSummary } from "@/lib/month-summary";
 import { addMonths, type MonthKey } from "@/lib/months";
+import { expectedPaydays } from "@/lib/recurring-income";
 import { emergencyFundGoal, fundBalance } from "@/lib/savings";
 import { installmentsOwed } from "@/lib/statements";
 
@@ -22,13 +23,15 @@ export const CARRY_UNPAID_MONTHS = 12;
  *
  * Currencies are never converted: the month's figures (and `purchases`, for typical spending) are the main
  * currency's, `lists` holds the records of every currency to list them, and `others` totals each other currency.
+ * Recurring income's paydays are listed in every currency; only the main currency's are expected in the figures.
  */
 export async function loadMonthView(userId: string, month: MonthKey, currentMonth: MonthKey) {
   const carryFrom = month === currentMonth ? addMonths(month, -CARRY_UNPAID_MONTHS) : undefined;
-  const [{ data, cards }, currency, exchanges] = await Promise.all([
+  const [{ data, cards }, currency, exchanges, recurringIncomes] = await Promise.all([
     loadLedgerRange(userId, month, month, { statementsFrom: carryFrom, purchasesFrom: addMonths(currentMonth, -TYPICAL_SPENDING_MONTHS) }),
     getMainCurrency(userId),
     getExchanges(userId, month),
+    getRecurringIncomes(userId),
   ]);
   const byCurrency = currenciesIn(data, currency).map((code) => {
     const currencyData = forCurrency(data, code, currency);
@@ -46,6 +49,7 @@ export async function loadMonthView(userId: string, month: MonthKey, currentMont
     statements: data.statements,
     purchases: main.data.purchases,
     recentIncomes: main.data.incomes,
+    recurringIncomes: recurringIncomes.filter((recurring) => (recurring.currency ?? currency) === currency),
     lists: {
       entries: newestFirst(summaries.flatMap((summary) => summary.entries), (entry) => entry.purchase.date),
       incomes: newestFirst(summaries.flatMap((summary) => summary.incomes), (income) => income.date),
@@ -55,6 +59,7 @@ export async function loadMonthView(userId: string, month: MonthKey, currentMont
       carriedStatements: summaries.flatMap((summary) => summary.cashFlow.carriedStatements).sort(byClosingDate),
       carriedOccurrences: summaries.flatMap((summary) => summary.cashFlow.carriedOccurrences),
       exchanges,
+      expectedPaydays: expectedPaydays(recurringIncomes, data.incomes, month),
     },
     others: others.map(({ currency: code, summary }) => ({
       currency: code,
@@ -71,6 +76,7 @@ export function splitCash(balances: Awaited<ReturnType<typeof loadCashOnHand>>, 
   const counted = balances.flatMap(({ wallet, cents }) => (cents === null ? [] : [{ currency: wallet.currency, cents }]));
   return {
     cashOnHandCents: counted.find((cash) => cash.currency === mainCurrency)?.cents ?? null,
+    cashOnHandParts: balances.find(({ wallet }) => wallet.currency === mainCurrency)?.parts ?? null,
     otherCash: counted.filter((cash) => cash.currency !== mainCurrency),
   };
 }
@@ -83,15 +89,15 @@ export async function loadCardSettings(userId: string, card: SummaryCardId) {
   const [settings, wallets] = await Promise.all([getUserSettings(userId), getCashWallets(userId)]);
   const stored = settings.summaryCards[card];
   const showsCash = stored !== undefined && [stored.headline, ...stored.grid].includes("cashOnHand");
-  return { settings, ...(showsCash ? splitCash(await loadCashOnHand(userId, wallets), settings.currency) : { cashOnHandCents: null, otherCash: [] }) };
+  return { settings, ...(showsCash ? splitCash(await loadCashOnHand(userId, wallets), settings.currency) : { cashOnHandCents: null, cashOnHandParts: null, otherCash: [] }) };
 }
 
 /** A summary card's layout (customized or default) and the figures it is calculated from. */
-export function summaryCardFor(card: SummaryCardId, { view, today, settings, cashOnHandCents, otherCash }: {
+export function summaryCardFor(card: SummaryCardId, { view, today, settings, cashOnHandCents, cashOnHandParts, otherCash }: {
   view: Awaited<ReturnType<typeof loadMonthView>>;
   today: string;
 } & Awaited<ReturnType<typeof loadCardSettings>>) {
-  const context = monthStatContext({ view, today, settings, cashOnHandCents, otherCash });
+  const context = monthStatContext({ view, today, settings, cashOnHandCents, cashOnHandParts, otherCash });
   return { context, layout: cardLayout(card, settings.summaryCards, context) };
 }
 

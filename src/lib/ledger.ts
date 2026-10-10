@@ -19,7 +19,17 @@ export type LedgerPurchase = {
 export type LedgerIncomeSource = { id: string; name: string; groupId: string | null };
 /** Income sources grouped for a net figure: the group's income after spending in `deductCategoryIds`. */
 export type LedgerIncomeGroup = { id: string; name: string; deductCategoryIds: string[] };
-export type LedgerIncome = { id: string; date: Date; amountCents: number; note: string | null; source: LedgerIncomeSource; currency?: string };
+export type LedgerIncome = {
+  id: string;
+  date: Date;
+  amountCents: number;
+  note: string | null;
+  source: LedgerIncomeSource;
+  currency?: string;
+  /** The recurring income, and its payday, this was received for. */
+  recurringIncomeId?: string | null;
+  expectedOn?: Date | null;
+};
 
 export type MonthSpendingEntry = {
   purchase: LedgerPurchase;

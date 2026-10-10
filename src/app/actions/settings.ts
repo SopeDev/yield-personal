@@ -249,7 +249,7 @@ export async function moveCategory(formData: FormData) {
 export async function setLocale(formData: FormData) {
   const locale = localeFromForm(formData);
   (await cookies()).set(LOCALE_COOKIE, locale, { maxAge: LOCALE_COOKIE_MAX_AGE_SECONDS, sameSite: "lax", path: "/" });
-  redirect(`/${locale}/settings`);
+  redirect(`/${locale}/settings/general`);
 }
 
 /** Sets the monthly balance goal: money to have left over or saved each month. */

@@ -3,6 +3,7 @@ import { ActionButton } from "@/components/action-button";
 import { DeleteButton } from "@/components/delete-button";
 import { ItemEditForm, ItemMergeForm } from "@/components/item-forms";
 import { Card, Section } from "@/components/section";
+import { SubpageHeader } from "@/components/settings-layout";
 import { isLocale } from "@/i18n/config";
 import { format, getDictionary } from "@/i18n/dictionaries";
 import { requireUserId } from "@/lib/auth-user";
@@ -26,10 +27,7 @@ export default async function ItemsPage({ params }: PageProps<"/[locale]/setting
 
   return (
     <div className="space-y-7">
-      <div>
-        <h1 className="font-display text-2xl font-semibold">{messages.manage.items}</h1>
-        <p className="mt-2 text-sm text-muted-foreground">{messages.manage.itemsDescription}</p>
-      </div>
+      <SubpageHeader backHref={`/${locale}/settings`} backLabel={messages.settings.title} description={messages.manage.itemsDescription} title={messages.manage.items} />
 
       {groups.length === 0 ? <Card className="px-4 py-6 text-center text-muted-foreground">{messages.manage.itemsEmpty}</Card> : null}
 

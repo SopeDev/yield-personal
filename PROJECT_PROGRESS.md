@@ -68,7 +68,7 @@ Last updated: 2026-10-10
 
 - Customization step 1: category types (everyday / bills / occasional) replace "include in average", and income groups (sources plus the categories their net deducts) replace the rideshare flag and the built-in Car deduction. Migration backfills both (Fixed → bills, Extras → occasional; rideshare sources → a "Rideshare" group deducting Car), verified on an embedded Postgres.
 
-- Performance: a loading screen for every signed-in screen, so navigation switches instantly and dynamic routes can be partly prefetched. Audit found the database co-located with the functions (both Washington, D.C. / us-east-1); then JWT sessions, a 4-connection pool cap, the Savings page's queries running together, and `/` redirected in the routing layer. Then the ledger loader stopped reading old single-payment purchases (about 14 months instead of 60 for the month view), verified against five years of seeded data on an embedded Postgres with every screen's figures unchanged; a separate Income loader was dropped because the stat library's cards need the full month figures. Remaining: client caching of visited tabs, and checking for sequential nested queries.
+- Performance: a loading screen for every signed-in screen, so navigation switches instantly and dynamic routes can be partly prefetched. Audit found the database co-located with the functions (both Washington, D.C. / us-east-1); then JWT sessions, a 4-connection pool cap, the Savings page's queries running together, and `/` redirected in the routing layer. Then the ledger loader stopped reading old single-payment purchases (about 14 months instead of 60 for the month view), verified against five years of seeded data on an embedded Postgres with every screen's figures unchanged; a separate Income loader was dropped because the stat library's cards need the full month figures.
 
 - Customization step 2: a stat library (`src/lib/stats.ts`) holding every summary figure with its label, calculation, tone, and note; the month and income summary cards are rebuilt on it as layouts of stat references, unchanged on screen.
 
@@ -86,7 +86,20 @@ Last updated: 2026-10-10
 
 - Fix: saving a new amount in a form that keeps its default (balance goal, savings goal target, recurring and occurrence amounts) no longer shows the previous amount until a refresh. React resets the form in the same update that brings the saved amount back, before the input's reset listener knew it; resetting now goes back to whatever the latest default is.
 
+- Customization step 4: recurring income and a projected month-end balance.
+  - Recurring income (source, amount, currency, weekly / every 2 weeks / days of the month, defaulting to the income rhythm's schedule), managed on its own page. Migration creates `recurring_incomes` and links incomes to the payday they were received for, verified on an embedded Postgres (receiving a payday twice records it once; stopping keeps received income).
+  - Month view: an Expected income section listing the month's paydays, received or expected; tapping an expected one marks it received with the amount that arrived, which records the income.
+  - Stats: projected balance (balance + expected recurring income + the recent pace of other income − typical daily spending for the days left, with the goal compared below) and expected income, both added to the default month card. Expected recurring income also lowers needed per day and days off left.
+
+- Client caching of visited tabs: screens are reused for 3 minutes, so switching back to a tab is instant; any change clears them.
+
+- Settings split into a menu with a page for each part, so each loads only its own data: General, Money, and Planning, then Categories, Items, and Recurring payments under Spending, and Sources and groups and Recurring income under Income. Recurring payments and recurring income are separate pages under Settings (the month view's "Manage" links lead to each). Every row says what its page holds, every subpage has the same back-link header, and the header's Settings icon stays marked on subpages.
+
+- Savings: the average spending breakdown by category moved off the page into a dialog opened from the "Average monthly spending" line of the emergency fund goal (a bottom sheet on phones, centered on larger screens).
+
+- Explained stats: tapping any stat on the month or income card (ⓘ beside its label) opens a sheet with what it is and its live working from this month's figures (e.g. Income − To pay = Balance; what's still to cover ÷ days left + everyday spending per day = Needed per day), with notes on what goes in and why a stat shows "–". Every stat has a description, shown in the Customize editor too, whose "Add a stat" dropdown became a list with descriptions. Cash flow now returns its parts, days off its work days needed, and money on hand how it moved since its count. A test runs every stat's working and checks it comes to the value shown.
+
 ## Next
 
-- Customization step 4: recurring income with a projected month-end balance (the income rhythm's paydays are a natural base for expected income).
-- Then: category budgets, and quick wins (start screen, last-used category, calendar-year option).
+- Rename the stat labels new users find ambiguous (Spending / To pay / Outstanding, Daily income vs. Daily avg. gross), keeping the explanations in step.
+- Flag figures based on too little history (typical daily spending and the income pace on a new account), in the stat's note or its explanation.

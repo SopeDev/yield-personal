@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { dailyNet, daysOff, goalProgress, neededPerDay, typicalDailySpending } from "./daily-balance";
+import { dailyNet, daysOff, goalProgress, incomePace, neededPerDay, projectedBalance, typicalDailySpending } from "./daily-balance";
 import type { LedgerCategory, LedgerPurchase, MonthSpendingEntry } from "./ledger";
 import { dateFromKey } from "./months";
 
@@ -96,7 +96,9 @@ test("days off left at the recent pace, with gas spent only on days worked", () 
     incomeCents: 1478048,
   };
   // 23 days left: 16.5 days of work break even and 19.78 reach a 4,000 goal, leaving 6 and 3 days off.
-  assert.deepEqual(daysOff({ ...october, goalCents: 400000 }), { daysLeft: 23, workDays: 9, netPerWorkDayCents: 121794, days: 6, forGoalDays: 3 });
+  assert.deepEqual(daysOff({ ...october, goalCents: 400000 }), {
+    daysLeft: 23, workDays: 9, netPerWorkDayCents: 121794, workDaysNeeded: 17, forGoalWorkDaysNeeded: 20, days: 6, forGoalDays: 3,
+  });
   // Far behind there are no days off; far ahead every day left is one.
   assert.equal(daysOff({ ...october, toPayCents: 5000000 })?.days, 0);
   assert.equal(daysOff({ ...october, toPayCents: 0, livingDailyCents: 0 })?.days, 23);
@@ -118,4 +120,25 @@ test("early in a month, days off lean on last month's pace, from the history sta
   assert.equal(daysOff({ ...november, historyStart: "2026-10" })?.netPerWorkDayCents, 60000);
   // Without a history start, September's day counts too.
   assert.equal(daysOff(november)?.workDays, 3);
+});
+
+test("the pace of income spreads income since the history start over every day, days off included", () => {
+  const incomes = [
+    { date: dateFromKey("2026-06-30"), amountCents: 999900 },
+    { date: dateFromKey("2026-09-03"), amountCents: 60000 },
+    { date: dateFromKey("2026-10-09"), amountCents: 40000 },
+    { date: dateFromKey("2026-10-11"), amountCents: 999900 },
+  ];
+  // Jul 1 to Oct 10 is 102 days; income before or after them is left out.
+  assert.deepEqual(incomePace({ incomes, today: "2026-10-10" }), { days: 102, cents: 980 });
+  // From a history start in September: 40 days.
+  assert.deepEqual(incomePace({ incomes, today: "2026-10-10", historyStart: "2026-09" }), { days: 40, cents: 2500 });
+});
+
+test("the projected balance adds what's expected and each day left at the pace, less typical spending", () => {
+  // 22 days left from Oct 10: 1,000 + 500 expected + 22 × (30 − 20).
+  assert.deepEqual(projectedBalance({ month: "2026-10", today: "2026-10-10", balanceCents: 100000, expectedCents: 50000, paceDailyCents: 3000, typicalDailyCents: 2000 }), { daysLeft: 22, cents: 172000 });
+  // A month still to come counts all its days; one that has ended has nothing to project.
+  assert.equal(projectedBalance({ month: "2026-11", today: "2026-10-10", balanceCents: 0, expectedCents: 0, paceDailyCents: 100, typicalDailyCents: 0 })?.cents, 3000);
+  assert.equal(projectedBalance({ month: "2026-09", today: "2026-10-10", balanceCents: 0, expectedCents: 0, paceDailyCents: 0, typicalDailyCents: 0 }), null);
 });

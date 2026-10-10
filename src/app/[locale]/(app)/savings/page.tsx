@@ -1,5 +1,6 @@
 import { archiveGoalFund, deleteSavingsMovement } from "@/app/actions/savings";
 import { DeleteButton } from "@/components/delete-button";
+import { InfoDialog } from "@/components/info-dialog";
 import { Money } from "@/components/money";
 import { EmergencyMonthsForm, GoalForm, SavingsMovementForm } from "@/components/savings-forms";
 import { Card, Section } from "@/components/section";
@@ -40,6 +41,31 @@ export default async function SavingsPage({ params }: PageProps<"/[locale]/savin
   const fundLabel = (fund: (typeof funds)[number]) => (fund.kind === "EMERGENCY" ? messages.savings.emergencyFund : (fund.name ?? ""));
   const fundNames = new Map(funds.map((fund) => [fund.id, fundLabel(fund)]));
 
+  const averageBreakdown = average.byCategory.length === 0 ? (
+    <p className="px-4 py-4 text-muted-foreground">{messages.savings.averageEmpty}</p>
+  ) : (
+    <>
+      <ul className="divide-y divide-border">
+        {average.byCategory.map(({ category, averageCents, monthsWithData }) => (
+          <li className="flex items-center justify-between gap-3 px-4 py-3" key={category.id}>
+            <div>
+              <p>{categoryLabel(category, messages.categories)}</p>
+              <p className="text-xs text-muted-foreground">
+                {monthsWithData === 1 ? messages.savings.monthsWithDataOne : format(messages.savings.monthsWithData, { months: monthsWithData })}
+              </p>
+            </div>
+            <Money cents={averageCents} />
+          </li>
+        ))}
+        <li className="flex items-center justify-between border-t border-border px-4 py-3 font-semibold">
+          <span>{messages.savings.averageSpending}</span>
+          <Money cents={average.totalCents} />
+        </li>
+      </ul>
+      <p className="border-t border-border px-4 py-3 text-xs text-muted-foreground">{messages.savings.excludedNote}</p>
+    </>
+  );
+
   return (
     <div className="space-y-8">
       <h1 className="font-display text-2xl font-semibold">{messages.savings.title}</h1>
@@ -66,7 +92,9 @@ export default async function SavingsPage({ params }: PageProps<"/[locale]/savin
             <dl className="divide-y divide-border border-t border-border text-sm">
               <div className="flex items-center justify-between px-4 py-3">
                 <dt>
-                  {messages.savings.averageSpending}{" "}
+                  <InfoDialog closeLabel={messages.common.close} label={messages.savings.averageSpending} title={messages.savings.averageBreakdown}>
+                    {averageBreakdown}
+                  </InfoDialog>{" "}
                   <span className="text-muted-foreground">{format(messages.savings.timesMonths, { months: emergency.coverMonths })}</span>
                 </dt>
                 <dd><Money cents={emergency.emergencyCents} /></dd>
@@ -87,31 +115,6 @@ export default async function SavingsPage({ params }: PageProps<"/[locale]/savin
           </Card>
         </Section>
       ) : null}
-
-      <Section title={messages.savings.averageBreakdown}>
-        <Card>
-          {average.byCategory.length === 0 ? (
-            <p className="px-4 py-4 text-muted-foreground">{messages.savings.averageEmpty}</p>
-          ) : (
-            <ul className="divide-y divide-border">
-              {average.byCategory.map(({ category, averageCents, monthsWithData }) => (
-                <li className="flex items-center justify-between gap-3 px-4 py-3" key={category.id}>
-                  <div>
-                    <p>{categoryLabel(category, messages.categories)}</p>
-                    <p className="text-xs text-muted-foreground">{format(messages.savings.monthsWithData, { months: monthsWithData })}</p>
-                  </div>
-                  <Money cents={averageCents} />
-                </li>
-              ))}
-              <li className="flex items-center justify-between px-4 py-3 font-semibold">
-                <span>{messages.savings.averageSpending}</span>
-                <Money cents={average.totalCents} />
-              </li>
-            </ul>
-          )}
-        </Card>
-        <p className="px-1 text-xs text-muted-foreground">{messages.savings.excludedNote}</p>
-      </Section>
 
       <Section title={messages.savings.move}>
         <Card>

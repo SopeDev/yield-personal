@@ -40,7 +40,7 @@ export default async function IncomePage({ params, searchParams }: PageProps<"/[
     <div className="space-y-7">
       <MonthNav labels={messages.common} locale={locale} month={month} path={`/${locale}/income`} />
 
-      <SummaryCard context={summary.context} customizeHref={`/${locale}/settings/cards/income`} layout={summary.layout} messages={messages} />
+      <SummaryCard context={summary.context} customizeHref={`/${locale}/settings/cards/income`} layout={summary.layout} locale={locale} messages={messages} />
 
       {income.bySource.length > 0 || otherBySource.length > 0 ? (
         <Section title={messages.income.bySource}>
