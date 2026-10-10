@@ -48,6 +48,12 @@ test("builds category groups with item rows and monthly totals", () => {
   assert.deepEqual(carGroup.totalsCents, [82000, 56000]);
   assert.deepEqual(grid.spending.totalsCents, [82000, 856000]);
   assert.deepEqual(grid.balance.totalsCents, [-82000, -856000]);
+
+  // Through October, November shows what's scheduled but stays out of the year totals.
+  const toDate = buildYearGrid([summarizeMonth(data, "2026-10"), summarizeMonth(data, "2026-11")], data.categories, { through: "2026-10" });
+  assert.deepEqual(toDate.spending.totalsCents, [82000, 856000]);
+  assert.equal(toDate.spending.yearCents, 82000);
+  assert.deepEqual(toDate.groups[1].items.map((row) => [row.item.name, row.yearCents]), [["Gasolina", 82000], ["Lavado", 0]]);
 });
 
 test("marks months whose spending includes an unconfirmed variable bill", () => {

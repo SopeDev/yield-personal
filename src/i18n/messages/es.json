@@ -324,12 +324,34 @@
     "outstanding": "Por pagar",
     "income": "Ingreso total",
     "balance": "Balance",
-    "previous": "12 meses anteriores",
-    "next": "12 meses siguientes",
+    "previous": "Año anterior",
+    "next": "Año siguiente",
     "item": "Concepto",
     "noItems": "Sin gastos",
     "filteredBy": "Mostrando {item}",
-    "clearFilter": "Ver todo"
+    "clearFilter": "Ver todo",
+    "toDate": "A la fecha",
+    "upcoming": "Por venir",
+    "saved": "Ahorrado",
+    "averageBalance": "Balance promedio",
+    "bestMonth": "Mejor mes",
+    "monthsCounted": "Meses contados",
+    "goalReachedIn": "Meta alcanzada {count} de {total} meses",
+    "overMonths": "En {count} meses",
+    "overMonthsOne": "En 1 mes",
+    "noMonths": "Aún no cuenta ningún mes de este año: no han empezado, o son anteriores a \"Contar historial desde\" en Ajustes.",
+    "countedNote": "Cuenta los meses de este año que ya empezaron, desde \"Contar historial desde\" en Ajustes, porque los meses anteriores pueden tener solo algunos registros.",
+    "aboutBalance": "Lo que te ha dejado el año hasta ahora: el ingreso de cada mes menos todo lo que salió ese mes, sumado.",
+    "aboutIncome": "Todo lo recibido en los meses del año hasta ahora.",
+    "aboutToPay": "El dinero que salió en los meses del año hasta ahora: compras y pagos en efectivo, estados de cuenta y dinero pasado al ahorro.",
+    "aboutSpending": "Lo que compraste en los meses del año hasta ahora: compras, mensualidades y pagos recurrentes.",
+    "aboutSaved": "Dinero pasado al ahorro, menos lo retirado, en los meses del año hasta ahora. Cuenta en el total a pagar, pero nunca en contra de tu meta.",
+    "aboutAverageBalance": "Lo que te deja un mes típico de este año: el balance del año entre los meses contados.",
+    "aboutBestMonth": "El mes del año con el balance más alto hasta ahora.",
+    "chartTitle": "Balance por mes",
+    "goalLine": "Meta {goal}",
+    "notStarted": "Aún no empieza",
+    "beforeHistory": "Antes de \"Contar historial desde\""
   },
   "edit": {
     "purchaseTitle": "Editar gasto",
@@ -517,6 +539,8 @@
     "beforeFirstPayday": "Aparece después del primer pago del mes.",
     "perDayWorked": "Los días sin ingresos no cuentan, a diferencia del Ingreso diario, que cuenta todos los días transcurridos.",
     "cashNotCounted": "Cuenta lo que tienes en Ajustes para empezar a seguirlo.",
-    "cashCards": "Las compras con tarjeta salen solo cuando pagas su estado de cuenta, y los pagos pendientes no se descuentan."
+    "cashCards": "Las compras con tarjeta salen solo cuando pagas su estado de cuenta, y los pagos pendientes no se descuentan.",
+    "monthCount": "{count} meses",
+    "monthCountOne": "1 mes"
   }
 }

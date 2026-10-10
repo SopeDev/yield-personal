@@ -188,7 +188,7 @@ test("the projected balance adds expected recurring income and the recent pace o
 
 /** Runs each block of a stat's working like a receipt, checking every "=" line is what the lines above come to. */
 function assertWorkingAddsUp(ref: StatRef, ctx: ReturnType<typeof context>) {
-  const figureOf = (figure: StatFigure) => ("cents" in figure ? figure.cents : "days" in figure ? figure.days : figure.paydays);
+  const figureOf = (figure: StatFigure) => ("cents" in figure ? figure.cents : "days" in figure ? figure.days : "paydays" in figure ? figure.paydays : figure.months);
   for (const lines of explainStat(ref, ctx, en, "en").blocks) {
     let total = figureOf(lines[0].figure);
     assert.equal(lines[0].op, undefined, `${ref} starts its working with an operation`);
