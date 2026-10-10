@@ -84,6 +84,8 @@ Last updated: 2026-10-10
 
 - Days off left: a stat (offered in Customize with a daily income rhythm) for how many days can be taken off this month at the current pace and still reach the balance goal, with breaking even noted below. Gas and other deducted work costs count only on days worked; living costs count every day. The pace of work pools the same history as typical daily spending (from "Count history from", up to 3 full months back), so it doesn't restart each month; the month view now loads recent incomes for it. Stats can now show a number of days as well as amounts. Checked against October's real figures (3 days off for the goal, 6 to break even).
 
+- Fix: saving a new amount in a form that keeps its default (balance goal, savings goal target, recurring and occurrence amounts) no longer shows the previous amount until a refresh. React resets the form in the same update that brings the saved amount back, before the input's reset listener knew it; resetting now goes back to whatever the latest default is.
+
 ## Next
 
 - Customization step 4: recurring income with a projected month-end balance (the income rhythm's paydays are a natural base for expected income).
