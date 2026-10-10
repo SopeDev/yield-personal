@@ -26,23 +26,26 @@ export function MoneyInput({ id, name, className, autoFocus, onChange, defaultVa
   value?: string;
 }) {
   const defaultCents = parseAmountToCents(defaultValue ?? "") ?? 0;
-  const [ownCents, setOwnCents] = useState(defaultCents);
-  // A saved amount comes back as a new default (the page refreshes after saving); show it, even if the form's
-  // reset after saving already restored the old one.
+  // What was typed, or null to show the default. A saved amount comes back as a new default (the page refreshes
+  // after saving), so a new default replaces what was typed.
+  const [typedCents, setTypedCents] = useState<number | null>(null);
   const [shownDefault, setShownDefault] = useState(defaultCents);
   if (defaultCents !== shownDefault) {
     setShownDefault(defaultCents);
-    setOwnCents(defaultCents);
+    setTypedCents(null);
   }
+  const ownCents = typedCents ?? defaultCents;
   const cents = value === undefined ? ownCents : (parseAmountToCents(value) ?? 0);
   const ref = useRef<HTMLInputElement>(null);
 
-  // A form that clears itself after saving resets its fields; this one keeps its amount in state.
+  // A form that clears itself after saving resets its fields; this one keeps its amount in state. React resets the
+  // form in the same commit that brings a saved amount back as the new default, before this listener sees it, so
+  // the reset goes back to whatever the default is at the next render rather than the one this listener knew.
   useEffect(() => {
     const form = ref.current?.form;
     if (!form) return;
     const reset = () => {
-      setOwnCents(defaultCents);
+      setTypedCents(null);
       onChange?.(formatAmountInput(defaultCents));
     };
     form.addEventListener("reset", reset);
@@ -60,7 +63,7 @@ export function MoneyInput({ id, name, className, autoFocus, onChange, defaultVa
       name={name}
       onChange={(event) => {
         const next = amountAfterInput(cents, event.target.value);
-        setOwnCents(next);
+        setTypedCents(next);
         onChange?.(formatAmountInput(next));
       }}
       onFocus={caretToEnd}
