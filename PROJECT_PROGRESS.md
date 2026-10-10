@@ -82,7 +82,7 @@ Last updated: 2026-10-10
 
 - New income sources from quick add (and the income edit form): a "+ New source" chip names one in place, with an optional group; an existing name (even archived) is reused instead of duplicated, and a first income no longer requires a trip to Settings.
 
-- Days off left: a stat (offered in Customize with a daily income rhythm) for how many days can be taken off this month at the current pace and still reach the balance goal, with breaking even noted below. Gas and other deducted work costs count only on days worked; living costs count every day. Stats can now show a number of days as well as amounts. Checked against October's real figures (3 days off for the goal, 7 to break even).
+- Days off left: a stat (offered in Customize with a daily income rhythm) for how many days can be taken off this month at the current pace and still reach the balance goal, with breaking even noted below. Gas and other deducted work costs count only on days worked; living costs count every day. The pace of work pools the same history as typical daily spending (from "Count history from", up to 3 full months back), so it doesn't restart each month; the month view now loads recent incomes for it. Stats can now show a number of days as well as amounts. Checked against October's real figures (3 days off for the goal, 6 to break even).
 
 ## Next
 

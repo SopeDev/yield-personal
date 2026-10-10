@@ -106,7 +106,8 @@ function getPurchases(userId: string, { singlesFrom, installmentsFrom, to }: { s
  * Loads everything needed to summarize each month from `from` through `to` (spending, income, recurring
  * payments, card statements, savings), with lookbacks for installments and statements. `statementsFrom`
  * extends complete statements further back, for carrying unpaid ones forward; `purchasesFrom` loads single
- * purchases from an earlier month too, for figures that look back further (typical daily spending).
+ * purchases and incomes from an earlier month too, for figures that look back further (typical daily spending, the
+ * pace of work). Month summaries only count their own month's incomes.
  */
 export async function loadLedgerRange(userId: string, from: MonthKey, to: MonthKey, { statementsFrom: statementsStart = from, purchasesFrom }: {
   statementsFrom?: MonthKey;
@@ -124,7 +125,7 @@ export async function loadLedgerRange(userId: string, from: MonthKey, to: MonthK
       to,
     }),
     db.income.findMany({
-      where: { userId, date: { gte: monthRange(from).start, lt: monthRange(to).end } },
+      where: { userId, date: { gte: monthRange(purchasesFrom && purchasesFrom < from ? purchasesFrom : from).start, lt: monthRange(to).end } },
       select: { id: true, date: true, amountCents: true, note: true, currency: true, source: { select: { id: true, name: true, groupId: true } } },
       orderBy: [{ date: "desc" }, { createdAt: "desc" }],
     }),
