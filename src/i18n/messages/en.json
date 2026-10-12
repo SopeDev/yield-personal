@@ -231,7 +231,7 @@
     "summaryCards": "Summary cards",
     "recurringIncomeLink": "Recurring income",
     "sourcesAndGroups": "Sources and groups",
-    "generalHint": "Language and main currency",
+    "generalHint": "Language, main currency, and notifications",
     "moneyHint": "Cash on hand and credit cards",
     "planningHint": "Balance goal, income rhythm, and summaries",
     "categoriesHint": "Names, types, and order",
@@ -542,5 +542,27 @@
     "cashCards": "Card purchases leave it only when their statement is paid, and bills still pending aren't taken out.",
     "monthCount": "{count} months",
     "monthCountOne": "1 month"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "hint": "Each morning, a reminder of payments due in the next 3 days that aren't marked paid: cash bills and card statements, overdue ones included. Nothing is sent when nothing is due.",
+    "enable": "Turn on reminders",
+    "disable": "Turn off on this device",
+    "on": "Reminders are on for this device.",
+    "test": "Send a test",
+    "testSent": "Test sent.",
+    "testTitle": "Yield notifications work",
+    "testBody": "You'll get a reminder in the morning when a payment is due soon.",
+    "unsupported": "This browser can't receive notifications. On an iPhone, add Yield to your home screen first.",
+    "denied": "Notifications are blocked for Yield. Allow them in your phone's settings, then try again.",
+    "notConfigured": "Notifications aren't set up on the server yet.",
+    "failed": "Something went wrong. Try again.",
+    "dueOne": "{name}, {when}",
+    "dueMany": "{count} payments due soon",
+    "dueToday": "due today",
+    "dueTomorrow": "due tomorrow",
+    "dueInDays": "due in {count} days",
+    "overdueOne": "1 day overdue",
+    "overdueDays": "{count} days overdue"
   }
 }

@@ -9,6 +9,19 @@ const nextConfig: NextConfig = {
     // made on another device show up within the 3 minutes.
     staleTimes: { dynamic: 180 },
   },
+  // The service worker that shows notifications is always fetched fresh, so a new version takes over right away.
+  async headers() {
+    return [
+      {
+        source: "/sw.js",
+        headers: [
+          { key: "Content-Type", value: "application/javascript; charset=utf-8" },
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+          { key: "Content-Security-Policy", value: "default-src 'self'; script-src 'self'" },
+        ],
+      },
+    ];
+  },
   // The app (and the installed PWA, which starts at "/") opens on the month view in the remembered language.
   // Done here rather than in a page so it's answered by the routing layer without running a function.
   async redirects() {
