@@ -1,5 +1,6 @@
 import { setCurrency, setLocale } from "@/app/actions/settings";
-import { Section } from "@/components/section";
+import { NotificationsForm } from "@/components/notifications-form";
+import { Card, Section } from "@/components/section";
 import { SubpageHeader } from "@/components/settings-layout";
 import { isLocale, locales } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
@@ -11,7 +12,7 @@ import { getMainCurrency } from "@/lib/queries";
 /** Each language in its own name. */
 const LANGUAGE_NAMES = { en: "English", es: "Español" } as const;
 
-/** Language and main currency. */
+/** Language, main currency, and notifications. */
 export default async function GeneralSettingsPage({ params }: PageProps<"/[locale]/settings/general">) {
   const { locale } = await params;
   if (!isLocale(locale)) return null;
@@ -59,6 +60,12 @@ export default async function GeneralSettingsPage({ params }: PageProps<"/[local
           ))}
         </div>
         <p className="text-sm text-muted-foreground">{messages.settings.currencyHint}</p>
+      </Section>
+
+      <Section title={messages.notifications.title}>
+        <Card>
+          <NotificationsForm locale={locale} messages={messages.notifications} publicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || null} />
+        </Card>
       </Section>
     </div>
   );

@@ -71,8 +71,25 @@ model User {
   savingsMovements     SavingsMovement[]
   currencyExchanges    CurrencyExchange[]
   expenseItems         ExpenseItem[]
+  pushSubscriptions    PushSubscription[]
 
   @@map("users")
+}
+
+/// A device that receives notifications: the Web Push subscription its browser handed out (`endpoint` plus its
+/// encryption keys), and the language to write them in.
+model PushSubscription {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  locale    String   @default("en")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
 }
 
 model Account {
