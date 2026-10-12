@@ -82,7 +82,8 @@ export function MonthEntries({ monthSections, filters = true, categories, days, 
               <label className="flex min-h-11 items-center gap-2 rounded-xl border border-border bg-surface px-3 focus-within:border-primary">
                 <Search aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
                 <input
-                  className="min-w-0 flex-1 bg-transparent py-2 text-base outline-none placeholder:text-subtle"
+                  // The browser's own clear button is hidden: the one beside it also clears the category.
+                  className="min-w-0 flex-1 bg-transparent py-2 text-base outline-none placeholder:text-subtle [&::-webkit-search-cancel-button]:appearance-none"
                   enterKeyHint="search"
                   onChange={(event) => setFilter((current) => ({ ...current, query: event.target.value }))}
                   placeholder={labels.search}
