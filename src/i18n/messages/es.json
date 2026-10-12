@@ -106,9 +106,15 @@
     "expectedTitle": "Ingresos esperados",
     "expectedOn": "Se espera el {date}",
     "receivedOn": "Recibido el {date}",
-    "received": "Recibido",
+    "received": "recibido",
     "markReceived": "Marcar recibido",
-    "receivedAmount": "Monto recibido"
+    "receivedAmount": "Monto recibido",
+    "search": "Buscar movimientos",
+    "clearSearch": "Quitar filtro",
+    "results": "{count} movimientos",
+    "resultsOne": "1 movimiento",
+    "spent": "gastado",
+    "noMatches": "Ningún movimiento coincide."
   },
   "income": {
     "deductions": "Deducciones",

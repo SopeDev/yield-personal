@@ -106,9 +106,15 @@
     "expectedTitle": "Expected income",
     "expectedOn": "Expected {date}",
     "receivedOn": "Received {date}",
-    "received": "Received",
+    "received": "received",
     "markReceived": "Mark received",
-    "receivedAmount": "Amount received"
+    "receivedAmount": "Amount received",
+    "search": "Search entries",
+    "clearSearch": "Clear filter",
+    "results": "{count} entries",
+    "resultsOne": "1 entry",
+    "spent": "spent",
+    "noMatches": "No entries match."
   },
   "income": {
     "deductions": "Deductions",
