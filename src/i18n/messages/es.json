@@ -238,7 +238,7 @@
     "summaryCards": "Resúmenes",
     "recurringIncomeLink": "Ingresos recurrentes",
     "sourcesAndGroups": "Fuentes y grupos",
-    "generalHint": "Idioma y moneda principal",
+    "generalHint": "Idioma, moneda principal y notificaciones",
     "moneyHint": "Efectivo disponible y tarjetas de crédito",
     "planningHint": "Meta de balance, ritmo de ingresos y resúmenes",
     "categoriesHint": "Nombres, tipos y orden",
@@ -548,5 +548,27 @@
     "cashCards": "Las compras con tarjeta salen solo cuando pagas su estado de cuenta, y los pagos pendientes no se descuentan.",
     "monthCount": "{count} meses",
     "monthCountOne": "1 mes"
+  },
+  "notifications": {
+    "title": "Notificaciones",
+    "hint": "Cada mañana, un recordatorio de los pagos que vencen en los próximos 3 días y no están marcados como pagados: pagos en efectivo y estados de cuenta, incluidos los vencidos. No se envía nada si no hay pagos por vencer.",
+    "enable": "Activar recordatorios",
+    "disable": "Desactivar en este dispositivo",
+    "on": "Los recordatorios están activos en este dispositivo.",
+    "test": "Enviar una prueba",
+    "testSent": "Prueba enviada.",
+    "testTitle": "Las notificaciones de Yield funcionan",
+    "testBody": "Recibirás un recordatorio en la mañana cuando un pago esté por vencer.",
+    "unsupported": "Este navegador no puede recibir notificaciones. En iPhone, primero agrega Yield a tu pantalla de inicio.",
+    "denied": "Las notificaciones de Yield están bloqueadas. Permítelas en los ajustes de tu teléfono y vuelve a intentarlo.",
+    "notConfigured": "Las notificaciones aún no están configuradas en el servidor.",
+    "failed": "Algo salió mal. Inténtalo de nuevo.",
+    "dueOne": "{name}, {when}",
+    "dueMany": "{count} pagos por vencer",
+    "dueToday": "vence hoy",
+    "dueTomorrow": "vence mañana",
+    "dueInDays": "vence en {count} días",
+    "overdueOne": "vencido hace 1 día",
+    "overdueDays": "vencido hace {count} días"
   }
 }
