@@ -106,9 +106,16 @@
     "expectedTitle": "Ingresos esperados",
     "expectedOn": "Se espera el {date}",
     "receivedOn": "Recibido el {date}",
-    "received": "Recibido",
+    "received": "recibido",
     "markReceived": "Marcar recibido",
-    "receivedAmount": "Monto recibido"
+    "receivedAmount": "Monto recibido",
+    "search": "Buscar movimientos",
+    "clearSearch": "Quitar filtro",
+    "results": "{count} movimientos",
+    "resultsOne": "1 movimiento",
+    "spent": "gastado",
+    "noMatches": "Ningún movimiento coincide.",
+    "itemTotal": "{item} · {amount} este mes"
   },
   "income": {
     "deductions": "Deducciones",
@@ -328,7 +335,6 @@
     "next": "Año siguiente",
     "item": "Concepto",
     "noItems": "Sin gastos",
-    "filteredBy": "Mostrando {item}",
     "clearFilter": "Ver todo",
     "toDate": "A la fecha",
     "upcoming": "Por venir",

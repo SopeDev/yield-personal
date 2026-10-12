@@ -103,6 +103,8 @@ Last updated: 2026-10-10
 
 - Due payment reminders: Web Push notifications each morning for unpaid cash bills and card statements due in the next 3 days (overdue included), turned on per device in Settings > General with a test notification. Service worker, `push_subscriptions` migration (verified on an embedded Postgres), daily Vercel Cron route signed with `CRON_SECRET`. Needs VAPID keys and `CRON_SECRET` set in Vercel.
 
+- Month view search: a search box above the entries (items, sources, categories, payment methods, notes; case and accents ignored) and tappable By category rows filter the month's entries on the device, with the number of matches and what they add up to (spent and received). Filtering focuses the view on the results (the rest of the month steps aside and category chips replace By category), and a month opened from a year view cell shows only that item, with its month total in the banner.
+
 ## Next
 
 - Rename the stat labels new users find ambiguous (Spending / To pay / Outstanding, Daily income vs. Daily avg. gross), keeping the explanations in step.

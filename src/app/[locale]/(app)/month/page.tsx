@@ -5,6 +5,7 @@ import { setOccurrencePaid } from "@/app/actions/recurring";
 import { DeleteButton } from "@/components/delete-button";
 import { EntryRow } from "@/components/entry-row";
 import { Money } from "@/components/money";
+import { MonthEntries, type EntryItem } from "@/components/month-entries";
 import { StatementRow } from "@/components/statement-row";
 import { SummaryCard } from "@/components/summary-card";
 import { formatCentsIn } from "@/lib/money";
@@ -19,6 +20,7 @@ import { requireUserId } from "@/lib/auth-user";
 import { occurrencePaymentStatus } from "@/lib/cash-flow";
 import { categoryLabel } from "@/lib/categories";
 import { daysBetween, formatDayHeading, formatShortDate, groupByDay } from "@/lib/dates";
+import { searchText } from "@/lib/entry-filter";
 import { dateFromKey, dateKeyOf } from "@/lib/months";
 import type { LedgerIncome, LedgerPaymentMethod, MonthSpendingEntry } from "@/lib/ledger";
 import { paymentMethodLabel } from "@/lib/payment-methods";
@@ -217,17 +219,89 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
     );
   };
 
-  return (
-    <div className="space-y-7">
-      <MonthNav labels={messages.common} locale={locale} month={month} path={`/${locale}/month`} />
+  /** Each entry with what the search finds it by and what it adds to the filtered totals. */
+  const purchaseItem = (entry: MonthSpendingEntry): EntryItem => {
+    const { purchase } = entry;
+    return {
+      key: purchase.id,
+      row: purchaseRow(entry),
+      kind: "purchase",
+      text: searchText(purchase.item.name, categoryLabel(purchase.item.category, messages.categories), paymentMethodLabel(purchase.paymentMethod, messages.common.cash), purchase.note),
+      categoryId: purchase.item.category.id,
+      cents: entry.amountCents,
+      currency: purchase.paymentMethod.currency ?? view.currency,
+    };
+  };
+  const incomeItem = (income: LedgerIncome): EntryItem => ({
+    key: income.id,
+    row: (
+      <EntryRow
+        cents={income.amountCents}
+        currency={income.currency}
+        color="var(--color-gain)"
+        details={[messages.month.income, income.note].filter(Boolean).join(" · ")}
+        href={`/${locale}/edit/income/${income.id}`}
+        key={income.id}
+        signed
+        title={income.source.name}
+        trailing={<DeleteButton action={deleteIncome} confirmMessage={messages.month.confirmDeleteIncome} id={income.id} label={messages.common.delete} locale={locale} />}
+      />
+    ),
+    kind: "income",
+    text: searchText(income.source.name, messages.month.income, income.note),
+    categoryId: null,
+    cents: income.amountCents,
+    currency: income.currency ?? view.currency,
+  });
+  const exchangeItem = (exchange: Exchange): EntryItem => ({
+    key: exchange.id,
+    row: (
+      <EntryRow
+        cents={exchange.toCents}
+        color="var(--color-muted-foreground)"
+        currency={exchange.toCurrency}
+        details={[
+          `${formatCentsIn(exchange.fromCents, exchange.fromCurrency, view.currency)} → ${formatCentsIn(exchange.toCents, exchange.toCurrency, view.currency)}`,
+          exchange.note,
+        ].filter(Boolean).join(" · ")}
+        key={exchange.id}
+        title={messages.add.exchangeTitle}
+        trailing={<DeleteButton action={deleteExchange} confirmMessage={messages.month.confirmDeleteExchange} id={exchange.id} label={messages.common.delete} locale={locale} />}
+      />
+    ),
+    kind: "exchange",
+    text: searchText(messages.add.exchangeTitle, exchange.fromCurrency, exchange.toCurrency, exchange.note),
+    categoryId: null,
+    cents: exchange.toCents,
+    currency: exchange.toCurrency,
+  });
 
-      {itemFilter ? (
-        <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/40 bg-primary/10 px-4 py-3 text-sm">
-          <span className="font-medium">{filteredItemName ? format(messages.year.filteredBy, { item: filteredItemName }) : messages.month.empty}</span>
-          <Link className="shrink-0 font-semibold text-primary" href={`/${locale}/month?m=${month}`}>{messages.year.clearFilter}</Link>
-        </div>
-      ) : null}
+  // A month narrowed to one item (from a year view cell) shows only that item: its total, recurring bill, and entries.
+  const itemTotalCents = [
+    ...visibleEntries.filter((entry) => (entry.purchase.paymentMethod.currency ?? view.currency) === view.currency).map((entry) => entry.amountCents),
+    ...visibleOccurrences.filter((occurrence) => (occurrence.recurring.paymentMethod.currency ?? view.currency) === view.currency).map((occurrence) => occurrence.amountCents),
+  ].reduce((sum, cents) => sum + cents, 0);
 
+  const recurringSection = (
+    <Section action={<Link className="text-sm font-medium text-primary" href={`/${locale}/settings/recurring-payments`}>{messages.common.manage}</Link>} title={messages.month.recurring}>
+      {visibleOccurrences.length === 0 ? (
+        <Card className="px-4 py-6 text-center">
+          <p className="text-muted-foreground">{messages.month.recurringEmpty}</p>
+          <Link className="mt-3 inline-flex min-h-11 items-center font-semibold text-primary" href={`/${locale}/settings/recurring-payments`}>{messages.month.addRecurring}</Link>
+        </Card>
+      ) : (
+        <Card>
+          <ul className="divide-y divide-border">
+            {visibleOccurrences.map((occurrence) => occurrenceRow(occurrence))}
+          </ul>
+        </Card>
+      )}
+    </Section>
+  );
+
+  // Everything about the month as a whole, which steps aside while searching its entries.
+  const monthSections = (
+    <>
       <SummaryCard context={summary.context} customizeHref={`/${locale}/settings/cards/month`} layout={summary.layout} locale={locale} messages={messages} />
 
       {carriedStatements.length > 0 || carriedOccurrences.length > 0 ? (
@@ -243,25 +317,10 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
         </Section>
       ) : null}
 
-      {itemFilter && visibleOccurrences.length === 0 ? null : (
-        <Section action={<Link className="text-sm font-medium text-primary" href={`/${locale}/settings/recurring-payments`}>{messages.common.manage}</Link>} title={messages.month.recurring}>
-          {visibleOccurrences.length === 0 ? (
-            <Card className="px-4 py-6 text-center">
-              <p className="text-muted-foreground">{messages.month.recurringEmpty}</p>
-              <Link className="mt-3 inline-flex min-h-11 items-center font-semibold text-primary" href={`/${locale}/settings/recurring-payments`}>{messages.month.addRecurring}</Link>
-            </Card>
-          ) : (
-            <Card>
-              <ul className="divide-y divide-border">
-                {visibleOccurrences.map((occurrence) => occurrenceRow(occurrence))}
-              </ul>
-            </Card>
-          )}
-        </Section>
-      )}
+      {recurringSection}
 
       {/* Paydays matter only while the month is still to come; what was received is listed in the entries too. */}
-      {!itemFilter && month >= currentMonth && expectedPaydays.length > 0 ? (
+      {month >= currentMonth && expectedPaydays.length > 0 ? (
         <Section action={<Link className="text-sm font-medium text-primary" href={`/${locale}/settings/recurring-income`}>{messages.common.manage}</Link>} title={messages.month.expectedTitle}>
           <Card>
             <ul className="divide-y divide-border">{expectedPaydays.map(paydayRow)}</ul>
@@ -280,76 +339,56 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
           </Card>
         </Section>
       ) : null}
+    </>
+  );
 
-      <Section title={messages.month.byCategory}>
-        <Card>
-          <ul className="divide-y divide-border">
-            {spending.byCategory.map(({ category, totalCents }) => (
-              <li className="flex items-center justify-between px-4 py-3" key={category.id}>
-                <span>{categoryLabel(category, messages.categories)}</span>
-                <Money cents={totalCents} className={totalCents === 0 ? "text-subtle" : undefined} />
-              </li>
-            ))}
-          </ul>
-        </Card>
-      </Section>
+  return (
+    <div className="space-y-7">
+      <MonthNav labels={messages.common} locale={locale} month={month} path={`/${locale}/month`} />
 
-      <Section title={messages.month.entries}>
-        {dayItems.length === 0 && carriedInstallments.length === 0 ? (
+      {itemFilter ? (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/40 bg-primary/10 px-4 py-3 text-sm">
+          <span className="min-w-0 font-medium">
+            {filteredItemName ? format(messages.month.itemTotal, { item: filteredItemName, amount: formatCentsIn(itemTotalCents, view.currency, view.currency) }) : messages.month.empty}
+          </span>
+          <Link className="shrink-0 font-semibold text-primary" href={`/${locale}/month?m=${month}`}>{messages.year.clearFilter}</Link>
+        </div>
+      ) : null}
+
+      {itemFilter && visibleOccurrences.length > 0 ? recurringSection : null}
+
+      <MonthEntries
+        filters={!itemFilter}
+        monthSections={itemFilter ? null : monthSections}
+        categories={spending.byCategory.map(({ category, totalCents }) => ({ id: category.id, label: categoryLabel(category, messages.categories), totalCents }))}
+        days={groupByDay(dayItems, (item) => item.date).map((day) => ({
+          key: day.date.toISOString(),
+          heading: formatDayHeading(day.date, today, locale, messages.common),
+          items: day.items.map((item) => (item.kind === "purchase" ? purchaseItem(item.entry) : item.kind === "income" ? incomeItem(item.income) : exchangeItem(item.exchange))),
+        }))}
+        empty={(
           <Card className="px-4 py-8 text-center">
             <p className="text-muted-foreground">{messages.month.empty}</p>
             <Link className="mt-4 inline-flex min-h-11 items-center rounded-xl bg-primary px-5 font-semibold text-primary-foreground" href={`/${locale}/add`}>
               {messages.month.addFirst}
             </Link>
           </Card>
-        ) : (
-          <div className="space-y-4">
-            {groupByDay(dayItems, (item) => item.date).map((day) => (
-              <div key={day.date.toISOString()}>
-                <h3 className="mb-2 px-1 text-sm font-medium text-muted-foreground">{formatDayHeading(day.date, today, locale, messages.common)}</h3>
-                <Card>
-                  <ul className="divide-y divide-border">
-                    {day.items.map((item) =>
-                      item.kind === "purchase" ? purchaseRow(item.entry) : item.kind === "exchange" ? (
-                        <EntryRow
-                          cents={item.exchange.toCents}
-                          color="var(--color-muted-foreground)"
-                          currency={item.exchange.toCurrency}
-                          details={[
-                            `${formatCentsIn(item.exchange.fromCents, item.exchange.fromCurrency, view.currency)} → ${formatCentsIn(item.exchange.toCents, item.exchange.toCurrency, view.currency)}`,
-                            item.exchange.note,
-                          ].filter(Boolean).join(" · ")}
-                          key={item.exchange.id}
-                          title={messages.add.exchangeTitle}
-                          trailing={<DeleteButton action={deleteExchange} confirmMessage={messages.month.confirmDeleteExchange} id={item.exchange.id} label={messages.common.delete} locale={locale} />}
-                        />
-                      ) : (
-                        <EntryRow
-                          cents={item.income.amountCents}
-                          currency={item.income.currency}
-                          color="var(--color-gain)"
-                          details={[messages.month.income, item.income.note].filter(Boolean).join(" · ")}
-                          href={`/${locale}/edit/income/${item.income.id}`}
-                          key={item.income.id}
-                          signed
-                          title={item.income.source.name}
-                          trailing={<DeleteButton action={deleteIncome} confirmMessage={messages.month.confirmDeleteIncome} id={item.income.id} label={messages.common.delete} locale={locale} />}
-                        />
-                      ),
-                    )}
-                  </ul>
-                </Card>
-              </div>
-            ))}
-            {carriedInstallments.length > 0 ? (
-              <div>
-                <h3 className="mb-2 px-1 text-sm font-medium text-muted-foreground">{messages.add.installments}</h3>
-                <Card><ul className="divide-y divide-border">{carriedInstallments.map(purchaseRow)}</ul></Card>
-              </div>
-            ) : null}
-          </div>
         )}
-      </Section>
+        installments={carriedInstallments.map(purchaseItem)}
+        labels={{
+          byCategory: messages.month.byCategory,
+          entries: messages.month.entries,
+          installments: messages.add.installments,
+          search: messages.month.search,
+          clear: messages.month.clearSearch,
+          results: messages.month.results,
+          resultsOne: messages.month.resultsOne,
+          spent: messages.month.spent,
+          received: messages.month.received,
+          noMatches: messages.month.noMatches,
+        }}
+        mainCurrency={view.currency}
+      />
     </div>
   );
 }
