@@ -276,17 +276,32 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
     currency: exchange.toCurrency,
   });
 
-  return (
-    <div className="space-y-7">
-      <MonthNav labels={messages.common} locale={locale} month={month} path={`/${locale}/month`} />
+  // A month narrowed to one item (from a year view cell) shows only that item: its total, recurring bill, and entries.
+  const itemTotalCents = [
+    ...visibleEntries.filter((entry) => (entry.purchase.paymentMethod.currency ?? view.currency) === view.currency).map((entry) => entry.amountCents),
+    ...visibleOccurrences.filter((occurrence) => (occurrence.recurring.paymentMethod.currency ?? view.currency) === view.currency).map((occurrence) => occurrence.amountCents),
+  ].reduce((sum, cents) => sum + cents, 0);
 
-      {itemFilter ? (
-        <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/40 bg-primary/10 px-4 py-3 text-sm">
-          <span className="font-medium">{filteredItemName ? format(messages.year.filteredBy, { item: filteredItemName }) : messages.month.empty}</span>
-          <Link className="shrink-0 font-semibold text-primary" href={`/${locale}/month?m=${month}`}>{messages.year.clearFilter}</Link>
-        </div>
-      ) : null}
+  const recurringSection = (
+    <Section action={<Link className="text-sm font-medium text-primary" href={`/${locale}/settings/recurring-payments`}>{messages.common.manage}</Link>} title={messages.month.recurring}>
+      {visibleOccurrences.length === 0 ? (
+        <Card className="px-4 py-6 text-center">
+          <p className="text-muted-foreground">{messages.month.recurringEmpty}</p>
+          <Link className="mt-3 inline-flex min-h-11 items-center font-semibold text-primary" href={`/${locale}/settings/recurring-payments`}>{messages.month.addRecurring}</Link>
+        </Card>
+      ) : (
+        <Card>
+          <ul className="divide-y divide-border">
+            {visibleOccurrences.map((occurrence) => occurrenceRow(occurrence))}
+          </ul>
+        </Card>
+      )}
+    </Section>
+  );
 
+  // Everything about the month as a whole, which steps aside while searching its entries.
+  const monthSections = (
+    <>
       <SummaryCard context={summary.context} customizeHref={`/${locale}/settings/cards/month`} layout={summary.layout} locale={locale} messages={messages} />
 
       {carriedStatements.length > 0 || carriedOccurrences.length > 0 ? (
@@ -302,25 +317,10 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
         </Section>
       ) : null}
 
-      {itemFilter && visibleOccurrences.length === 0 ? null : (
-        <Section action={<Link className="text-sm font-medium text-primary" href={`/${locale}/settings/recurring-payments`}>{messages.common.manage}</Link>} title={messages.month.recurring}>
-          {visibleOccurrences.length === 0 ? (
-            <Card className="px-4 py-6 text-center">
-              <p className="text-muted-foreground">{messages.month.recurringEmpty}</p>
-              <Link className="mt-3 inline-flex min-h-11 items-center font-semibold text-primary" href={`/${locale}/settings/recurring-payments`}>{messages.month.addRecurring}</Link>
-            </Card>
-          ) : (
-            <Card>
-              <ul className="divide-y divide-border">
-                {visibleOccurrences.map((occurrence) => occurrenceRow(occurrence))}
-              </ul>
-            </Card>
-          )}
-        </Section>
-      )}
+      {recurringSection}
 
       {/* Paydays matter only while the month is still to come; what was received is listed in the entries too. */}
-      {!itemFilter && month >= currentMonth && expectedPaydays.length > 0 ? (
+      {month >= currentMonth && expectedPaydays.length > 0 ? (
         <Section action={<Link className="text-sm font-medium text-primary" href={`/${locale}/settings/recurring-income`}>{messages.common.manage}</Link>} title={messages.month.expectedTitle}>
           <Card>
             <ul className="divide-y divide-border">{expectedPaydays.map(paydayRow)}</ul>
@@ -339,8 +339,27 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
           </Card>
         </Section>
       ) : null}
+    </>
+  );
+
+  return (
+    <div className="space-y-7">
+      <MonthNav labels={messages.common} locale={locale} month={month} path={`/${locale}/month`} />
+
+      {itemFilter ? (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/40 bg-primary/10 px-4 py-3 text-sm">
+          <span className="min-w-0 font-medium">
+            {filteredItemName ? format(messages.month.itemTotal, { item: filteredItemName, amount: formatCentsIn(itemTotalCents, view.currency, view.currency) }) : messages.month.empty}
+          </span>
+          <Link className="shrink-0 font-semibold text-primary" href={`/${locale}/month?m=${month}`}>{messages.year.clearFilter}</Link>
+        </div>
+      ) : null}
+
+      {itemFilter && visibleOccurrences.length > 0 ? recurringSection : null}
 
       <MonthEntries
+        filters={!itemFilter}
+        monthSections={itemFilter ? null : monthSections}
         categories={spending.byCategory.map(({ category, totalCents }) => ({ id: category.id, label: categoryLabel(category, messages.categories), totalCents }))}
         days={groupByDay(dayItems, (item) => item.date).map((day) => ({
           key: day.date.toISOString(),

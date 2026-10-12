@@ -114,7 +114,8 @@
     "results": "{count} movimientos",
     "resultsOne": "1 movimiento",
     "spent": "gastado",
-    "noMatches": "Ningún movimiento coincide."
+    "noMatches": "Ningún movimiento coincide.",
+    "itemTotal": "{item} · {amount} este mes"
   },
   "income": {
     "deductions": "Deducciones",
@@ -334,7 +335,6 @@
     "next": "Año siguiente",
     "item": "Concepto",
     "noItems": "Sin gastos",
-    "filteredBy": "Mostrando {item}",
     "clearFilter": "Ver todo",
     "toDate": "A la fecha",
     "upcoming": "Por venir",

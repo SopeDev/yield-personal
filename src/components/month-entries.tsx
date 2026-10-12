@@ -1,7 +1,7 @@
 "use client";
 
 import { Search, X } from "lucide-react";
-import { Fragment, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
 import { entryMatches, filteredTotals, type EntryFilter, type FilterableEntry } from "@/lib/entry-filter";
 import { Money } from "./money";
@@ -14,8 +14,14 @@ export type EntryDay = { key: string; heading: string; items: EntryItem[] };
  * The month's spending by category and its entries, with a search box above the entries. Tapping a category, or
  * typing (an item, source, payment method, or note), narrows the entries to those that match, with how many there
  * are and what they add up to; tapping the category again, or clearing the search, shows them all.
+ *
+ * While filtering, the view focuses on the results: the rest of the month (`monthSections`, shown above By category
+ * otherwise) and By category step aside for the search box, category chips, and the matching entries. Without
+ * `filters` (the month already narrowed to one item) it lists the entries alone.
  */
-export function MonthEntries({ categories, days, installments, empty, mainCurrency, labels }: {
+export function MonthEntries({ monthSections, filters = true, categories, days, installments, empty, mainCurrency, labels }: {
+  monthSections?: ReactNode;
+  filters?: boolean;
   categories: { id: string; label: string; totalCents: number }[];
   days: EntryDay[];
   /** Installments of purchases made in earlier months, listed apart from this month's days. */
@@ -39,9 +45,17 @@ export function MonthEntries({ categories, days, installments, empty, mainCurren
   const hasEntries = days.length > 0 || installments.length > 0;
   const toggleCategory = (id: string) => setFilter((current) => ({ ...current, categoryId: current.categoryId === id ? null : id }));
 
+  // Starting to filter collapses everything above, so bring the search box to the top of the screen.
+  const searchRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (filtering) searchRef.current?.scrollIntoView({ block: "start" });
+  }, [filtering]);
+
   return (
     <>
-      <Section title={labels.byCategory}>
+      {filtering ? null : monthSections}
+
+      {!filters || filtering ? null : <Section title={labels.byCategory}>
         <Card>
           <ul className="divide-y divide-border">
             {categories.map(({ id, label, totalCents }) => (
@@ -59,12 +73,12 @@ export function MonthEntries({ categories, days, installments, empty, mainCurren
             ))}
           </ul>
         </Card>
-      </Section>
+      </Section>}
 
       <Section title={labels.entries}>
         {!hasEntries ? empty : (
           <div className="space-y-4">
-            <div className="space-y-2">
+            {filters ? <div className="scroll-mt-24 space-y-2" ref={searchRef}>
               <label className="flex min-h-11 items-center gap-2 rounded-xl border border-border bg-surface px-3 focus-within:border-primary">
                 <Search aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
                 <input
@@ -82,6 +96,24 @@ export function MonthEntries({ categories, days, installments, empty, mainCurren
                 ) : null}
               </label>
               {filtering ? (
+                <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+                  {categories.map(({ id, label }) => (
+                    <button
+                      aria-pressed={filter.categoryId === id}
+                      className={cn(
+                        "min-h-9 shrink-0 rounded-full border px-3 text-sm font-medium transition",
+                        filter.categoryId === id ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-foreground",
+                      )}
+                      key={id}
+                      onClick={() => toggleCategory(id)}
+                      type="button"
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              {filtering ? (
                 <p aria-live="polite" className="flex flex-wrap items-baseline gap-x-2 px-1 text-sm text-muted-foreground">
                   {[
                     filter.categoryId ? categories.find((category) => category.id === filter.categoryId)?.label : null,
@@ -91,7 +123,7 @@ export function MonthEntries({ categories, days, installments, empty, mainCurren
                   {totals.receivedCents > 0 ? <span>· {labels.received} <Money cents={totals.receivedCents} className="text-gain" /></span> : null}
                 </p>
               ) : null}
-            </div>
+            </div> : null}
 
             {matches.length === 0 ? <Card className="px-4 py-6 text-center text-muted-foreground">{labels.noMatches}</Card> : null}
             {visibleDays.map((day) => (
