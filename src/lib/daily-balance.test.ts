@@ -103,7 +103,10 @@ test("days off left at the recent pace, with gas spent only on days worked", () 
   };
   // 22 days left: 16.27 days of work break even and 19.56 reach a 4,000 goal, rounded up to a tenth (16.3 and 19.6),
   // leaving 5.7 and 2.4 days off: never more than there are.
-  const expected = { daysLeft: 22, workDays: 9, netPerWorkDayCents: 121794, workDaysNeeded: 16.3, forGoalWorkDaysNeeded: 19.6, days: 5.7, forGoalDays: 2.4 };
+  const expected = {
+    daysLeft: 22, freeDays: 22, workedToday: false, livingCents: 609356, livingTodayLeftCents: 27698,
+    workDays: 9, netPerWorkDayCents: 121794, workDaysNeeded: 16.3, forGoalWorkDaysNeeded: 19.6, days: 5.7, forGoalDays: 2.4,
+  };
   assert.deepEqual(daysOff({ ...october, goalCents: 400000 }), expected);
   // Gas bought this morning, before today's income is logged, waits until the day is over to touch the pace.
   const morningGas = [...october.purchases, entry("2026-10-10", 50000, { category: car }).purchase];
@@ -150,9 +153,43 @@ test("the pace of income spreads income since the history start over every day, 
 });
 
 test("the projected balance adds what's expected and each day left at the pace, less typical spending", () => {
-  // 22 days left from Oct 10: 1,000 + 500 expected + 22 × (30 − 20).
-  assert.deepEqual(projectedBalance({ month: "2026-10", today: "2026-10-10", balanceCents: 100000, expectedCents: 50000, paceDailyCents: 3000, typicalDailyCents: 2000 }), { daysLeft: 22, cents: 172000 });
+  // 22 days left from Oct 10, nothing recorded today yet: 1,000 + 500 expected + all of today (30 in, 20 out) + 21 × (30 − 20).
+  const october = { month: "2026-10" as const, today: "2026-10-10", balanceCents: 100000, expectedCents: 50000, paceDailyCents: 3000, typicalDailyCents: 2000 };
+  assert.deepEqual(projectedBalance(october), { daysLeft: 22, daysAfterToday: 21, todayIncomeLeftCents: 3000, todaySpendingLeftCents: 2000, cents: 172000 });
+  // Today's records count once: 12 earned and 5 spent so far (already in the balance) leave 18 and 15 of an average day.
+  assert.deepEqual(projectedBalance({ ...october, balanceCents: 100700, todayIncomeCents: 1200, todaySpentCents: 500 }), {
+    daysLeft: 22, daysAfterToday: 21, todayIncomeLeftCents: 1800, todaySpendingLeftCents: 1500, cents: 172000,
+  });
+  // A day past the average expects nothing more today, and never takes back what was earned.
+  assert.equal(projectedBalance({ ...october, balanceCents: 104000, todayIncomeCents: 4000, todaySpentCents: 0 })?.todayIncomeLeftCents, 0);
+  assert.equal(projectedBalance({ ...october, balanceCents: 104000, todayIncomeCents: 4000, todaySpentCents: 0 })?.cents, 104000 + 50000 - 2000 + 21 * 1000);
   // A month still to come counts all its days; one that has ended has nothing to project.
   assert.equal(projectedBalance({ month: "2026-11", today: "2026-10-10", balanceCents: 0, expectedCents: 0, paceDailyCents: 100, typicalDailyCents: 0 })?.cents, 3000);
   assert.equal(projectedBalance({ month: "2026-09", today: "2026-10-10", balanceCents: 0, expectedCents: 0, paceDailyCents: 0, typicalDailyCents: 0 }), null);
+});
+
+test("an average day reads the same at night, once logged, as the next morning", () => {
+  // Nine finished days, then October 10: gas and food in the morning, an average day's income at night.
+  const purchases = [
+    entry("2026-10-02", 381900, { category: car }).purchase,
+    entry("2026-10-03", 249284).purchase,
+    entry("2026-10-10", 42433, { category: car }).purchase,
+    entry("2026-10-10", 27698).purchase,
+  ];
+  const incomes = [
+    ...Array.from({ length: 9 }, (_, day) => ({ date: dateFromKey(`2026-10-0${day + 1}`), amountCents: day === 0 ? 164232 : 164227 })),
+    { date: dateFromKey("2026-10-10"), amountCents: 164228 },
+  ];
+  // The month's figures hold every record either way; only what counts as today changes.
+  const month = { month: "2026-10" as const, historyStart: "2026-10" as const, purchases, incomes, workCategoryIds: ["car"], toPayCents: 2850504 + 42433 + 27698, incomeCents: 1478048 + 164228, goalCents: 400000 };
+  const at = (today: string) => daysOff({
+    ...month, today, livingDailyCents: typicalDailySpending({ purchases, today, historyStart: "2026-10", excludeCategoryIds: ["car"] }).cents,
+  });
+  const night = at("2026-10-10");
+  const morning = at("2026-10-11");
+  // At night today is a day worked: 21 days are still free, as they are the next morning.
+  assert.equal(night?.freeDays, 21);
+  assert.equal(morning?.freeDays, 21);
+  assert.ok(Math.abs((night?.forGoalDays ?? 0) - (morning?.forGoalDays ?? 0)) <= 0.1, `${night?.forGoalDays} at night, ${morning?.forGoalDays} the next morning`);
+  assert.ok(Math.abs((night?.days ?? 0) - (morning?.days ?? 0)) <= 0.1, `${night?.days} at night, ${morning?.days} the next morning`);
 });

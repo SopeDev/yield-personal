@@ -547,7 +547,13 @@
     "cashNotCounted": "Count what you have in Settings to start tracking it.",
     "cashCards": "Card purchases leave it only when their statement is paid, and bills still pending aren't taken out.",
     "monthCount": "{count} months",
-    "monthCountOne": "1 month"
+    "monthCountOne": "1 month",
+    "restOfTodayIncome": "Rest of today at your recent pace",
+    "restOfTodaySpending": "Rest of today's everyday spending",
+    "restOfTodayLiving": "Rest of today's living costs",
+    "restOfTodayNote": "Today counts what you've recorded so far plus whatever an average day still has to bring in and spend, so it reads about the same whenever you log.",
+    "daysLeftAfterToday": "Days left after today",
+    "workedTodayNote": "Today has income, so it's a day worked rather than a day off; anything more you log today still lowers what's left to cover."
   },
   "notifications": {
     "title": "Notifications",
