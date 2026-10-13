@@ -4,21 +4,29 @@ import type { LedgerIncome, LedgerPurchase, MonthSpendingEntry } from "./ledger"
 import { addMonths, daysInMonth, dateKeyOf, monthKeyOf, type MonthKey } from "./months";
 
 /**
- * A typical day's net over the days of a month that have passed (today included): income minus everyday spending
+ * A typical day's net over the days of a month that have passed (today included, unless `finishedOnly`): income minus everyday spending
  * on those days, divided by the number of days. Everyday spending is purchases made this month in everyday
  * categories; recurring bills, installments of earlier purchases, bills and occasional categories are left out so
  * the month's big payments don't swamp the day-to-day picture. Null for a month that hasn't started.
  */
-export function dailyNet({ month, today, entries, incomes }: {
+export function dailyNet({ month, today, entries, incomes, finishedOnly = false }: {
   month: MonthKey;
   /** Today as "YYYY-MM-DD". */
   today: string;
   entries: MonthSpendingEntry[];
   incomes: LedgerIncome[];
+  /**
+   * Count the current month only through yesterday, so a day under way (income logged at night) never pulls the
+   * average down; on the 1st, with no finished day yet, today counts.
+   */
+  finishedOnly?: boolean;
 }) {
   const currentMonth = today.slice(0, 7);
   if (month > currentMonth) return null;
-  const lastDay = month === currentMonth ? today : `${month}-${String(daysInMonth(month)).padStart(2, "0")}`;
+  const dayOfMonth = Number(today.slice(8, 10));
+  const throughYesterday = finishedOnly && month === currentMonth && dayOfMonth > 1;
+  const lastDay = month !== currentMonth ? `${month}-${String(daysInMonth(month)).padStart(2, "0")}`
+    : throughYesterday ? `${month}-${String(dayOfMonth - 1).padStart(2, "0")}` : today;
   const passed = (date: Date) => dateKeyOf(date) <= lastDay;
   const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
 
@@ -30,7 +38,7 @@ export function dailyNet({ month, today, entries, incomes }: {
   );
   const days = Number(lastDay.slice(8, 10));
 
-  return { days, incomeCents, spendingCents, averageCents: Math.round((incomeCents - spendingCents) / days) };
+  return { days, throughYesterday, incomeCents, spendingCents, averageCents: Math.round((incomeCents - spendingCents) / days) };
 }
 
 /** Full months before the current one pooled into typical daily spending. */

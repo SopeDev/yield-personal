@@ -459,7 +459,7 @@
     "aboutOutstanding": "Lo que falta pagar de los pagos en efectivo y estados de cuenta de este mes.",
     "aboutNeededPerDay": "Lo que necesitas ganar cada día que queda del mes para cubrir lo que falta pagar, más el gasto diario típico.",
     "aboutNeededPerDayGoal": "Lo que necesitas ganar cada día que queda del mes para llegar a tu meta de balance, más el gasto diario típico.",
-    "aboutDailyIncome": "Ingreso por día en lo que va del mes, contando todos los días, incluidos los libres.",
+    "aboutDailyIncome": "Ingreso por día este mes en los días que ya terminaron (hoy cuenta cuando acabe), incluidos los días libres.",
     "aboutDaysOff": "Los días que aún puedes descansar este mes a tu ritmo reciente de trabajo y aun así cubrir el mes.",
     "aboutDaysOffGoal": "Los días que aún puedes descansar este mes a tu ritmo reciente de trabajo y aun así llegar a tu meta de balance.",
     "aboutProjectedBalance": "Hacia dónde va el balance del mes si los ingresos y el gasto diario siguen a su ritmo reciente.",
@@ -553,7 +553,10 @@
     "restOfTodayLiving": "Resto de los gastos de vida de hoy",
     "restOfTodayNote": "Hoy cuenta lo que llevas registrado más lo que a un día promedio aún le falta por entrar y gastar, así que se lee casi igual sin importar cuándo registres.",
     "daysLeftAfterToday": "Días restantes después de hoy",
-    "workedTodayNote": "Hoy ya tiene ingresos, así que es un día trabajado y no un día libre; lo que registres más tarde hoy igual reduce lo que falta cubrir."
+    "workedTodayNote": "Hoy ya tiene ingresos, así que es un día trabajado y no un día libre; lo que registres más tarde hoy igual reduce lo que falta cubrir.",
+    "incomeThroughYesterday": "Ingresos hasta ayer",
+    "daysFinished": "Días terminados",
+    "everydayThroughYesterday": "Gasto diario hasta ayer"
   },
   "notifications": {
     "title": "Notificaciones",

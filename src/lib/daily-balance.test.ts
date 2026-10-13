@@ -31,10 +31,15 @@ const month = {
 
 test("a typical day's net leaves out extras and installments of earlier purchases", () => {
   // By the 10th: 1,500 income − 200 food, over 10 days.
-  assert.deepEqual(dailyNet({ ...month, today: "2026-10-10" }), { days: 10, incomeCents: 150000, spendingCents: 20000, averageCents: 13000 });
+  assert.deepEqual(dailyNet({ ...month, today: "2026-10-10" }), { days: 10, throughYesterday: false, incomeCents: 150000, spendingCents: 20000, averageCents: 13000 });
   // A past month counts all of its days.
-  assert.deepEqual(dailyNet({ ...month, today: "2026-11-05" }), { days: 31, incomeCents: 240000, spendingCents: 70000, averageCents: 5484 });
+  assert.deepEqual(dailyNet({ ...month, today: "2026-11-05" }), { days: 31, throughYesterday: false, incomeCents: 240000, spendingCents: 70000, averageCents: 5484 });
   assert.equal(dailyNet({ ...month, today: "2026-09-30" }), null);
+  // Finished days only: on the 11th, its 900 waits until the day is over, and the 10 finished days count.
+  assert.deepEqual(dailyNet({ ...month, today: "2026-10-11", finishedOnly: true }), { days: 10, throughYesterday: true, incomeCents: 150000, spendingCents: 20000, averageCents: 13000 });
+  // On the 1st no day has finished yet, so today counts; a past month counts all of its days either way.
+  assert.deepEqual(dailyNet({ ...month, today: "2026-10-01", finishedOnly: true }), { days: 1, throughYesterday: false, incomeCents: 150000, spendingCents: 0, averageCents: 150000 });
+  assert.equal(dailyNet({ ...month, today: "2026-11-05", finishedOnly: true })?.days, 31);
 });
 
 test("income needed per remaining day to cover the month's total to pay", () => {

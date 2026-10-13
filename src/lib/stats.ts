@@ -66,6 +66,8 @@ export function monthStatContext({ view, today, settings, cashOnHandCents = null
   const goalCents = settings.balanceGoalCents;
   const rhythm = settings.incomeRhythm ?? { kind: "DAILY" };
   const dayNet = dailyNet({ month, today, entries, incomes });
+  // Daily income compares with needed per day, so like the forecasts it counts finished days: a day under way would pull it down.
+  const dayPace = dailyNet({ month, today, entries, incomes, finishedOnly: true });
   const typicalDay = typicalDailySpending({ purchases: view.purchases, today, historyStart: settings.historyStartMonth });
   // Recurring income still expected this month counts as coming; it is no part of the pace of other income.
   const recurringIncomes = view.recurringIncomes ?? [];
@@ -95,6 +97,7 @@ export function monthStatContext({ view, today, settings, cashOnHandCents = null
     goalCents,
     rhythm,
     dayNet,
+    dayPace,
     typicalDay,
     livingDay,
     pace,
@@ -116,7 +119,7 @@ export function monthStatContext({ view, today, settings, cashOnHandCents = null
     paydayIncome: dayNet ? incomePerPayday({ month, today, rhythm, incomeCents: dayNet.incomeCents, everydaySpendingCents: dayNet.spendingCents }) : null,
     // The day's target is the goal's when one is set; average daily income is gross, like the target.
     targetCents: needed ? (needed.forGoalCents ?? needed.cents) : null,
-    dailyIncomeCents: dayNet ? Math.round(dayNet.incomeCents / dayNet.days) : null,
+    dailyIncomeCents: dayPace ? Math.round(dayPace.incomeCents / dayPace.days) : null,
     // Money moved into savings counts toward the goal.
     goalLeftCents: goalCents === null ? 0 : goalCents - goalProgressCents,
   };
@@ -370,26 +373,28 @@ const STATS = {
       );
     },
   },
-  /** Gross income per day passed, against the day's target, with daily net below. */
+  /** Gross income per finished day, against the day's target, with daily net below. */
   dailyIncome: {
     label: (_, messages) => messages.month.dailyIncome,
-    value: ({ dayNet, dailyIncomeCents, targetCents, currency }, messages) => {
-      if (!dayNet || dailyIncomeCents === null) return null;
+    value: ({ dayPace, dailyIncomeCents, targetCents, currency }, messages) => {
+      if (!dayPace || dailyIncomeCents === null) return null;
       return {
         cents: dailyIncomeCents,
         tone: targetCents === null ? undefined : dailyIncomeCents >= targetCents ? "gain" : "warning",
-        note: { text: format(messages.month.netPerDay, { amount: formatCents(dayNet.averageCents, currency) }), tone: "muted" },
+        note: { text: format(messages.month.netPerDay, { amount: formatCents(dayPace.averageCents, currency) }), tone: "muted" },
       };
     },
     description: (_, messages) => messages.explain.aboutDailyIncome,
-    explain: ({ dayNet, dailyIncomeCents, targetCents, currency }, messages, _, { label }) => {
-      if (!dayNet || dailyIncomeCents === null) return why(messages.explain.monthAhead);
-      const incomeSoFar = amount(messages.explain.incomeSoFar, dayNet.incomeCents);
-      const daysSoFar = dayCount(messages.explain.daysSoFar, dayNet.days, "÷");
+    explain: ({ dayPace, dailyIncomeCents, targetCents, currency }, messages, _, { label }) => {
+      if (!dayPace || dailyIncomeCents === null) return why(messages.explain.monthAhead);
+      const finished = dayPace.throughYesterday;
+      const incomeSoFar = amount(finished ? messages.explain.incomeThroughYesterday : messages.explain.incomeSoFar, dayPace.incomeCents);
+      const daysSoFar = dayCount(finished ? messages.explain.daysFinished : messages.explain.daysSoFar, dayPace.days, "÷");
+      const everyday = finished ? messages.explain.everydayThroughYesterday : messages.explain.everydaySoFar;
       return explained(
         [
           block(incomeSoFar, daysSoFar, amount(label, dailyIncomeCents, "=")),
-          block(incomeSoFar, amount(messages.explain.everydaySoFar, dayNet.spendingCents, "−"), daysSoFar, amount(messages.explain.netPerDay, dayNet.averageCents, "=")),
+          block(incomeSoFar, amount(everyday, dayPace.spendingCents, "−"), daysSoFar, amount(messages.explain.netPerDay, dayPace.averageCents, "=")),
         ],
         [targetCents !== null && format(messages.explain.dailyTarget, { amount: formatCents(targetCents, currency) }), messages.explain.everydaySoFarNote],
       );
