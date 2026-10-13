@@ -131,20 +131,54 @@ export function incomePace({ incomes, today, historyStart = null }: {
 }
 
 /**
- * Where the month's balance is headed: its balance so far, plus recurring income still expected, plus each day left
- * (today included) at the recent pace of other income minus typical daily spending. Null for a month that has ended.
+ * Today so far: income and everyday purchases (in the included categories, as typical daily spending counts them)
+ * already recorded today. Forecasts count only the rest of an average day on top, so a day reads the same whether
+ * its records come in the morning, midday, or at night.
  */
-export function projectedBalance({ month, today, balanceCents, expectedCents, paceDailyCents, typicalDailyCents }: {
+export function todaySoFar({ purchases, incomes, today, include = () => true }: {
+  purchases: Pick<LedgerPurchase, "date" | "amountCents" | "installmentCount" | "item">[];
+  incomes: Pick<LedgerIncome, "date" | "amountCents">[];
+  today: string;
+  include?: (categoryId: string) => boolean;
+}) {
+  const todays = incomes.filter((income) => dateKeyOf(income.date) === today);
+  return {
+    hasIncome: todays.length > 0,
+    incomeCents: todays.reduce((sum, income) => sum + income.amountCents, 0),
+    spentCents: everydaySpending(purchases, { fromKey: today, toKey: today, include }),
+  };
+}
+
+/**
+ * Where the month's balance is headed: its balance so far, plus recurring income still expected, plus the rest of
+ * today (what an average day still has to bring in and spend beyond today's records, never below zero), plus each
+ * day after today at the recent pace of other income minus typical daily spending. A month still to come has no
+ * today: every one of its days counts at the pace. Null for a month that has ended.
+ */
+export function projectedBalance({ month, today, balanceCents, expectedCents, paceDailyCents, typicalDailyCents, todayIncomeCents = 0, todaySpentCents = 0 }: {
   month: MonthKey;
   today: string;
   balanceCents: number;
   expectedCents: number;
   paceDailyCents: number;
   typicalDailyCents: number;
+  /** Income and everyday spending already recorded today (the pace's kind of income and typical spending's purchases). */
+  todayIncomeCents?: number;
+  todaySpentCents?: number;
 }) {
   const daysLeft = daysLeftIn(month, today);
   if (daysLeft === null) return null;
-  return { daysLeft, cents: balanceCents + expectedCents + (paceDailyCents - typicalDailyCents) * daysLeft };
+  const isCurrent = month === today.slice(0, 7);
+  const daysAfterToday = isCurrent ? daysLeft - 1 : daysLeft;
+  const todayIncomeLeftCents = isCurrent ? Math.max(0, paceDailyCents - todayIncomeCents) : 0;
+  const todaySpendingLeftCents = isCurrent ? Math.max(0, typicalDailyCents - todaySpentCents) : 0;
+  return {
+    daysLeft,
+    daysAfterToday,
+    todayIncomeLeftCents,
+    todaySpendingLeftCents,
+    cents: balanceCents + expectedCents + todayIncomeLeftCents - todaySpendingLeftCents + (paceDailyCents - typicalDailyCents) * daysAfterToday,
+  };
 }
 
 /**
@@ -154,7 +188,7 @@ export function projectedBalance({ month, today, balanceCents, expectedCents, pa
  * spending in `workCategoryIds` (the costs of working, like gas, which a day off doesn't spend). Every day left,
  * worked or not, costs `livingDailyCents` (typical daily spending without those categories). The work days still
  * needed cover the month's total to pay (`days`) or also the balance goal (`forGoalDays`), in tenths of a day rounded
- * so the days off never fall short; never below zero or above the days left (today included). Null outside the current month, before
+ * so the days off never fall short; never below zero or above the days still free (the days left, without today once it has income: a day worked is no day off). Null outside the current month, before
  * any income, or when a day worked costs as much as it earns.
  */
 export function daysOff({ month, today, historyStart = null, purchases, incomes, workCategoryIds, livingDailyCents, toPayCents, incomeCents, savingsNetCents = 0, goalCents = null }: {
@@ -182,16 +216,28 @@ export function daysOff({ month, today, historyStart = null, purchases, incomes,
   if (workDays === 0 || netCents <= 0) return null;
 
   const daysLeft = daysInMonth(month) - Number(today.slice(8, 10)) + 1;
+  // A day with income is a day worked, so it can't also be a day off: the days free to work or rest start tomorrow.
+  // Today's living costs count only what's left of an average day beyond what today has already spent.
+  const soFar = todaySoFar({ purchases, incomes, today, include: (categoryId) => !workCategoryIds.includes(categoryId) });
+  const freeDays = soFar.hasIncome ? daysLeft - 1 : daysLeft;
+  const livingTodayLeftCents = Math.max(0, livingDailyCents - soFar.spentCents);
+  const livingCents = livingDailyCents * (daysLeft - 1) + livingTodayLeftCents;
   // Work days needed = (shortfall + living costs of the days left) ÷ net per day worked, rounded up to a tenth of a
   // day; the rest are days off, so they round down to a tenth and never promise more than there is. Kept in whole
   // tenths until the end so the subtraction is exact.
-  const workTenthsFor = (shortfallCents: number) => Math.max(0, Math.ceil(((shortfallCents + livingDailyCents * daysLeft) * workDays * 10) / netCents));
+  const workTenthsFor = (shortfallCents: number) => Math.max(0, Math.ceil(((shortfallCents + livingCents) * workDays * 10) / netCents));
   const workDaysFor = (shortfallCents: number) => workTenthsFor(shortfallCents) / 10;
-  const off = (workDaysNeeded: number) => Math.max(0, daysLeft * 10 - Math.round(workDaysNeeded * 10)) / 10;
+  const off = (workDaysNeeded: number) => Math.max(0, freeDays * 10 - Math.round(workDaysNeeded * 10)) / 10;
   const workDaysNeeded = workDaysFor(toPayCents - incomeCents);
   const forGoalWorkDaysNeeded = goalCents === null ? null : workDaysFor(goalCents - goalProgress({ balanceCents: incomeCents - toPayCents, savingsNetCents }));
   return {
     daysLeft,
+    /** Days still free to work or rest: the days left, without today once it has income. */
+    freeDays,
+    workedToday: soFar.hasIncome,
+    /** Living costs still to come: every day after today, and what's left of today's. */
+    livingCents,
+    livingTodayLeftCents,
     workDays,
     netPerWorkDayCents: Math.round(netCents / workDays),
     workDaysNeeded,

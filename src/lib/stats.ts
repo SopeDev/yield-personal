@@ -2,7 +2,7 @@ import type { Locale } from "../i18n/config";
 import { format, type Messages } from "../i18n/dictionaries";
 import type { CashOnHandParts } from "./cash-on-hand";
 import { categoryLabel } from "./categories";
-import { dailyNet, daysLeftIn, daysOff, goalProgress, incomePace, neededPerDay, projectedBalance, typicalDailySpending } from "./daily-balance";
+import { dailyNet, daysLeftIn, daysOff, goalProgress, incomePace, neededPerDay, projectedBalance, todaySoFar, typicalDailySpending } from "./daily-balance";
 import { formatShortDate } from "./dates";
 import { incomePerPayday, neededPerPayday, type IncomeRhythm } from "./income-rhythm";
 import type { LedgerIncome, LedgerPurchase } from "./ledger";
@@ -81,6 +81,8 @@ export function monthStatContext({ view, today, settings, cashOnHandCents = null
   // The categories income groups deduct are the costs of working, spent only on days worked.
   const workCategoryIds = income.deductCategoryIds;
   const livingDay = typicalDailySpending({ purchases: view.purchases, today, historyStart: settings.historyStartMonth, excludeCategoryIds: workCategoryIds });
+  // What today has already brought in (the pace's kind of income) and spent; forecasts add only the rest of an average day.
+  const todayRecords = todaySoFar({ purchases: view.purchases, incomes: paceIncomes, today });
   return {
     ...view,
     today,
@@ -109,6 +111,7 @@ export function monthStatContext({ view, today, settings, cashOnHandCents = null
     expected,
     projected: projectedBalance({
       month, today, balanceCents, expectedCents: expected.cents, typicalDailyCents: typicalDay.cents, paceDailyCents: pace.cents,
+      todayIncomeCents: todayRecords.incomeCents, todaySpentCents: todayRecords.spentCents,
     }),
     paydayIncome: dayNet ? incomePerPayday({ month, today, rhythm, incomeCents: dayNet.incomeCents, everydaySpendingCents: dayNet.spendingCents }) : null,
     // The day's target is the goal's when one is set; average daily income is gross, like the target.
@@ -405,30 +408,35 @@ const STATS = {
       if (daysOff.forGoalDays !== null) {
         return { days: daysOff.forGoalDays, tone: tone(daysOff.forGoalDays), note: { text: format(messages.month.daysOffBreakEven, { count: daysOff.days }), tone: "muted" } };
       }
-      return { days: daysOff.days, tone: tone(daysOff.days), note: { text: format(messages.month.daysOffOf, { count: daysOff.daysLeft }), tone: "muted" } };
+      return { days: daysOff.days, tone: tone(daysOff.days), note: { text: format(messages.month.daysOffOf, { count: daysOff.freeDays }), tone: "muted" } };
     },
     description: ({ goalCents }, messages) => (goalCents === null ? messages.explain.aboutDaysOff : messages.explain.aboutDaysOffGoal),
     explain: (context, messages, _, { label }) => {
       const { daysOff, livingDay, typicalDay, month, today, currency } = context;
       if (!daysOff) return why(month === today.slice(0, 7) ? format(messages.explain.daysOffNoPace, { days: typicalDay.days }) : messages.explain.currentMonthOnly);
-      const { daysLeft } = daysOff;
+      const { daysLeft, freeDays } = daysOff;
       const workDaysNeeded = daysOff.forGoalWorkDaysNeeded ?? daysOff.workDaysNeeded;
       const toCover = shortfall(context, messages, { withExpected: true });
-      const livingCents = livingDay.cents * daysLeft;
-      const living = format(messages.explain.livingForDaysLeft, { amount: formatCents(livingDay.cents, currency), days: daysText(daysLeft, messages) });
+      const living = format(messages.explain.livingForDaysLeft, { amount: formatCents(livingDay.cents, currency), days: daysText(daysLeft - 1, messages) });
       return explained(
         [
           block(
             ...toCover.lines,
-            amount(living, livingCents, "+"),
-            amount(messages.explain.neededFromWork, toCover.cents + livingCents, "="),
+            unlessZero(messages.explain.restOfTodayLiving, daysOff.livingTodayLeftCents, "+"),
+            unlessZero(living, livingDay.cents * (daysLeft - 1), "+"),
+            amount(messages.explain.neededFromWork, toCover.cents + daysOff.livingCents, "="),
             amount(messages.explain.netPerWorkDay, daysOff.netPerWorkDayCents, "÷"),
             dayCount(messages.explain.workDaysNeeded, workDaysNeeded, "="),
           ),
-          block(dayCount(messages.explain.daysLeft, daysLeft), dayCount(messages.explain.workDaysNeeded, workDaysNeeded, "−"), dayCount(label, daysOff.forGoalDays ?? daysOff.days, "=")),
+          block(
+            dayCount(daysOff.workedToday ? messages.explain.daysLeftAfterToday : messages.explain.daysLeft, freeDays),
+            dayCount(messages.explain.workDaysNeeded, workDaysNeeded, "−"),
+            dayCount(label, daysOff.forGoalDays ?? daysOff.days, "="),
+          ),
         ],
         [
-          workDaysNeeded > daysLeft && messages.explain.moreWorkThanDays,
+          daysOff.workedToday && messages.explain.workedTodayNote,
+          workDaysNeeded > freeDays && messages.explain.moreWorkThanDays,
           daysOff.forGoalDays !== null && format(messages.explain.daysOffBreakEvenNote, { count: daysOff.days }),
           format(messages.explain.daysOffPace, { workDays: daysOff.workDays, days: typicalDay.days, amount: formatCents(daysOff.netPerWorkDayCents, currency) }),
           messages.explain.livingNote,
@@ -460,16 +468,24 @@ const STATS = {
     explain: (context, messages, _, { label }) => {
       const { projected, balanceCents, expected, pace, typicalDay, goalCents, currency } = context;
       if (!projected) return why(messages.explain.monthEnded);
-      const days = daysText(projected.daysLeft, messages);
+      const days = daysText(projected.daysAfterToday, messages);
+      const hasToday = projected.daysAfterToday < projected.daysLeft;
       return explained(
         [block(
           amount(messages.month.balance, balanceCents),
           unlessZero(messages.month.expectedIncome, expected.cents, "+"),
-          amount(format(messages.explain.paceForDaysLeft, { amount: formatCents(pace.cents, currency), days }), pace.cents * projected.daysLeft, "+"),
-          amount(format(messages.explain.everydayForDaysLeft, { amount: formatCents(typicalDay.cents, currency), days }), typicalDay.cents * projected.daysLeft, "−"),
+          unlessZero(messages.explain.restOfTodayIncome, projected.todayIncomeLeftCents, "+"),
+          unlessZero(format(messages.explain.paceForDaysLeft, { amount: formatCents(pace.cents, currency), days }), pace.cents * projected.daysAfterToday, "+"),
+          unlessZero(messages.explain.restOfTodaySpending, projected.todaySpendingLeftCents, "−"),
+          unlessZero(format(messages.explain.everydayForDaysLeft, { amount: formatCents(typicalDay.cents, currency), days }), typicalDay.cents * projected.daysAfterToday, "−"),
           amount(label, projected.cents, "="),
         )],
-        [format(messages.explain.paceNote, { days: pace.days }), everydayNote(context, messages), goalCents !== null && messages.explain.goalSavings],
+        [
+          hasToday && messages.explain.restOfTodayNote,
+          format(messages.explain.paceNote, { days: pace.days }),
+          everydayNote(context, messages),
+          goalCents !== null && messages.explain.goalSavings,
+        ],
       );
     },
   },

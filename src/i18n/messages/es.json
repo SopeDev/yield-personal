@@ -547,7 +547,13 @@
     "cashNotCounted": "Cuenta lo que tienes en Ajustes para empezar a seguirlo.",
     "cashCards": "Las compras con tarjeta salen solo cuando pagas su estado de cuenta, y los pagos pendientes no se descuentan.",
     "monthCount": "{count} meses",
-    "monthCountOne": "1 mes"
+    "monthCountOne": "1 mes",
+    "restOfTodayIncome": "Resto de hoy a tu ritmo reciente",
+    "restOfTodaySpending": "Resto del gasto diario de hoy",
+    "restOfTodayLiving": "Resto de los gastos de vida de hoy",
+    "restOfTodayNote": "Hoy cuenta lo que llevas registrado más lo que a un día promedio aún le falta por entrar y gastar, así que se lee casi igual sin importar cuándo registres.",
+    "daysLeftAfterToday": "Días restantes después de hoy",
+    "workedTodayNote": "Hoy ya tiene ingresos, así que es un día trabajado y no un día libre; lo que registres más tarde hoy igual reduce lo que falta cubrir."
   },
   "notifications": {
     "title": "Notificaciones",
