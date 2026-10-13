@@ -107,6 +107,8 @@ Last updated: 2026-10-10
 
 - Days off left shows tenths of a day ("1.9 days", rounded down), so it drifts smoothly instead of jumping a whole day at the boundary; the explanation's working uses the same tenths. Every average from past days (typical daily spending, living cost, income pace, net per day worked) now counts finished days only, through yesterday, so a day under way (gas in the morning, income at night) no longer skews them. Today counts as what's been recorded plus the rest of an average day (never twice), and a day with income is a day worked rather than a possible day off, so an average day reads the same at night, once logged, as the next morning.
 
+- Daily income (and the net under it) counts finished days only, through yesterday, so it no longer dips every morning and compares fairly with needed per day and the projection. The app reloads its figures when it comes back to the foreground after a minute away or on a new day, so a screen left open overnight never shows yesterday's numbers as today's.
+
 ## Next
 
 - Rename the stat labels new users find ambiguous (Spending / To pay / Outstanding, Daily income vs. Daily avg. gross), keeping the explanations in step.

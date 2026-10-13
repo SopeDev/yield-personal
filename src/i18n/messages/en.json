@@ -459,7 +459,7 @@
     "aboutOutstanding": "What's still unpaid of this month's cash bills and card statements.",
     "aboutNeededPerDay": "Income needed on each day left this month to cover what's still to pay, plus a typical day's everyday spending.",
     "aboutNeededPerDayGoal": "Income needed on each day left this month to reach your balance goal, plus a typical day's everyday spending.",
-    "aboutDailyIncome": "Income per day so far this month, counting every day, days off included.",
+    "aboutDailyIncome": "Income per day this month over the days that have finished (today counts once it's over), days off included.",
     "aboutDaysOff": "Days you can still take off this month at your recent pace of work and still cover the month.",
     "aboutDaysOffGoal": "Days you can still take off this month at your recent pace of work and still reach your balance goal.",
     "aboutProjectedBalance": "Where the month's balance is headed if income and everyday spending keep their recent pace.",
@@ -553,7 +553,10 @@
     "restOfTodayLiving": "Rest of today's living costs",
     "restOfTodayNote": "Today counts what you've recorded so far plus whatever an average day still has to bring in and spend, so it reads about the same whenever you log.",
     "daysLeftAfterToday": "Days left after today",
-    "workedTodayNote": "Today has income, so it's a day worked rather than a day off; anything more you log today still lowers what's left to cover."
+    "workedTodayNote": "Today has income, so it's a day worked rather than a day off; anything more you log today still lowers what's left to cover.",
+    "incomeThroughYesterday": "Income through yesterday",
+    "daysFinished": "Days finished",
+    "everydayThroughYesterday": "Everyday spending through yesterday"
   },
   "notifications": {
     "title": "Notifications",

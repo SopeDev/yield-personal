@@ -300,3 +300,14 @@ test("cash on hand works from its count, dated in the locale, with each kind of 
     ["=", "Disponible"],
   ]);
 });
+
+test("daily income counts finished days, so income logged today waits until tomorrow", () => {
+  // Oct 10: 1,000 on the 1st, and 3,000 logged today. Through yesterday, 9 days: 1,000 ÷ 9, and net of 600 everyday spending.
+  const incomes = [income("u1", "2026-10-01", 100000, uber), income("u2", "2026-10-10", 300000, uber)];
+  const [daily] = resolveStats(["dailyIncome"], context(incomes), en);
+  assert.deepEqual(daily.value, { cents: 11111, tone: "gain", note: { text: "net $44.44", tone: "muted" } });
+  assert.deepEqual(resolveStats(["dailyIncome"], context(incomes.slice(0, 1)), en)[0].value, daily.value);
+  // Its working says so.
+  const lines = explainStat("dailyIncome", context(incomes), en, "en").blocks[0].map((line) => line.label);
+  assert.deepEqual(lines, ["Income through yesterday", "Days finished", "Daily income"]);
+});
