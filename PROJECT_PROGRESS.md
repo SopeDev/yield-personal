@@ -105,6 +105,8 @@ Last updated: 2026-10-10
 
 - Month view search: a search box above the entries (items, sources, categories, payment methods, notes; case and accents ignored) and tappable By category rows filter the month's entries on the device, with the number of matches and what they add up to (spent and received). Filtering focuses the view on the results (the rest of the month steps aside and category chips replace By category), and a month opened from a year view cell shows only that item, with its month total in the banner.
 
+- Days off left shows tenths of a day ("1.9 days", rounded down), so it drifts smoothly instead of jumping a whole day at the boundary; the explanation's working uses the same tenths. Every average from past days (typical daily spending, living cost, income pace, net per day worked) now counts finished days only, through yesterday, so a day under way (gas in the morning, income at night) no longer skews them.
+
 ## Next
 
 - Rename the stat labels new users find ambiguous (Spending / To pay / Outstanding, Daily income vs. Daily avg. gross), keeping the explanations in step.
