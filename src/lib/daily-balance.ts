@@ -147,8 +147,8 @@ export function projectedBalance({ month, today, balanceCents, expectedCents, pa
  * a day worked is a day with income, and earns the average income per day worked minus the average everyday
  * spending in `workCategoryIds` (the costs of working, like gas, which a day off doesn't spend). Every day left,
  * worked or not, costs `livingDailyCents` (typical daily spending without those categories). The work days still
- * needed cover the month's total to pay (`days`) or also the balance goal (`forGoalDays`), rounded so the days off
- * never fall short; never below zero or above the days left (today included). Null outside the current month, before
+ * needed cover the month's total to pay (`days`) or also the balance goal (`forGoalDays`), in tenths of a day rounded
+ * so the days off never fall short; never below zero or above the days left (today included). Null outside the current month, before
  * any income, or when a day worked costs as much as it earns.
  */
 export function daysOff({ month, today, historyStart = null, purchases, incomes, workCategoryIds, livingDailyCents, toPayCents, incomeCents, savingsNetCents = 0, goalCents = null }: {
@@ -176,9 +176,12 @@ export function daysOff({ month, today, historyStart = null, purchases, incomes,
   if (workDays === 0 || netCents <= 0) return null;
 
   const daysLeft = daysInMonth(month) - Number(today.slice(8, 10)) + 1;
-  // Work days needed = (shortfall + living costs of the days left) ÷ net per day worked, rounded up; the rest are days off.
-  const workDaysFor = (shortfallCents: number) => Math.max(0, Math.ceil(((shortfallCents + livingDailyCents * daysLeft) * workDays) / netCents));
-  const off = (workDaysNeeded: number) => Math.max(0, daysLeft - workDaysNeeded);
+  // Work days needed = (shortfall + living costs of the days left) ÷ net per day worked, rounded up to a tenth of a
+  // day; the rest are days off, so they round down to a tenth and never promise more than there is. Kept in whole
+  // tenths until the end so the subtraction is exact.
+  const workTenthsFor = (shortfallCents: number) => Math.max(0, Math.ceil(((shortfallCents + livingDailyCents * daysLeft) * workDays * 10) / netCents));
+  const workDaysFor = (shortfallCents: number) => workTenthsFor(shortfallCents) / 10;
+  const off = (workDaysNeeded: number) => Math.max(0, daysLeft * 10 - Math.round(workDaysNeeded * 10)) / 10;
   const workDaysNeeded = workDaysFor(toPayCents - incomeCents);
   const forGoalWorkDaysNeeded = goalCents === null ? null : workDaysFor(goalCents - goalProgress({ balanceCents: incomeCents - toPayCents, savingsNetCents }));
   return {

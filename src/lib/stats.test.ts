@@ -156,7 +156,7 @@ test("days off left lead with the goal's and note breaking even, and only with d
   const incomes = [income("u1", "2026-10-01", 100000, uber), income("u2", "2026-10-03", 100000, uber)];
   const withGoal = context(incomes, { settings: { ...noSettings, balanceGoalCents: 1000000 } });
   assert.deepEqual(resolveStats(["daysOff"], withGoal, en)[0], {
-    ref: "daysOff", label: "Days off left", value: { days: 11, tone: "gain", note: { text: "22 to break even", tone: "muted" } },
+    ref: "daysOff", label: "Days off left", value: { days: 11.1, tone: "gain", note: { text: "22 to break even", tone: "muted" } },
   });
   // Without a goal: income already covers the month, so every day left is free.
   assert.deepEqual(resolveStats(["daysOff"], context(incomes), en)[0].value, { days: 22, tone: "gain", note: { text: "of 22 days left", tone: "muted" } });

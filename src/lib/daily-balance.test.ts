@@ -95,10 +95,14 @@ test("days off left at the recent pace, with gas spent only on days worked", () 
     toPayCents: 2850504,
     incomeCents: 1478048,
   };
-  // 23 days left: 16.5 days of work break even and 19.78 reach a 4,000 goal, leaving 6 and 3 days off.
+  // 23 days left: 16.499 days of work break even and 19.78 reach a 4,000 goal, rounded up to a tenth (16.5 and 19.8),
+  // leaving 6.5 and 3.2 days off: never more than there are.
   assert.deepEqual(daysOff({ ...october, goalCents: 400000 }), {
-    daysLeft: 23, workDays: 9, netPerWorkDayCents: 121794, workDaysNeeded: 17, forGoalWorkDaysNeeded: 20, days: 6, forGoalDays: 3,
+    daysLeft: 23, workDays: 9, netPerWorkDayCents: 121794, workDaysNeeded: 16.5, forGoalWorkDaysNeeded: 19.8, days: 6.5, forGoalDays: 3.2,
   });
+  // A tiny shortfall still costs a tenth of a day, not a whole one: 1.99 days off reads 1.9, never 1 or 2.
+  assert.equal(daysOff({ ...october, toPayCents: 1478048, livingDailyCents: 0 })?.days, 23);
+  assert.equal(daysOff({ ...october, toPayCents: 1478048 + 1000, livingDailyCents: 0 })?.days, 22.9);
   // Far behind there are no days off; far ahead every day left is one.
   assert.equal(daysOff({ ...october, toPayCents: 5000000 })?.days, 0);
   assert.equal(daysOff({ ...october, toPayCents: 0, livingDailyCents: 0 })?.days, 23);
