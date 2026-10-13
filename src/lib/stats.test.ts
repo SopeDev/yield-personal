@@ -172,12 +172,12 @@ test("the projected balance adds expected recurring income and the recent pace o
   const received = { ...income("s1", "2026-10-01", 300000, salary), recurringIncomeId: "pay", expectedOn: dateFromKey("2026-10-01") };
   const ctx = context([income("u1", "2026-10-01", 100000, uber), received], { settings: { ...noSettings, balanceGoalCents: 700000 }, recurringIncomes: [pay] });
   const [projected, expected, needed] = resolveStats(["projectedBalance", "expectedIncome", "neededPerDay"], ctx, en);
-  // From Jul 1 to Oct 10 (102 days): Uber's 1,000 is 9.80 a day (the salary isn't pace), 600 everyday spending 5.88.
-  // Balance 4,000 − 600 = 3,400, + 3,000 expected, + 22 days left × (9.80 − 5.88).
-  assert.deepEqual(projected.value, { cents: 648624, tone: "gain", note: { text: "Goal $7,000.00 · $513.76 short", tone: "warning" } });
+  // Over the finished days, Jul 1 to Oct 9 (101): Uber's 1,000 is 9.90 a day (the salary isn't pace), 600 everyday
+  // spending 5.94. Balance 4,000 − 600 = 3,400, + 3,000 expected, + 22 days left × (9.90 − 5.94).
+  assert.deepEqual(projected.value, { cents: 648712, tone: "gain", note: { text: "Goal $7,000.00 · $512.88 short", tone: "warning" } });
   assert.deepEqual(expected.value, { cents: 300000, note: { text: "1 payday left", tone: "muted" } });
-  // The expected salary counts as coming: (7,000 − 6,400) ÷ 22 days + 5.88 a day, rounded up.
-  assert.equal(needed.value?.cents, 3316);
+  // The expected salary counts as coming: (7,000 − 6,400) ÷ 22 days + 5.94 a day, rounded up.
+  assert.equal(needed.value?.cents, 3322);
 
   // Without a goal, the note names what is expected; with no recurring income, expected income is hidden.
   assert.deepEqual(resolveStats(["projectedBalance"], context([received], { recurringIncomes: [pay] }), en)[0].value?.note, { text: "incl. $3,000.00 expected", tone: "muted" });
@@ -273,12 +273,12 @@ test("needed per day works from what's still to cover over the days left, plus e
     ["−", "Expected income", { cents: 300000 }],
     ["=", "Still to cover", { cents: 60000 }],
     ["÷", "Days left", { days: 22 }],
-    ["+", "Everyday spending per day", { cents: 588 }],
-    ["=", "Needed per day", { cents: 3316 }],
+    ["+", "Everyday spending per day", { cents: 594 }],
+    ["=", "Needed per day", { cents: 3322 }],
   ]);
   assert.deepEqual(working.notes, [
     "Without the goal, $0.00 a day covers the month.",
-    "Everyday spending per day is your purchases in everyday categories over the last 102 days, divided by them. Recurring bills and installments of earlier purchases aren't included.",
+    "Everyday spending per day is your purchases in everyday categories over the last 101 finished days (today counts once it's over), divided by them. Recurring bills and installments of earlier purchases aren't included.",
   ]);
 });
 

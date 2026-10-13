@@ -38,7 +38,7 @@ export const TYPICAL_SPENDING_MONTHS = 3;
 
 /**
  * What an ordinary day costs: everyday purchases (as in `dailyNet`: everyday categories, without
- * recurring bills or installments of earlier purchases) from the last full months through today, divided by
+ * recurring bills or installments of earlier purchases) from the last full months through yesterday (finished days only), divided by
  * those days. Months before `historyStart` are skipped, since they may hold only partial records.
  * `excludeCategoryIds` leaves out categories that aren't spent every day, like the costs of working.
  */
@@ -48,29 +48,35 @@ export function typicalDailySpending({ purchases, today, historyStart = null, ex
   historyStart?: MonthKey | null;
   excludeCategoryIds?: string[];
 }) {
-  const { fromKey, days } = historyWindow(today, historyStart);
+  const { fromKey, toKey, days } = historyWindow(today, historyStart);
   if (days < 1) return { days: 0, cents: 0 };
-  const spentCents = everydaySpending(purchases, { fromKey, today, include: (categoryId) => !excludeCategoryIds.includes(categoryId) });
+  const spentCents = everydaySpending(purchases, { fromKey, toKey, include: (categoryId) => !excludeCategoryIds.includes(categoryId) });
   return { days, cents: Math.round(spentCents / days) };
 }
 
-/** The days figures from past spending look back over: the last full months through today, from `historyStart` on. */
+/**
+ * The days figures from past spending and work look back over: the last full months through yesterday, from
+ * `historyStart` on. Only finished days count, so a day under way (gas bought in the morning, income logged at night)
+ * never skews the averages; on the first day of the history there is no finished day yet, so it counts today.
+ */
 function historyWindow(today: string, historyStart: MonthKey | null) {
   const lookback = addMonths(today.slice(0, 7) as MonthKey, -TYPICAL_SPENDING_MONTHS);
   const from = historyStart && historyStart > lookback ? historyStart : lookback;
   const fromKey = `${from}-01`;
-  return { fromKey, days: Math.round((Date.parse(`${today}T00:00:00Z`) - Date.parse(`${fromKey}T00:00:00Z`)) / 86_400_000) + 1 };
+  const yesterday = new Date(Date.parse(`${today}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
+  const toKey = yesterday >= fromKey ? yesterday : today;
+  return { fromKey, toKey, days: Math.round((Date.parse(`${toKey}T00:00:00Z`) - Date.parse(`${fromKey}T00:00:00Z`)) / 86_400_000) + 1 };
 }
 
-/** Everyday purchases (without installments of earlier purchases) made from `fromKey` through `today` in the included categories. */
-function everydaySpending(purchases: Pick<LedgerPurchase, "date" | "amountCents" | "installmentCount" | "item">[], { fromKey, today, include }: {
+/** Everyday purchases (without installments of earlier purchases) made from `fromKey` through `toKey` in the included categories. */
+function everydaySpending(purchases: Pick<LedgerPurchase, "date" | "amountCents" | "installmentCount" | "item">[], { fromKey, toKey, include }: {
   fromKey: string;
-  today: string;
+  toKey: string;
   include: (categoryId: string) => boolean;
 }) {
   return purchases
     .filter((purchase) => isEveryday(purchase.item.category) && include(purchase.item.category.id))
-    .filter((purchase) => dateKeyOf(purchase.date) >= fromKey && dateKeyOf(purchase.date) <= today)
+    .filter((purchase) => dateKeyOf(purchase.date) >= fromKey && dateKeyOf(purchase.date) <= toKey)
     .reduce((sum, purchase) => sum + (consumptionInMonth(purchase, monthKeyOf(purchase.date))?.amountCents ?? 0), 0);
 }
 
@@ -108,7 +114,7 @@ export function daysLeftIn(month: MonthKey, today: string) {
 
 /**
  * Income per day at the recent pace: income over the same days as typical daily spending (the last full months
- * through today, from `historyStart` on), divided by all those days, so days off count. Recurring income is left
+ * through yesterday, from `historyStart` on), divided by all those days, so days off count. Recurring income is left
  * out by the caller, since its paydays are expected instead.
  */
 export function incomePace({ incomes, today, historyStart = null }: {
@@ -116,10 +122,10 @@ export function incomePace({ incomes, today, historyStart = null }: {
   today: string;
   historyStart?: MonthKey | null;
 }) {
-  const { fromKey, days } = historyWindow(today, historyStart);
+  const { fromKey, toKey, days } = historyWindow(today, historyStart);
   if (days < 1) return { days: 0, cents: 0 };
   const cents = incomes
-    .filter((income) => dateKeyOf(income.date) >= fromKey && dateKeyOf(income.date) <= today)
+    .filter((income) => dateKeyOf(income.date) >= fromKey && dateKeyOf(income.date) <= toKey)
     .reduce((sum, income) => sum + income.amountCents, 0);
   return { days, cents: Math.round(cents / days) };
 }
@@ -143,7 +149,7 @@ export function projectedBalance({ month, today, balanceCents, expectedCents, pa
 
 /**
  * Days off left this month at the recent pace of work, assuming the days off come after the work. The pace looks
- * back over the same days as typical daily spending (the last full months through today, from `historyStart` on):
+ * back over the same days as typical daily spending (the last full months through yesterday, from `historyStart` on):
  * a day worked is a day with income, and earns the average income per day worked minus the average everyday
  * spending in `workCategoryIds` (the costs of working, like gas, which a day off doesn't spend). Every day left,
  * worked or not, costs `livingDailyCents` (typical daily spending without those categories). The work days still
@@ -166,11 +172,11 @@ export function daysOff({ month, today, historyStart = null, purchases, incomes,
   goalCents?: number | null;
 }) {
   if (month !== today.slice(0, 7)) return null;
-  const { fromKey } = historyWindow(today, historyStart);
-  const worked = incomes.filter((income) => dateKeyOf(income.date) >= fromKey && dateKeyOf(income.date) <= today);
+  const { fromKey, toKey } = historyWindow(today, historyStart);
+  const worked = incomes.filter((income) => dateKeyOf(income.date) >= fromKey && dateKeyOf(income.date) <= toKey);
   const workDays = new Set(worked.map((income) => dateKeyOf(income.date))).size;
   const grossCents = worked.reduce((sum, income) => sum + income.amountCents, 0);
-  const workCostCents = everydaySpending(purchases, { fromKey, today, include: (categoryId) => workCategoryIds.includes(categoryId) });
+  const workCostCents = everydaySpending(purchases, { fromKey, toKey, include: (categoryId) => workCategoryIds.includes(categoryId) });
   // Net earned over all the days worked; per day worked it is this ÷ workDays, kept whole to round exactly.
   const netCents = grossCents - workCostCents;
   if (workDays === 0 || netCents <= 0) return null;

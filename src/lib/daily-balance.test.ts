@@ -64,10 +64,15 @@ test("typical daily spending pools everyday purchases since the history start", 
     entry("2026-10-03", 900000, { category: extras }).purchase,
     entry("2026-10-04", 30000).purchase,
   ];
-  // Without a history start, the last 3 full months count: Jul 1 to Oct 5.
-  assert.deepEqual(typicalDailySpending({ purchases, today: "2026-10-05" }), { days: 97, cents: 1536 });
-  // Counting from October: 500 over 5 days; September's partial records and extras are left out.
-  assert.deepEqual(typicalDailySpending({ purchases, today: "2026-10-05", historyStart: "2026-10" }), { days: 5, cents: 10000 });
+  // Without a history start, the last 3 full months count, through yesterday: Jul 1 to Oct 4.
+  assert.deepEqual(typicalDailySpending({ purchases, today: "2026-10-05" }), { days: 96, cents: 1552 });
+  // Counting from October: 500 over the 4 finished days; September's partial records and extras are left out.
+  assert.deepEqual(typicalDailySpending({ purchases, today: "2026-10-05", historyStart: "2026-10" }), { days: 4, cents: 12500 });
+  // A purchase today waits until the day is over.
+  const withToday = [...purchases, entry("2026-10-05", 800000).purchase];
+  assert.deepEqual(typicalDailySpending({ purchases: withToday, today: "2026-10-05", historyStart: "2026-10" }), { days: 4, cents: 12500 });
+  // On the first day of the history there is no finished day yet, so today counts.
+  assert.deepEqual(typicalDailySpending({ purchases: [entry("2026-10-01", 30000).purchase], today: "2026-10-01", historyStart: "2026-10" }), { days: 1, cents: 30000 });
 });
 
 test("needed per day adds a typical day's spending to the month's bills", () => {
@@ -79,14 +84,15 @@ test("needed per day adds a typical day's spending to the month's bills", () => 
 
 test("typical daily spending can leave out the costs of working", () => {
   const purchases = [entry("2026-10-02", 20000).purchase, entry("2026-10-03", 50000, { category: car }).purchase];
-  assert.deepEqual(typicalDailySpending({ purchases, today: "2026-10-05", historyStart: "2026-10", excludeCategoryIds: ["car"] }), { days: 5, cents: 4000 });
+  assert.deepEqual(typicalDailySpending({ purchases, today: "2026-10-05", historyStart: "2026-10", excludeCategoryIds: ["car"] }), { days: 4, cents: 5000 });
 });
 
 test("days off left at the recent pace, with gas spent only on days worked", () => {
-  // October 9 after nine days worked: 14,780.48 gross and 3,819 in gas, so 1,217.94 net per day worked; 276.98 a day to live.
+  // October 10, after nine finished days worked: 14,780.48 gross and 3,819 in gas, so 1,217.94 net per day worked;
+  // 276.98 a day to live.
   const october = {
     month: "2026-10" as const,
-    today: "2026-10-09",
+    today: "2026-10-10",
     historyStart: "2026-10" as const,
     purchases: [entry("2026-10-02", 381900, { category: car }).purchase, entry("2026-10-03", 249284).purchase],
     incomes: Array.from({ length: 9 }, (_, day) => ({ date: dateFromKey(`2026-10-0${day + 1}`), amountCents: day === 0 ? 164232 : 164227 })),
@@ -95,17 +101,19 @@ test("days off left at the recent pace, with gas spent only on days worked", () 
     toPayCents: 2850504,
     incomeCents: 1478048,
   };
-  // 23 days left: 16.499 days of work break even and 19.78 reach a 4,000 goal, rounded up to a tenth (16.5 and 19.8),
-  // leaving 6.5 and 3.2 days off: never more than there are.
-  assert.deepEqual(daysOff({ ...october, goalCents: 400000 }), {
-    daysLeft: 23, workDays: 9, netPerWorkDayCents: 121794, workDaysNeeded: 16.5, forGoalWorkDaysNeeded: 19.8, days: 6.5, forGoalDays: 3.2,
-  });
+  // 22 days left: 16.27 days of work break even and 19.56 reach a 4,000 goal, rounded up to a tenth (16.3 and 19.6),
+  // leaving 5.7 and 2.4 days off: never more than there are.
+  const expected = { daysLeft: 22, workDays: 9, netPerWorkDayCents: 121794, workDaysNeeded: 16.3, forGoalWorkDaysNeeded: 19.6, days: 5.7, forGoalDays: 2.4 };
+  assert.deepEqual(daysOff({ ...october, goalCents: 400000 }), expected);
+  // Gas bought this morning, before today's income is logged, waits until the day is over to touch the pace.
+  const morningGas = [...october.purchases, entry("2026-10-10", 50000, { category: car }).purchase];
+  assert.deepEqual(daysOff({ ...october, goalCents: 400000, purchases: morningGas }), expected);
   // A tiny shortfall still costs a tenth of a day, not a whole one: 1.99 days off reads 1.9, never 1 or 2.
-  assert.equal(daysOff({ ...october, toPayCents: 1478048, livingDailyCents: 0 })?.days, 23);
-  assert.equal(daysOff({ ...october, toPayCents: 1478048 + 1000, livingDailyCents: 0 })?.days, 22.9);
+  assert.equal(daysOff({ ...october, toPayCents: 1478048, livingDailyCents: 0 })?.days, 22);
+  assert.equal(daysOff({ ...october, toPayCents: 1478048 + 1000, livingDailyCents: 0 })?.days, 21.9);
   // Far behind there are no days off; far ahead every day left is one.
   assert.equal(daysOff({ ...october, toPayCents: 5000000 })?.days, 0);
-  assert.equal(daysOff({ ...october, toPayCents: 0, livingDailyCents: 0 })?.days, 23);
+  assert.equal(daysOff({ ...october, toPayCents: 0, livingDailyCents: 0 })?.days, 22);
   // Nothing to go on outside the current month, before any income, or when working costs more than it earns.
   assert.equal(daysOff({ ...october, today: "2026-11-01" }), null);
   assert.equal(daysOff({ ...october, incomes: [] }), null);
@@ -120,10 +128,10 @@ test("early in a month, days off lean on last month's pace, from the history sta
     { date: dateFromKey("2026-11-01"), amountCents: 30000 },
   ];
   const november = { month: "2026-11" as const, today: "2026-11-01", purchases, incomes, workCategoryIds: ["car"], livingDailyCents: 0, toPayCents: 0, incomeCents: 30000 };
-  // From October: two days worked, 2,300 gross less 1,100 gas, so 600 a day rather than November 1's 200.
-  assert.equal(daysOff({ ...november, historyStart: "2026-10" })?.netPerWorkDayCents, 60000);
+  // November 1 is under way, so October's finished day sets the pace: 2,000 gross less 1,000 gas, not today's 200.
+  assert.equal(daysOff({ ...november, historyStart: "2026-10" })?.netPerWorkDayCents, 100000);
   // Without a history start, September's day counts too.
-  assert.equal(daysOff(november)?.workDays, 3);
+  assert.equal(daysOff(november)?.workDays, 2);
 });
 
 test("the pace of income spreads income since the history start over every day, days off included", () => {
@@ -133,10 +141,12 @@ test("the pace of income spreads income since the history start over every day, 
     { date: dateFromKey("2026-10-09"), amountCents: 40000 },
     { date: dateFromKey("2026-10-11"), amountCents: 999900 },
   ];
-  // Jul 1 to Oct 10 is 102 days; income before or after them is left out.
-  assert.deepEqual(incomePace({ incomes, today: "2026-10-10" }), { days: 102, cents: 980 });
-  // From a history start in September: 40 days.
-  assert.deepEqual(incomePace({ incomes, today: "2026-10-10", historyStart: "2026-09" }), { days: 40, cents: 2500 });
+  // Jul 1 to Oct 9 (finished days) is 101 days; income before or after them is left out.
+  assert.deepEqual(incomePace({ incomes, today: "2026-10-10" }), { days: 101, cents: 990 });
+  // From a history start in September: 39 days.
+  assert.deepEqual(incomePace({ incomes, today: "2026-10-10", historyStart: "2026-09" }), { days: 39, cents: 2564 });
+  // Income logged today counts from tomorrow.
+  assert.deepEqual(incomePace({ incomes: [...incomes, { date: dateFromKey("2026-10-10"), amountCents: 50000 }], today: "2026-10-10", historyStart: "2026-09" }), { days: 39, cents: 2564 });
 });
 
 test("the projected balance adds what's expected and each day left at the pace, less typical spending", () => {
