@@ -602,6 +602,11 @@
     "how": "Parte de tu dinero disponible y suma cada día tu ritmo reciente de ingresos ({pace} al día) menos tu gasto diario típico en efectivo ({spending} al día), de tus últimos {days} días. Los pagos en efectivo caen en su fecha límite y los ingresos recurrentes en su día de pago.",
     "howCards": "Lo que gastas con tarjeta sale de tu dinero cuando vence su estado de cuenta: lo que ya tiene (compras, mensualidades, pagos con tarjeta) más el gasto diario típico de la tarjeta por los días que faltan de su ciclo.",
     "howFaded": "Después de {days} días la línea es punteada: mientras más lejos, más aproximado, hasta que más meses de historial lo afinen.",
+    "line": "Pronóstico",
+    "withoutWork": "Si dejaras de trabajar",
+    "runway": "Si dejaras de trabajar hoy, tu dinero se acabaría el {date}.",
+    "runwayBeyond": "Si dejaras de trabajar hoy, tu dinero todavía alcanzaría después del {date}.",
+    "howWithoutWork": "La línea roja es el mismo gasto, pagos y estados de cuenta sin ningún ingreso: cuánto te duraría el dinero si dejaras de trabajar hoy.",
     "needsCash": "El pronóstico parte de tu dinero disponible. Cuéntalo en Ajustes para ver hacia dónde va.",
     "countCash": "Contar tu dinero"
   }

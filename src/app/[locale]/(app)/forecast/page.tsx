@@ -46,6 +46,7 @@ export default async function ForecastPage({ params }: PageProps<"/[locale]/fore
   const chartDays: ForecastChartDay[] = days.map((day) => ({
     label: day.date === today ? `${messages.common.today} · ${shortDate(day.date, locale)}` : shortDate(day.date, locale),
     cents: day.cents,
+    withoutWorkCents: day.withoutWorkCents,
     events: day.events.map(({ label, cents, estimated, overdue }) => ({ label, cents, estimated, overdue })),
   }));
   const monthName = (dateKey: string) => new Intl.DateTimeFormat(locale, { month: "short", timeZone: "UTC" }).format(dateFromKey(dateKey)).replace(".", "");
@@ -76,10 +77,15 @@ export default async function ForecastPage({ params }: PageProps<"/[locale]/fore
         <div className="px-4 pb-3 pt-4">
           <ForecastChart
             days={chartDays}
-            labels={{ title: m.title, estimated: m.estimated, overdue: m.overdue, noEvents: m.noEvents }}
+            labels={{ title: m.title, estimated: m.estimated, overdue: m.overdue, noEvents: m.noEvents, forecast: m.line, withoutWork: m.withoutWork }}
             sureDays={FORECAST_SURE_DAYS}
             ticks={ticks}
           />
+          <p className="mt-3 text-sm text-muted-foreground">
+            {forecast.runway
+              ? format(m.runway, { date: shortDate(forecast.runway, locale) })
+              : format(m.runwayBeyond, { date: shortDate(days[days.length - 1].date, locale) })}
+          </p>
         </div>
         {monthEnds.length > 0 ? (
           <dl className={cn("grid divide-x divide-border text-center", monthEnds.length === 3 ? "grid-cols-3" : monthEnds.length === 2 ? "grid-cols-2" : "grid-cols-1")}>
@@ -131,6 +137,7 @@ export default async function ForecastPage({ params }: PageProps<"/[locale]/fore
             days: forecast.historyDays,
           })}</p>
           <p>{m.howCards}</p>
+          <p>{m.howWithoutWork}</p>
           <p>{format(m.howFaded, { days: FORECAST_SURE_DAYS })}</p>
         </Card>
       </Section>

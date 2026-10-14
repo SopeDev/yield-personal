@@ -21,7 +21,13 @@ export type ForecastEvent = {
   overdue: boolean;
 };
 
-export type ForecastDay = { date: string; cents: number; events: ForecastEvent[] };
+export type ForecastDay = {
+  date: string;
+  cents: number;
+  /** The cash if no income came in from today on: everyday spending, bills and statements only. */
+  withoutWorkCents: number;
+  events: ForecastEvent[];
+};
 
 /** "YYYY-MM-DD" `count` days after `dateKey`. */
 export function addDays(dateKey: string, count: number) {
@@ -34,6 +40,10 @@ export function addDays(dateKey: string, count: number) {
  * Cash on hand day by day from today: today's cash, then each day the pace of income minus typical everyday cash
  * spending, plus the day's events. Today counts only the rest of an average day beyond what's already recorded,
  * as the month's projection does. Each day's figure is the cash at its end.
+ *
+ * Beside it runs the cash without work: the same spending, bills and statements with no income at all (neither the
+ * pace nor recurring income). The runway is the first day it goes below zero, or null if it never does in the
+ * horizon.
  */
 export function forecastCash({ today, days = FORECAST_DAYS, startCents, paceDailyCents, cashDailyCents, todayIncomeCents = 0, todayCashSpentCents = 0, events }: {
   today: string;
@@ -49,16 +59,21 @@ export function forecastCash({ today, days = FORECAST_DAYS, startCents, paceDail
   for (const event of events) byDate.set(event.date, [...(byDate.get(event.date) ?? []), event]);
   const todayDrift = Math.max(0, paceDailyCents - todayIncomeCents) - Math.max(0, cashDailyCents - todayCashSpentCents);
   const dailyDrift = paceDailyCents - cashDailyCents;
+  const todaySpendingLeft = Math.max(0, cashDailyCents - todayCashSpentCents);
 
   const result: ForecastDay[] = [];
   let cents = startCents;
+  let withoutWorkCents = startCents;
   for (let index = 0; index <= days; index += 1) {
     const date = addDays(today, index);
     const dayEvents = (byDate.get(date) ?? []).sort((a, b) => a.cents - b.cents);
+    const outgoing = dayEvents.filter((event) => event.cents < 0).reduce((sum, event) => sum + event.cents, 0);
     cents += (index === 0 ? todayDrift : dailyDrift) + dayEvents.reduce((sum, event) => sum + event.cents, 0);
-    result.push({ date, cents, events: dayEvents });
+    withoutWorkCents += -(index === 0 ? todaySpendingLeft : cashDailyCents) + outgoing;
+    result.push({ date, cents, withoutWorkCents, events: dayEvents });
   }
-  return { days: result, dailyDriftCents: dailyDrift };
+  const runway = result.find((day) => day.withoutWorkCents < 0)?.date ?? null;
+  return { days: result, dailyDriftCents: dailyDrift, runway };
 }
 
 /**
@@ -146,4 +161,25 @@ function daysFrom(fromKey: string, toKey: string) {
 /** The month a day key falls in. */
 export function monthOfKey(dateKey: string) {
   return monthKeyOf(dateFromKey(dateKey));
+}
+
+/** Round steps for the amount axis: about five of them across the range, each 1, 2 or 5 times a power of ten. */
+export function axisTicks(bottom: number, top: number) {
+  const raw = (top - bottom) / 5 || 1;
+  const magnitude = 10 ** Math.floor(Math.log10(raw));
+  const norm = raw / magnitude;
+  const step = (norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 5 ? 5 : 10) * magnitude;
+  const ticks: number[] = [];
+  for (let value = Math.ceil(bottom / step) * step; value <= top; value += step) ticks.push(value);
+  return ticks;
+}
+
+/** "40k", "2.5k", "500", "−10k": an axis amount in whole units of the currency. */
+export function compactAmount(cents: number) {
+  const units = cents / 100;
+  const sign = units < 0 ? "−" : "";
+  const size = Math.abs(units);
+  if (size < 1000) return `${sign}${Math.round(size)}`;
+  const thousands = size / 1000;
+  return `${sign}${Number.isInteger(thousands) ? thousands : thousands.toFixed(1).replace(/\.0$/, "")}k`;
 }
