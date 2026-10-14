@@ -4,6 +4,7 @@ import { db } from "@/db/client";
 import { statementsForCards } from "@/lib/card-statements";
 import { cashOnHandParts, type CashCount, type CashOnHandParts, type PaidBill } from "@/lib/cash-on-hand";
 import { earliestContributingMonth } from "@/lib/installments";
+import { byName } from "@/lib/items";
 import type { LedgerIncomeGroup } from "@/lib/ledger";
 import type { LedgerData } from "@/lib/month-summary";
 import { addMonths, dateFromKey, dateKeyOf, monthKeyOf, monthRange, type MonthKey } from "@/lib/months";
@@ -36,8 +37,9 @@ export async function getRecurringDefinitions(userId: string): Promise<Recurring
       item: { select: itemSelect },
       paymentMethod: { select: paymentMethodSelect },
     },
-    orderBy: [{ dayOfMonth: "asc" }, { item: { name: "asc" } }],
   });
+  // By day, then name; names are encrypted, so sorted here.
+  rows.sort((a, b) => a.dayOfMonth - b.dayOfMonth || byName(a.item, b.item));
   return rows.map(({ createdAt, ...recurring }) => ({ ...recurring, addedMonth: monthKeyInAppZone(createdAt) }));
 }
 

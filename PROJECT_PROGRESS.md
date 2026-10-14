@@ -113,7 +113,11 @@ Last updated: 2026-10-10
 
 - Sign-in is open to any Google account (the `ALLOWED_EMAILS` allowlist is gone); each account's data stays its own.
 
+- Encryption at rest, step 1: amounts, names and notes get encrypted copies beside the plaintext (migration `20261019000000_encrypted_fields`, purely additive), written on every save and read in place of the plaintext; each deploy encrypts what's still in plaintext before building, and refuses to go live without the key or with another key. Verified on a local Postgres with two seeded users: every month, year, savings, cash and stat figure, explanation and list is byte-identical to the previous code before encryption, after it, and with every plaintext value overwritten with garbage; 36 server actions keep every encrypted copy matching its value (378 checked); an older deployment's edit mid-deploy, another key, and no key all behave safely.
+
 ## Next
+
+- Encryption at rest, step 2 (after confirming production): drop the plaintext columns and the triggers, make the copies required, look items up by `name_index`, and select recurring history by its encrypted amount.
 
 - Rename the stat labels new users find ambiguous (Spending / To pay / Outstanding, Daily income vs. Daily avg. gross), keeping the explanations in step.
 - Flag figures based on too little history (typical daily spending and the income pace on a new account), in the stat's note or its explanation.

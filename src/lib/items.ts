@@ -10,3 +10,8 @@ export function normalizeItemName(name: string) {
 export function cleanItemName(name: string) {
   return name.trim().replace(/\s+/g, " ");
 }
+
+/** Alphabetical order by name. Names are encrypted at rest, so lists are sorted here rather than by the database. */
+export function byName(a: { name: string }, b: { name: string }) {
+  return a.name.localeCompare(b.name);
+}

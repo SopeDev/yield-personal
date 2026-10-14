@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db/client";
-import type { Prisma } from "@/generated/prisma/client";
+import type { EncryptedTransaction } from "@/db/encryption";
 import { resolveItem } from "@/lib/item-resolution";
 import { parseAmountToCents } from "@/lib/money";
 import { addMonths, dateFromKey, isMonthKey, monthKeyOf, type MonthKey } from "@/lib/months";
@@ -142,7 +142,7 @@ async function findOwnedRecurring(userId: string, formData: FormData) {
  * (counted as added when the original was) continues from `month` with that month's and later changes.
  * Returns the id of the version that now holds `month`.
  */
-async function switchPaymentMethodFrom(tx: Prisma.TransactionClient, recurringId: string, month: MonthKey, paymentMethodId: string) {
+async function switchPaymentMethodFrom(tx: EncryptedTransaction, recurringId: string, month: MonthKey, paymentMethodId: string) {
   const recurring = await tx.recurringPayment.findUniqueOrThrow({ where: { id: recurringId } });
   if (monthKeyOf(recurring.startMonth) >= month) {
     await tx.recurringPayment.update({ where: { id: recurringId }, data: { paymentMethodId } });
