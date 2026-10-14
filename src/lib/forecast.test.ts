@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { addDays, billEvents, cardStatementEvents, forecastCash, paydayEvents, type ForecastEvent } from "./forecast";
+import { addDays, axisTicks, billEvents, cardStatementEvents, compactAmount, forecastCash, paydayEvents, type ForecastEvent } from "./forecast";
 import { dateFromKey } from "./months";
 import type { LedgerPaymentMethod } from "./ledger";
 import type { RecurringOccurrence } from "./recurring";
@@ -108,4 +108,24 @@ test("recurring income not received yet falls on its payday, or today once it's 
     ["2026-10-16", 250000, false],
   ]);
   assert.equal(addDays("2026-12-31", 1), "2027-01-01");
+});
+
+test("without work, cash only falls: everyday spending, bills and statements, no income; the runway is the first day below zero", () => {
+  const forecast = forecastCash({
+    today: "2026-10-14", days: 3, startCents: 100000, paceDailyCents: 170000, cashDailyCents: 30000, todayCashSpentCents: 10000,
+    events: [
+      { date: "2026-10-15", kind: "income", label: "Asesoría", cents: 200000, estimated: false, overdue: false },
+      { date: "2026-10-16", kind: "bill", label: "Luz", cents: -50000, estimated: false, overdue: false },
+    ],
+  });
+  // 1,000 − 200 left of today; −300 a day; the income never arrives; Luz −500 on the 16th.
+  assert.deepEqual(forecast.days.map((day) => day.withoutWorkCents), [80000, 50000, -30000, -60000]);
+  assert.equal(forecast.runway, "2026-10-16");
+  assert.equal(forecastCash({ today: "2026-10-14", days: 2, startCents: 100000, paceDailyCents: 0, cashDailyCents: 100, events: [] }).runway, null);
+});
+
+test("the amount axis steps by round numbers and reads them short", () => {
+  assert.deepEqual(axisTicks(-5500000, 4200000), [-4000000, -2000000, 0, 2000000, 4000000]);
+  assert.deepEqual(axisTicks(500000, 1300000), [600000, 800000, 1000000, 1200000]);
+  assert.deepEqual([4000000, 250000, 50000, -1000000, 0].map(compactAmount), ["40k", "2.5k", "500", "−10k", "0"]);
 });

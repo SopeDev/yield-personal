@@ -123,6 +123,8 @@ Last updated: 2026-10-10
 
 - Navigation regrouped around the Month view, where nearly all time is spent: the bottom bar is Overview (Month and Year behind a toggle), Forecast, Add, Income, and Savings, with only Settings in the header; Cards are reached from the month's statements and from Settings.
 
+- Forecast: a red "if you stopped working" line (no income, same spending and bills) with the day cash would run out, amounts down the left at round steps with faint gridlines, and a legend.
+
 ## Next
 
 - Forecast: planned one-off expenses (like tires) shown on the line before they're spent.
