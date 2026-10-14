@@ -15,7 +15,8 @@
     "settings": "Settings",
     "cards": "Cards",
     "year": "Year",
-    "savings": "Savings"
+    "savings": "Savings",
+    "forecast": "Forecast"
   },
   "categories": {
     "fixed": "Fixed",
@@ -581,5 +582,25 @@
     "dueInDays": "due in {count} days",
     "overdueOne": "1 day overdue",
     "overdueDays": "{count} days overdue"
+  },
+  "forecast": {
+    "title": "Forecast",
+    "subtitle": "Your cash on hand for the next {days} days, if income and spending keep their recent pace.",
+    "cashNow": "Cash now",
+    "lowest": "Lowest point",
+    "low": "Low",
+    "endOf": "End of {month}",
+    "upcoming": "Coming up",
+    "leaves": "Leaves",
+    "nothingUpcoming": "No bills, statements or recurring income in the next three months.",
+    "estimated": "estimated",
+    "overdue": "overdue",
+    "noEvents": "Just an average day",
+    "howTitle": "How it's worked out",
+    "how": "It starts from your cash on hand and adds each day your recent income pace ({pace} a day) less your typical everyday cash spending ({spending} a day), from your last {days} days. Bills paid in cash fall on their due dates, and recurring income on its paydays.",
+    "howCards": "Card spending leaves your cash when its statement is due: what's already on it (purchases, installments, card bills), plus the card's typical everyday spending for the days still to come in its cycle.",
+    "howFaded": "Past {days} days the line is dashed: the further out, the rougher the guess, until more months of history firm it up.",
+    "needsCash": "The forecast starts from your cash on hand. Count it in Settings to see where it's headed.",
+    "countCash": "Count your cash"
   }
 }

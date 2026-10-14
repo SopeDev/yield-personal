@@ -15,7 +15,8 @@
     "settings": "Ajustes",
     "cards": "Tarjetas",
     "year": "Año",
-    "savings": "Ahorro"
+    "savings": "Ahorro",
+    "forecast": "Pronóstico"
   },
   "categories": {
     "fixed": "Fijos",
@@ -581,5 +582,25 @@
     "dueInDays": "vence en {count} días",
     "overdueOne": "vencido hace 1 día",
     "overdueDays": "vencido hace {count} días"
+  },
+  "forecast": {
+    "title": "Pronóstico",
+    "subtitle": "Tu dinero disponible en los próximos {days} días, si ingresos y gastos siguen a su ritmo reciente.",
+    "cashNow": "Disponible hoy",
+    "lowest": "Punto más bajo",
+    "low": "Mínimo",
+    "endOf": "Fin de {month}",
+    "upcoming": "Lo que viene",
+    "leaves": "Quedan",
+    "nothingUpcoming": "No hay pagos, estados de cuenta ni ingresos recurrentes en los próximos tres meses.",
+    "estimated": "estimado",
+    "overdue": "vencido",
+    "noEvents": "Un día promedio",
+    "howTitle": "Cómo se calcula",
+    "how": "Parte de tu dinero disponible y suma cada día tu ritmo reciente de ingresos ({pace} al día) menos tu gasto diario típico en efectivo ({spending} al día), de tus últimos {days} días. Los pagos en efectivo caen en su fecha límite y los ingresos recurrentes en su día de pago.",
+    "howCards": "Lo que gastas con tarjeta sale de tu dinero cuando vence su estado de cuenta: lo que ya tiene (compras, mensualidades, pagos con tarjeta) más el gasto diario típico de la tarjeta por los días que faltan de su ciclo.",
+    "howFaded": "Después de {days} días la línea es punteada: mientras más lejos, más aproximado, hasta que más meses de historial lo afinen.",
+    "needsCash": "El pronóstico parte de tu dinero disponible. Cuéntalo en Ajustes para ver hacia dónde va.",
+    "countCash": "Contar tu dinero"
   }
 }

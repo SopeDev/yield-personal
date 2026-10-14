@@ -4,14 +4,14 @@ import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, CreditCard, PiggyBank, Plus, Settings, Table2, Wallet } from "lucide-react";
+import { CalendarDays, ChartLine, CreditCard, PiggyBank, Plus, Settings, Table2, Wallet } from "lucide-react";
 import type { Locale } from "@/i18n/config";
 import { cn } from "@/lib/cn";
 
 export function AppShell({ children, locale, labels }: {
   children: ReactNode;
   locale: Locale;
-  labels: { month: string; year: string; income: string; add: string; cards: string; settings: string; savings: string };
+  labels: { month: string; year: string; income: string; add: string; cards: string; settings: string; savings: string; forecast: string };
 }) {
   const pathname = usePathname();
   const navigation = [
@@ -22,6 +22,7 @@ export function AppShell({ children, locale, labels }: {
   ];
   const settingsHref = `/${locale}/settings`;
   const savingsHref = `/${locale}/savings`;
+  const forecastHref = `/${locale}/forecast`;
   const addActive = pathname === `/${locale}/add`;
   // Settings stays marked on its subpages.
   const settingsActive = pathname === settingsHref || pathname.startsWith(`${settingsHref}/`);
@@ -34,6 +35,14 @@ export function AppShell({ children, locale, labels }: {
             <Image alt="Yield" height={24} priority src="/brand/yield-logo.svg" width={80} />
           </Link>
           <div className="flex items-center gap-1">
+            <Link
+              aria-current={pathname === forecastHref ? "page" : undefined}
+              aria-label={labels.forecast}
+              className={cn("flex size-10 items-center justify-center rounded-full transition hover:bg-surface", pathname === forecastHref ? "text-primary" : "text-muted-foreground")}
+              href={forecastHref}
+            >
+              <ChartLine aria-hidden="true" className="size-5" />
+            </Link>
             <Link
               aria-current={pathname === savingsHref ? "page" : undefined}
               aria-label={labels.savings}
