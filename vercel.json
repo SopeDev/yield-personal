@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "prisma migrate deploy && tsx scripts/encrypt-existing.ts && next build",
+  "buildCommand": "tsx scripts/encrypt-existing.ts && prisma migrate deploy && tsx scripts/encrypt-existing.ts && next build",
   "crons": [
     {
       "path": "/api/cron/due-reminders",

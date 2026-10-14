@@ -2,7 +2,8 @@ import "server-only";
 
 import { z } from "zod";
 import { db } from "@/db/client";
-import { cleanItemName, normalizeItemName } from "@/lib/items";
+import { sealItemName } from "@/db/encryption";
+import { cleanItemName } from "@/lib/items";
 
 export const MAX_ITEM_NAME_LENGTH = 60;
 
@@ -22,10 +23,11 @@ export async function resolveItem(userId: string, { itemId, itemName, categoryId
 
   const name = cleanItemName(itemName);
   if (!name || name.length > MAX_ITEM_NAME_LENGTH) return { error: "item" };
-  const normalizedName = normalizeItemName(name);
+  // Names are stored encrypted; the name index finds the item (see sealItemName).
+  const stored = sealItemName(userId, name);
 
   const existing = await db.expenseItem.findUnique({
-    where: { userId_normalizedName: { userId, normalizedName } },
+    where: { userId_nameIndex: { userId, nameIndex: stored.nameIndex } },
     select: { id: true, archivedAt: true },
   });
   if (existing) {
@@ -39,8 +41,8 @@ export async function resolveItem(userId: string, { itemId, itemName, categoryId
 
   // Upsert so two simultaneous submissions of a new name still end up with one item.
   const item = await db.expenseItem.upsert({
-    where: { userId_normalizedName: { userId, normalizedName } },
-    create: { userId, categoryId, name, normalizedName },
+    where: { userId_nameIndex: { userId, nameIndex: stored.nameIndex } },
+    create: { userId, categoryId, ...stored },
     update: {},
     select: { id: true },
   });

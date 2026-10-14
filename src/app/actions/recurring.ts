@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db/client";
-import type { EncryptedTransaction } from "@/db/encryption";
+import { seal, type EncryptedTransaction } from "@/db/encryption";
 import { resolveItem } from "@/lib/item-resolution";
 import { parseAmountToCents } from "@/lib/money";
 import { addMonths, dateFromKey, isMonthKey, monthKeyOf, type MonthKey } from "@/lib/months";
@@ -46,7 +46,7 @@ async function parseRecurring(userId: string, formData: FormData) {
   });
   if ("error" in item) return { fieldErrors: (item.error === "item" ? { itemName: "item" } : { categoryId: "category" }) as FormState["fieldErrors"] };
 
-  return { data: { itemId: item.itemId, amountCents: amountCents!, paymentMethodId, dayOfMonth, intervalMonths, isVariable } };
+  return { data: { itemId: item.itemId, ...seal("RecurringPayment", { amountCents: amountCents! }), paymentMethodId, dayOfMonth, intervalMonths, isVariable } };
 }
 
 export async function createRecurringPayment(_state: FormState, formData: FormData): Promise<FormState> {
@@ -155,7 +155,7 @@ async function switchPaymentMethodFrom(tx: EncryptedTransaction, recurringId: st
       userId: recurring.userId,
       itemId: recurring.itemId,
       paymentMethodId,
-      amountCents: recurring.amountCents,
+      ...seal("RecurringPayment", { amountCents: recurring.amountCents }),
       isVariable: recurring.isVariable,
       intervalMonths: recurring.intervalMonths,
       dayOfMonth: recurring.dayOfMonth,
@@ -206,8 +206,8 @@ export async function setOccurrenceAmount(_state: FormState, formData: FormData)
     const recurringPaymentId = methodChanged ? await switchPaymentMethodFrom(tx, recurring.id, monthKey, method.id) : recurring.id;
     await tx.recurringOccurrence.upsert({
       where: { recurringPaymentId_month: { recurringPaymentId, month } },
-      create: { userId, recurringPaymentId, month, amountCents: override, paidAt, ...methodChange },
-      update: { amountCents: override, ...(paidAt ? { paidAt } : {}), ...methodChange },
+      create: { userId, recurringPaymentId, month, ...seal("RecurringOccurrence", { amountCents: override }), paidAt, ...methodChange },
+      update: { ...seal("RecurringOccurrence", { amountCents: override }), ...(paidAt ? { paidAt } : {}), ...methodChange },
     });
   });
   revalidatePath(`/${localeFromForm(formData)}`, "layout");
