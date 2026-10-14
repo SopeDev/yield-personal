@@ -1,62 +1,89 @@
 import type { PrismaClient } from "@/generated/prisma/client";
 import { decryptInt, decryptText, encryptInt, encryptText, keyCheckValue, nameIndex } from "@/lib/field-crypto";
+import { normalizeItemName } from "@/lib/items";
 
 /**
- * Which fields are encrypted at rest, each with the column holding its encrypted copy. Writes fill the copy
- * alongside the plaintext; reads return the decrypted copy in the field's place, or the plaintext for a row not
- * encrypted yet. Once every row has its copy, the plaintext columns are dropped and only the copies remain.
- *
- * The context binds each value to its column (`table.column`, the plaintext column's name), so it never changes.
+ * Which fields are encrypted at rest. Each plain field (what the app reads and writes, like `amountCents`) is stored
+ * only encrypted, in its copy column (`amountEnc`); `column` is the copy's column and `context` (`table.column`, the
+ * name of the plaintext column it replaced) binds each value to it, so it never changes. `optional` fields may be null.
  */
 export const ENCRYPTED_FIELDS = {
-  User: { balanceGoalCents: { copy: "balanceGoalEnc", kind: "int", context: "users.balance_goal_cents" } },
+  User: { balanceGoalCents: { copy: "balanceGoalEnc", column: "balance_goal_enc", kind: "int", optional: true, context: "users.balance_goal_cents" } },
   PaymentMethod: {
-    name: { copy: "nameEnc", kind: "text", context: "payment_methods.name" },
-    cashCountCents: { copy: "cashCountEnc", kind: "int", context: "payment_methods.cash_count_cents" },
+    name: { copy: "nameEnc", column: "name_enc", kind: "text", optional: false, context: "payment_methods.name" },
+    cashCountCents: { copy: "cashCountEnc", column: "cash_count_enc", kind: "int", optional: true, context: "payment_methods.cash_count_cents" },
   },
-  Category: { name: { copy: "nameEnc", kind: "text", context: "categories.name" } },
+  Category: { name: { copy: "nameEnc", column: "name_enc", kind: "text", optional: true, context: "categories.name" } },
   Purchase: {
-    amountCents: { copy: "amountEnc", kind: "int", context: "purchases.amount_cents" },
-    note: { copy: "noteEnc", kind: "text", context: "purchases.note" },
+    amountCents: { copy: "amountEnc", column: "amount_enc", kind: "int", optional: false, context: "purchases.amount_cents" },
+    note: { copy: "noteEnc", column: "note_enc", kind: "text", optional: true, context: "purchases.note" },
   },
-  ExpenseItem: { name: { copy: "nameEnc", kind: "text", context: "expense_items.name" } },
-  IncomeSource: { name: { copy: "nameEnc", kind: "text", context: "income_sources.name" } },
-  IncomeGroup: { name: { copy: "nameEnc", kind: "text", context: "income_groups.name" } },
+  ExpenseItem: { name: { copy: "nameEnc", column: "name_enc", kind: "text", optional: false, context: "expense_items.name" } },
+  IncomeSource: { name: { copy: "nameEnc", column: "name_enc", kind: "text", optional: false, context: "income_sources.name" } },
+  IncomeGroup: { name: { copy: "nameEnc", column: "name_enc", kind: "text", optional: false, context: "income_groups.name" } },
   Income: {
-    amountCents: { copy: "amountEnc", kind: "int", context: "incomes.amount_cents" },
-    note: { copy: "noteEnc", kind: "text", context: "incomes.note" },
+    amountCents: { copy: "amountEnc", column: "amount_enc", kind: "int", optional: false, context: "incomes.amount_cents" },
+    note: { copy: "noteEnc", column: "note_enc", kind: "text", optional: true, context: "incomes.note" },
   },
-  RecurringIncome: { amountCents: { copy: "amountEnc", kind: "int", context: "recurring_incomes.amount_cents" } },
-  RecurringPayment: { amountCents: { copy: "amountEnc", kind: "int", context: "recurring_payments.amount_cents" } },
-  RecurringOccurrence: { amountCents: { copy: "amountEnc", kind: "int", context: "recurring_occurrences.amount_cents" } },
+  RecurringIncome: { amountCents: { copy: "amountEnc", column: "amount_enc", kind: "int", optional: false, context: "recurring_incomes.amount_cents" } },
+  RecurringPayment: { amountCents: { copy: "amountEnc", column: "amount_enc", kind: "int", optional: false, context: "recurring_payments.amount_cents" } },
+  RecurringOccurrence: { amountCents: { copy: "amountEnc", column: "amount_enc", kind: "int", optional: true, context: "recurring_occurrences.amount_cents" } },
   SavingsFund: {
-    name: { copy: "nameEnc", kind: "text", context: "savings_funds.name" },
-    targetCents: { copy: "targetEnc", kind: "int", context: "savings_funds.target_cents" },
+    name: { copy: "nameEnc", column: "name_enc", kind: "text", optional: true, context: "savings_funds.name" },
+    targetCents: { copy: "targetEnc", column: "target_enc", kind: "int", optional: true, context: "savings_funds.target_cents" },
   },
   SavingsMovement: {
-    amountCents: { copy: "amountEnc", kind: "int", context: "savings_movements.amount_cents" },
-    note: { copy: "noteEnc", kind: "text", context: "savings_movements.note" },
+    amountCents: { copy: "amountEnc", column: "amount_enc", kind: "int", optional: false, context: "savings_movements.amount_cents" },
+    note: { copy: "noteEnc", column: "note_enc", kind: "text", optional: true, context: "savings_movements.note" },
   },
   CurrencyExchange: {
-    fromCents: { copy: "fromEnc", kind: "int", context: "currency_exchanges.from_cents" },
-    toCents: { copy: "toEnc", kind: "int", context: "currency_exchanges.to_cents" },
-    note: { copy: "noteEnc", kind: "text", context: "currency_exchanges.note" },
+    fromCents: { copy: "fromEnc", column: "from_enc", kind: "int", optional: false, context: "currency_exchanges.from_cents" },
+    toCents: { copy: "toEnc", column: "to_enc", kind: "int", optional: false, context: "currency_exchanges.to_cents" },
+    note: { copy: "noteEnc", column: "note_enc", kind: "text", optional: true, context: "currency_exchanges.note" },
   },
-} as const satisfies Record<string, Record<string, { copy: string; kind: "int" | "text"; context: string }>>;
+} as const satisfies Record<string, Record<string, FieldSpec>>;
 
-type EncryptedModel = keyof typeof ENCRYPTED_FIELDS;
-type FieldSpec = { copy: string; kind: "int" | "text"; context: string };
+type FieldSpec = { copy: string; column: string; kind: "int" | "text"; optional: boolean; context: string };
+type Fields = typeof ENCRYPTED_FIELDS;
+export type EncryptedModel = keyof Fields;
 
 /** The id of the key check row: one key per database. */
 export const KEY_CHECK_ID = "data";
 
 /** The encrypted copy of a plain value, or null for null. */
-export function encryptField(spec: FieldSpec, value: unknown) {
+export function encryptField(spec: Pick<FieldSpec, "kind" | "context">, value: unknown) {
   if (value === null) return null;
   if (spec.kind === "int" && typeof value === "number") return encryptInt(value, spec.context);
   if (spec.kind === "text" && typeof value === "string") return encryptText(value, spec.context);
-  // Only plain values are written to these fields; an operation like { increment } can't be mirrored encrypted.
-  throw new Error(`Unsupported write to encrypted field ${spec.context}`);
+  throw new Error(`Unsupported value for encrypted field ${spec.context}`);
+}
+
+type PlainValue<S> = S extends { kind: "int" } ? number : string;
+type PlainInput<M extends EncryptedModel> = { [F in keyof Fields[M]]?: PlainValue<Fields[M][F]> | null };
+type Sealed<M extends EncryptedModel, V> = {
+  [F in keyof V & keyof Fields[M] as Fields[M][F] extends { copy: infer C extends string } ? C : never]:
+    V[F] extends null ? null : null extends V[F] ? string | null : undefined extends V[F] ? string | undefined : string;
+};
+
+/**
+ * The columns to write for plain values of a model's encrypted fields: `seal("Purchase", { amountCents, note })`
+ * gives `{ amountEnc, noteEnc }`. A field left out (or undefined) is left as it is; null stays null.
+ */
+export function seal<M extends EncryptedModel, V extends PlainInput<M>>(model: M, values: V): Sealed<M, V> {
+  const fields: Record<string, FieldSpec> = ENCRYPTED_FIELDS[model];
+  const sealed: Record<string, string | null> = {};
+  for (const [field, value] of Object.entries(values)) {
+    if (value === undefined) continue;
+    const spec = fields[field];
+    if (!spec) throw new Error(`${model}.${field} is not an encrypted field`);
+    sealed[spec.copy] = encryptField(spec, value);
+  }
+  return sealed as Sealed<M, V>;
+}
+
+/** An item's name as stored: encrypted, with the index that finds it by name. */
+export function sealItemName(userId: string, name: string) {
+  return { ...seal("ExpenseItem", { name }), nameIndex: nameIndex(userId, normalizeItemName(name)) };
 }
 
 /**
@@ -72,21 +99,26 @@ export async function verifyKey(base: PrismaClient) {
   }
 }
 
-/** Plain value for a field: its decrypted copy when there is one, else the plaintext of a row not encrypted yet. */
-function readInt<T extends number | null>(copy: string | null, plain: T, context: string): T {
-  return (copy === null ? plain : decryptInt(copy, context)) as T;
+/** A required field's plain value; a missing copy is an error, never a silent zero or blank. */
+function requiredInt(copy: string | null, context: string) {
+  if (copy === null) throw new Error(`Missing encrypted value in ${context}`);
+  return decryptInt(copy, context);
 }
-function readText<T extends string | null>(copy: string | null, plain: T, context: string): T {
-  return (copy === null ? plain : decryptText(copy, context)) as T;
+function requiredText(copy: string | null, context: string) {
+  if (copy === null) throw new Error(`Missing encrypted value in ${context}`);
+  return decryptText(copy, context);
 }
+const optionalInt = (copy: string | null, context: string) => (copy === null ? null : decryptInt(copy, context));
+const optionalText = (copy: string | null, context: string) => (copy === null ? null : decryptText(copy, context));
 
 const WRITE_OPERATIONS = new Set(["create", "createMany", "createManyAndReturn", "update", "updateMany", "updateManyAndReturn", "upsert"]);
-
-type Data = Record<string, unknown>;
+const COPY_COLUMNS: Record<string, string[]> = Object.fromEntries(
+  Object.entries(ENCRYPTED_FIELDS).map(([model, fields]) => [model, Object.values(fields).map((spec: FieldSpec) => spec.copy)]),
+);
 
 /**
- * The encrypting client: reads return plain values in the encrypted fields' place, and writes add the encrypted
- * copy of every encrypted field they set (and an item's name index, which needs its user).
+ * The encrypting client: reads return each encrypted field's plain value under its plain name (`amountCents` from
+ * `amountEnc`), and a write that stores encrypted values (from `seal`) first checks the key is this database's.
  */
 export function withEncryption(base: PrismaClient) {
   let keyVerified: Promise<void> | null = null;
@@ -97,98 +129,71 @@ export function withEncryption(base: PrismaClient) {
     });
     return keyVerified;
   };
+  const writesCopies = (model: string, data: unknown) => [data].flat().some((row) =>
+    typeof row === "object" && row !== null && COPY_COLUMNS[model].some((copy) => typeof (row as Record<string, unknown>)[copy] === "string"));
 
-  async function encryptData(model: EncryptedModel, data: Data, userIdFor: () => Promise<string>) {
-    const fields: Record<string, FieldSpec> = ENCRYPTED_FIELDS[model];
-    const written = Object.keys(fields).filter((field) => data[field] !== undefined);
-    const indexes = model === "ExpenseItem" && data.normalizedName !== undefined;
-    if (written.length === 0 && !indexes) return data;
-    await ensureKey();
-    const copies: Data = {};
-    for (const field of written) copies[fields[field].copy] = encryptField(fields[field], data[field]);
-    if (indexes) {
-      if (typeof data.normalizedName !== "string") throw new Error("Unsupported write to expense_items.normalized_name");
-      copies.nameIndex = nameIndex(await userIdFor(), data.normalizedName);
-    }
-    return { ...data, ...copies };
-  }
-
+  const F = ENCRYPTED_FIELDS;
   return base.$extends({
     query: {
       $allModels: {
         async $allOperations({ model, operation, args, query }) {
-          if (!(model in ENCRYPTED_FIELDS) || !WRITE_OPERATIONS.has(operation)) return query(args);
-          const encrypted = model as EncryptedModel;
-          const write = args as { data?: Data | Data[]; create?: Data; update?: Data; where?: Data };
-          // An item's name index needs its user: given when creating, looked up when renaming one.
-          const userIdOf = (data: Data | undefined) => async () => {
-            if (typeof data?.userId === "string") return data.userId;
-            if (typeof write.where?.userId === "string") return write.where.userId;
-            if (operation !== "update") throw new Error("An item's name can only change one item at a time");
-            const item = await base.expenseItem.findUnique({ where: write.where as { id: string }, select: { userId: true } });
-            if (!item) throw new Error("Item not found");
-            return item.userId;
-          };
-          if (Array.isArray(write.data)) {
-            write.data = await Promise.all(write.data.map((data) => encryptData(encrypted, data, userIdOf(data))));
-          } else if (write.data) {
-            write.data = await encryptData(encrypted, write.data, userIdOf(write.data));
+          if (model in COPY_COLUMNS && WRITE_OPERATIONS.has(operation)) {
+            const write = args as { data?: unknown; create?: unknown; update?: unknown };
+            if (writesCopies(model, write.data) || writesCopies(model, write.create) || writesCopies(model, write.update)) await ensureKey();
           }
-          if (write.create) write.create = await encryptData(encrypted, write.create, userIdOf(write.create));
-          if (write.update) write.update = await encryptData(encrypted, write.update, userIdOf(write.update));
           return query(args);
         },
       },
     },
     result: {
       user: {
-        balanceGoalCents: { needs: { balanceGoalCents: true, balanceGoalEnc: true }, compute: (row) => readInt(row.balanceGoalEnc, row.balanceGoalCents, ENCRYPTED_FIELDS.User.balanceGoalCents.context) },
+        balanceGoalCents: { needs: { balanceGoalEnc: true }, compute: (row) => optionalInt(row.balanceGoalEnc, F.User.balanceGoalCents.context) },
       },
       paymentMethod: {
-        name: { needs: { name: true, nameEnc: true }, compute: (row) => readText(row.nameEnc, row.name, ENCRYPTED_FIELDS.PaymentMethod.name.context) },
-        cashCountCents: { needs: { cashCountCents: true, cashCountEnc: true }, compute: (row) => readInt(row.cashCountEnc, row.cashCountCents, ENCRYPTED_FIELDS.PaymentMethod.cashCountCents.context) },
+        name: { needs: { nameEnc: true }, compute: (row) => requiredText(row.nameEnc, F.PaymentMethod.name.context) },
+        cashCountCents: { needs: { cashCountEnc: true }, compute: (row) => optionalInt(row.cashCountEnc, F.PaymentMethod.cashCountCents.context) },
       },
       category: {
-        name: { needs: { name: true, nameEnc: true }, compute: (row) => readText(row.nameEnc, row.name, ENCRYPTED_FIELDS.Category.name.context) },
+        name: { needs: { nameEnc: true }, compute: (row) => optionalText(row.nameEnc, F.Category.name.context) },
       },
       purchase: {
-        amountCents: { needs: { amountCents: true, amountEnc: true }, compute: (row) => readInt(row.amountEnc, row.amountCents, ENCRYPTED_FIELDS.Purchase.amountCents.context) },
-        note: { needs: { note: true, noteEnc: true }, compute: (row) => readText(row.noteEnc, row.note, ENCRYPTED_FIELDS.Purchase.note.context) },
+        amountCents: { needs: { amountEnc: true }, compute: (row) => requiredInt(row.amountEnc, F.Purchase.amountCents.context) },
+        note: { needs: { noteEnc: true }, compute: (row) => optionalText(row.noteEnc, F.Purchase.note.context) },
       },
       expenseItem: {
-        name: { needs: { name: true, nameEnc: true }, compute: (row) => readText(row.nameEnc, row.name, ENCRYPTED_FIELDS.ExpenseItem.name.context) },
+        name: { needs: { nameEnc: true }, compute: (row) => requiredText(row.nameEnc, F.ExpenseItem.name.context) },
       },
       incomeSource: {
-        name: { needs: { name: true, nameEnc: true }, compute: (row) => readText(row.nameEnc, row.name, ENCRYPTED_FIELDS.IncomeSource.name.context) },
+        name: { needs: { nameEnc: true }, compute: (row) => requiredText(row.nameEnc, F.IncomeSource.name.context) },
       },
       incomeGroup: {
-        name: { needs: { name: true, nameEnc: true }, compute: (row) => readText(row.nameEnc, row.name, ENCRYPTED_FIELDS.IncomeGroup.name.context) },
+        name: { needs: { nameEnc: true }, compute: (row) => requiredText(row.nameEnc, F.IncomeGroup.name.context) },
       },
       income: {
-        amountCents: { needs: { amountCents: true, amountEnc: true }, compute: (row) => readInt(row.amountEnc, row.amountCents, ENCRYPTED_FIELDS.Income.amountCents.context) },
-        note: { needs: { note: true, noteEnc: true }, compute: (row) => readText(row.noteEnc, row.note, ENCRYPTED_FIELDS.Income.note.context) },
+        amountCents: { needs: { amountEnc: true }, compute: (row) => requiredInt(row.amountEnc, F.Income.amountCents.context) },
+        note: { needs: { noteEnc: true }, compute: (row) => optionalText(row.noteEnc, F.Income.note.context) },
       },
       recurringIncome: {
-        amountCents: { needs: { amountCents: true, amountEnc: true }, compute: (row) => readInt(row.amountEnc, row.amountCents, ENCRYPTED_FIELDS.RecurringIncome.amountCents.context) },
+        amountCents: { needs: { amountEnc: true }, compute: (row) => requiredInt(row.amountEnc, F.RecurringIncome.amountCents.context) },
       },
       recurringPayment: {
-        amountCents: { needs: { amountCents: true, amountEnc: true }, compute: (row) => readInt(row.amountEnc, row.amountCents, ENCRYPTED_FIELDS.RecurringPayment.amountCents.context) },
+        amountCents: { needs: { amountEnc: true }, compute: (row) => requiredInt(row.amountEnc, F.RecurringPayment.amountCents.context) },
       },
       recurringOccurrence: {
-        amountCents: { needs: { amountCents: true, amountEnc: true }, compute: (row) => readInt(row.amountEnc, row.amountCents, ENCRYPTED_FIELDS.RecurringOccurrence.amountCents.context) },
+        amountCents: { needs: { amountEnc: true }, compute: (row) => optionalInt(row.amountEnc, F.RecurringOccurrence.amountCents.context) },
       },
       savingsFund: {
-        name: { needs: { name: true, nameEnc: true }, compute: (row) => readText(row.nameEnc, row.name, ENCRYPTED_FIELDS.SavingsFund.name.context) },
-        targetCents: { needs: { targetCents: true, targetEnc: true }, compute: (row) => readInt(row.targetEnc, row.targetCents, ENCRYPTED_FIELDS.SavingsFund.targetCents.context) },
+        name: { needs: { nameEnc: true }, compute: (row) => optionalText(row.nameEnc, F.SavingsFund.name.context) },
+        targetCents: { needs: { targetEnc: true }, compute: (row) => optionalInt(row.targetEnc, F.SavingsFund.targetCents.context) },
       },
       savingsMovement: {
-        amountCents: { needs: { amountCents: true, amountEnc: true }, compute: (row) => readInt(row.amountEnc, row.amountCents, ENCRYPTED_FIELDS.SavingsMovement.amountCents.context) },
-        note: { needs: { note: true, noteEnc: true }, compute: (row) => readText(row.noteEnc, row.note, ENCRYPTED_FIELDS.SavingsMovement.note.context) },
+        amountCents: { needs: { amountEnc: true }, compute: (row) => requiredInt(row.amountEnc, F.SavingsMovement.amountCents.context) },
+        note: { needs: { noteEnc: true }, compute: (row) => optionalText(row.noteEnc, F.SavingsMovement.note.context) },
       },
       currencyExchange: {
-        fromCents: { needs: { fromCents: true, fromEnc: true }, compute: (row) => readInt(row.fromEnc, row.fromCents, ENCRYPTED_FIELDS.CurrencyExchange.fromCents.context) },
-        toCents: { needs: { toCents: true, toEnc: true }, compute: (row) => readInt(row.toEnc, row.toCents, ENCRYPTED_FIELDS.CurrencyExchange.toCents.context) },
-        note: { needs: { note: true, noteEnc: true }, compute: (row) => readText(row.noteEnc, row.note, ENCRYPTED_FIELDS.CurrencyExchange.note.context) },
+        fromCents: { needs: { fromEnc: true }, compute: (row) => requiredInt(row.fromEnc, F.CurrencyExchange.fromCents.context) },
+        toCents: { needs: { toEnc: true }, compute: (row) => requiredInt(row.toEnc, F.CurrencyExchange.toCents.context) },
+        note: { needs: { noteEnc: true }, compute: (row) => optionalText(row.noteEnc, F.CurrencyExchange.note.context) },
       },
     },
   });

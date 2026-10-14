@@ -2,6 +2,7 @@ import "server-only";
 
 import { z } from "zod";
 import { db } from "@/db/client";
+import { seal } from "@/db/encryption";
 import { cleanSourceName, findSourceByName, MAX_SOURCE_NAME_LENGTH, NEW_SOURCE } from "@/lib/income-sources";
 
 export type SourceResolution = { sourceId: string } | { error: "source" | "name" | "group" };
@@ -38,6 +39,6 @@ export async function resolveIncomeSource(userId: string, { sourceId, sourceName
     group = await db.incomeGroup.findFirst({ where: { id: groupId, userId, archivedAt: null }, select: { id: true } });
     if (!group) return { error: "group" };
   }
-  const source = await db.incomeSource.create({ data: { userId, name, groupId: group?.id ?? null }, select: { id: true } });
+  const source = await db.incomeSource.create({ data: { userId, ...seal("IncomeSource", { name }), groupId: group?.id ?? null }, select: { id: true } });
   return { sourceId: source.id };
 }

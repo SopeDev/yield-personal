@@ -1,7 +1,7 @@
 /**
- * Encrypts what the database still holds only in plaintext. Runs on every deploy, after migrations and before the
- * build, so the new version never goes live without its key: a missing or different key fails the deploy and the
- * current version keeps serving.
+ * Encrypts what the database still holds only in plaintext. Runs on every deploy, before and
+ * after migrations, so the new version never goes live without its key: a missing or different key fails the
+ * deploy and the current version keeps serving.
  */
 import { config } from "dotenv";
 import { PrismaPg } from "@prisma/adapter-pg";
@@ -18,9 +18,9 @@ async function main() {
   }
   const base = new PrismaClient({ adapter: new PrismaPg({ connectionString: getDatabaseUrl() }) });
   try {
-    const written = await encryptExisting(base);
-    const total = Object.values(written).reduce((sum, count) => sum + count, 0);
-    console.log(total === 0 ? "Encryption: everything already encrypted." : `Encryption: encrypted ${total} values ${JSON.stringify(written)}.`);
+    const done = await encryptExisting(base);
+    const total = Object.values(done).reduce((sum, count) => sum + count, 0);
+    console.log(total === 0 ? "Encryption: everything already encrypted." : `Encryption: encrypted ${total} values ${JSON.stringify(done)}.`);
   } finally {
     await base.$disconnect();
   }

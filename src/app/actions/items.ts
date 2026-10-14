@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db/client";
 import { MAX_ITEM_NAME_LENGTH } from "@/lib/item-resolution";
-import { cleanItemName, normalizeItemName } from "@/lib/items";
+import { sealItemName } from "@/db/encryption";
+import { cleanItemName } from "@/lib/items";
 import { localeFromForm, requireActionUserId } from "./action-user";
 import type { FormState } from "./form-state";
 
@@ -29,17 +30,18 @@ export async function updateItem(_state: FormState, formData: FormData): Promise
   if (!isUuid(categoryId)) fieldErrors.categoryId = "category";
   if (Object.keys(fieldErrors).length > 0) return { fieldErrors };
 
+  const stored = sealItemName(userId, name);
   const [item, category, sameName] = await Promise.all([
     db.expenseItem.findFirst({ where: { id, userId }, select: { id: true } }),
     db.category.findFirst({ where: { id: categoryId, userId }, select: { id: true } }),
-    db.expenseItem.findFirst({ where: { userId, normalizedName: normalizeItemName(name), id: { not: id } }, select: { id: true } }),
+    db.expenseItem.findFirst({ where: { userId, nameIndex: stored.nameIndex, id: { not: id } }, select: { id: true } }),
   ]);
   if (!item) return { error: "generic" };
   if (!category) return { fieldErrors: { categoryId: "category" } };
   // Two items can't share a name; combining them is an explicit merge.
   if (sameName) return { fieldErrors: { name: "itemExists" } };
 
-  await db.expenseItem.update({ where: { id }, data: { name, normalizedName: normalizeItemName(name), categoryId } });
+  await db.expenseItem.update({ where: { id }, data: { ...stored, categoryId } });
   revalidatePath(`/${localeFromForm(formData)}`, "layout");
   return {};
 }

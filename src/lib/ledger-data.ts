@@ -62,7 +62,7 @@ export async function getRecurringIncomes(userId: string): Promise<RecurringInco
 /** Every confirmed or changed recurring amount, by item, for estimating variable bills. */
 async function getRecurringHistory(userId: string): Promise<ConfirmedAmount[]> {
   const rows = await db.recurringOccurrence.findMany({
-    where: { userId, amountCents: { not: null } },
+    where: { userId, amountEnc: { not: null } },
     select: { month: true, amountCents: true, recurringPayment: { select: { itemId: true } } },
   });
   return rows.map((row) => ({ itemId: row.recurringPayment.itemId, month: row.month, amountCents: row.amountCents! }));

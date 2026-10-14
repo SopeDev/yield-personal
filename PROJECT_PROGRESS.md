@@ -115,9 +115,11 @@ Last updated: 2026-10-10
 
 - Encryption at rest, step 1: amounts, names and notes get encrypted copies beside the plaintext (migration `20261019000000_encrypted_fields`, purely additive), written on every save and read in place of the plaintext; each deploy encrypts what's still in plaintext before building, and refuses to go live without the key or with another key. Verified on a local Postgres with two seeded users: every month, year, savings, cash and stat figure, explanation and list is byte-identical to the previous code before encryption, after it, and with every plaintext value overwritten with garbage; 36 server actions keep every encrypted copy matching its value (378 checked); an older deployment's edit mid-deploy, another key, and no key all behave safely.
 
+- Encryption at rest, step 2: amounts, names and notes are now stored only encrypted. The client reads the encrypted columns as the plain fields and writes through `seal`; items are found and kept unique by `name_index`; recurring history is selected by its encrypted amount. Migration `20261020000000_plaintext_cleared` empties every plaintext value that has its copy (dropping the step-1 triggers first) and adds a trigger that keeps plaintext out while the previous deployment still serves; each deploy encrypts before and after migrating. Rehearsed on a production-shaped database (step-1 data plus rows left without copies): every figure, explanation and list identical to step 1's, no plaintext left, the step-1 code still reading and writing safely mid-deploy, 36 server actions keeping every copy valid (369 copies, 22 item indexes), and another key or no key refused. The rehearsal caught a script that cleared plaintext while the step-1 trigger was active (which erased the copy too); the script now never touches plaintext.
+
 ## Next
 
-- Encryption at rest, step 2 (after confirming production): drop the plaintext columns and the triggers, make the copies required, look items up by `name_index`, and select recurring history by its encrypted amount.
+- Encryption at rest, step 3 (tidy-up, after step 2 is live): drop the emptied plaintext columns and the `*_clear_plaintext` triggers, and make the required copies NOT NULL.
 
 - Rename the stat labels new users find ambiguous (Spending / To pay / Outstanding, Daily income vs. Daily avg. gross), keeping the explanations in step.
 - Flag figures based on too little history (typical daily spending and the income pace on a new account), in the stat's note or its explanation.

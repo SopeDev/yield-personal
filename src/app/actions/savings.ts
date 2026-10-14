@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db/client";
+import { seal } from "@/db/encryption";
 import { isCurrency, parseAmountToCents } from "@/lib/money";
 import { dateFromKey, isDateKey } from "@/lib/months";
 import { getMainCurrency } from "@/lib/queries";
@@ -48,7 +49,7 @@ export async function createSavingsMovement(_state: FormState, formData: FormDat
   if (existing && existing.userId !== userId) return { error: "generic" };
   if (!existing) {
     await db.savingsMovement.create({
-      data: { id, userId, fundId, date: dateFromKey(date), amountCents: direction === "deposit" ? amountCents! : -amountCents!, note: note || null },
+      data: { id, userId, fundId, date: dateFromKey(date), ...seal("SavingsMovement", { amountCents: direction === "deposit" ? amountCents! : -amountCents!, note: note || null }) },
     });
   }
 
@@ -77,7 +78,7 @@ export async function createGoalFund(_state: FormState, formData: FormData): Pro
   // A goal saves in one currency, moved from and to that currency's cash wallet.
   const currency = readText(formData, "currency") || await getMainCurrency(userId);
   if (!isCurrency(currency)) return { fieldErrors: { currency: "generic" } };
-  await db.savingsFund.create({ data: { userId, kind: "GOAL", name, targetCents, currency } });
+  await db.savingsFund.create({ data: { userId, kind: "GOAL", ...seal("SavingsFund", { name, targetCents }), currency } });
   revalidatePath(`/${localeFromForm(formData)}`, "layout");
   return {};
 }
@@ -101,7 +102,7 @@ export async function updateSavingsFund(_state: FormState, formData: FormData): 
     if (!name || name.length > MAX_NAME_LENGTH) fieldErrors.name = "name";
     if (!targetCents) fieldErrors.target = "amount";
     if (Object.keys(fieldErrors).length > 0) return { fieldErrors };
-    await db.savingsFund.update({ where: { id }, data: { name, targetCents } });
+    await db.savingsFund.update({ where: { id }, data: seal("SavingsFund", { name, targetCents }) });
   }
 
   revalidatePath(`/${localeFromForm(formData)}`, "layout");

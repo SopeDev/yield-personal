@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/db/client";
+import { seal } from "@/db/encryption";
 import { LOCALE_COOKIE } from "@/i18n/config";
 import { isCategoryKind, type CategoryKind } from "@/lib/categories";
 import { loadCashOnHand } from "@/lib/ledger-data";
@@ -41,7 +42,7 @@ function parseCard(formData: FormData) {
   if (!closingDay) fieldErrors.closingDay = "day";
   if (!Number.isInteger(paymentDays) || paymentDays < 1 || paymentDays > MAX_PAYMENT_DAYS) fieldErrors.paymentDays = "paymentDays";
   if (Object.keys(fieldErrors).length > 0) return { fieldErrors };
-  return { data: { name, color, closingDay: closingDay!, paymentDays } };
+  return { data: { ...seal("PaymentMethod", { name }), color, closingDay: closingDay!, paymentDays } };
 }
 
 export async function createCard(_state: FormState, formData: FormData): Promise<FormState> {
@@ -95,7 +96,7 @@ export async function createIncomeSource(_state: FormState, formData: FormData):
   const group = await readSourceGroup(userId, formData);
   if (!group) return { fieldErrors: { groupId: "generic" } };
 
-  await db.incomeSource.create({ data: { userId, name, groupId: group.groupId } });
+  await db.incomeSource.create({ data: { userId, ...seal("IncomeSource", { name }), groupId: group.groupId } });
   revalidatePath(`/${localeFromForm(formData)}`, "layout");
   return {};
 }
@@ -112,7 +113,7 @@ export async function updateIncomeSource(_state: FormState, formData: FormData):
   const group = readText(formData, "groupId") === current.groupId ? { groupId: current.groupId } : await readSourceGroup(userId, formData);
   if (!group) return { fieldErrors: { groupId: "generic" } };
 
-  await db.incomeSource.update({ where: { id }, data: { name, groupId: group.groupId } });
+  await db.incomeSource.update({ where: { id }, data: { ...seal("IncomeSource", { name }), groupId: group.groupId } });
   revalidatePath(`/${localeFromForm(formData)}`, "layout");
   return {};
 }
@@ -131,7 +132,7 @@ export async function createIncomeGroup(_state: FormState, formData: FormData): 
   if (!name || name.length > MAX_NAME_LENGTH) return { fieldErrors: { name: "name" } };
   const categoryIds = await readDeductions(userId, formData);
 
-  await db.incomeGroup.create({ data: { userId, name, deductions: { create: categoryIds.map((categoryId) => ({ categoryId })) } } });
+  await db.incomeGroup.create({ data: { userId, ...seal("IncomeGroup", { name }), deductions: { create: categoryIds.map((categoryId) => ({ categoryId })) } } });
   revalidatePath(`/${localeFromForm(formData)}`, "layout");
   return {};
 }
@@ -148,7 +149,7 @@ export async function updateIncomeGroup(_state: FormState, formData: FormData): 
   const categoryIds = await readDeductions(userId, formData);
 
   await db.$transaction([
-    db.incomeGroup.update({ where: { id }, data: { name } }),
+    db.incomeGroup.update({ where: { id }, data: seal("IncomeGroup", { name }) }),
     db.incomeGroupDeduction.deleteMany({ where: { groupId: id } }),
     db.incomeGroupDeduction.createMany({ data: categoryIds.map((categoryId) => ({ groupId: id, categoryId })) }),
   ]);
@@ -185,7 +186,7 @@ export async function createCategory(_state: FormState, formData: FormData): Pro
 
   const last = await db.category.findFirst({ where: { userId }, orderBy: { sortOrder: "desc" }, select: { sortOrder: true } });
   await db.category.create({
-    data: { userId, name, kind: readKind(formData), sortOrder: (last?.sortOrder ?? -1) + 1 },
+    data: { userId, ...seal("Category", { name }), kind: readKind(formData), sortOrder: (last?.sortOrder ?? -1) + 1 },
   });
   revalidatePath(`/${localeFromForm(formData)}`, "layout");
   return {};
@@ -203,7 +204,7 @@ export async function updateCategory(_state: FormState, formData: FormData): Pro
   if (!category) return { error: "generic" };
   if (!name && !category.key) return { fieldErrors: { name: "name" } };
 
-  await db.category.update({ where: { id }, data: { name: name || null, kind: readKind(formData) } });
+  await db.category.update({ where: { id }, data: { ...seal("Category", { name: name || null }), kind: readKind(formData) } });
   revalidatePath(`/${localeFromForm(formData)}`, "layout");
   return {};
 }
@@ -257,14 +258,14 @@ export async function setBalanceGoal(_state: FormState, formData: FormData): Pro
   const userId = await requireActionUserId();
   const goalCents = parseAmountToCents(readText(formData, "goal"));
   if (!goalCents) return { fieldErrors: { goal: "amount" } };
-  await db.user.update({ where: { id: userId }, data: { balanceGoalCents: goalCents } });
+  await db.user.update({ where: { id: userId }, data: seal("User", { balanceGoalCents: goalCents }) });
   revalidatePath(`/${localeFromForm(formData)}`, "layout");
   return { savedAt: Date.now() };
 }
 
 export async function clearBalanceGoal(formData: FormData) {
   const userId = await requireActionUserId();
-  await db.user.update({ where: { id: userId }, data: { balanceGoalCents: null } });
+  await db.user.update({ where: { id: userId }, data: seal("User", { balanceGoalCents: null }) });
   revalidatePath(`/${localeFromForm(formData)}`, "layout");
 }
 
@@ -279,7 +280,7 @@ export async function setCashOnHand(_state: CashOnHandState, formData: FormData)
   const wallets = await loadCashOnHand(userId);
   const tracked = wallets.find(({ wallet }) => wallet.id === walletId);
   if (!tracked) return { error: "generic" };
-  await db.paymentMethod.update({ where: { id: walletId }, data: { cashCountCents: cents, cashCountedAt: new Date() } });
+  await db.paymentMethod.update({ where: { id: walletId }, data: { ...seal("PaymentMethod", { cashCountCents: cents }), cashCountedAt: new Date() } });
   revalidatePath(`/${localeFromForm(formData)}`, "layout");
   return { savedAt: Date.now(), offByCents: tracked.cents === null ? null : cents - tracked.cents };
 }
@@ -294,7 +295,7 @@ export async function createCashWallet(_state: FormState, formData: FormData): P
   const existing = await db.paymentMethod.findFirst({ where: { userId, kind: "CASH", currency, archivedAt: null }, select: { id: true } });
   if (existing) return { fieldErrors: { currency: "walletExists" } };
 
-  await db.paymentMethod.create({ data: { userId, kind: "CASH", name, color: CASH_COLOR, currency } });
+  await db.paymentMethod.create({ data: { userId, kind: "CASH", ...seal("PaymentMethod", { name }), color: CASH_COLOR, currency } });
   revalidatePath(`/${localeFromForm(formData)}`, "layout");
   return {};
 }

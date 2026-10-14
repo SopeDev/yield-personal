@@ -40,9 +40,8 @@ model User {
   /// The currency headline figures (balance, needed per day, averages) are in (an ISO 4217 code such as "MXN").
   /// Records in other currencies are totalled separately, never converted.
   currency             String                @default("MXN")
-  /// Monthly balance goal in centavos: money to have left over or saved each month. Null when unset.
-  balanceGoalCents     Int?                  @map("balance_goal_cents")
-  /// Encrypted copy (see src/lib/field-crypto.ts); read in its place once written. The plaintext column goes once every row has one.
+  /// Monthly balance goal in centavos: money to have left over or saved each month. Null when unset. Encrypted
+  /// (src/lib/field-crypto.ts); the client reads it as `balanceGoalCents` (src/db/encryption.ts).
   balanceGoalEnc       String?               @map("balance_goal_enc")
   /// First month (its first day) counted in calculations from past spending, like averages and typical daily
   /// spending; earlier months may hold only partial records. Null counts every month.
@@ -141,12 +140,10 @@ model PaymentMethod {
   id                String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId            String             @map("user_id") @db.Uuid
   kind              PaymentMethodKind
-  name              String
-  /// Encrypted copy (see src/lib/field-crypto.ts); read in its place once written. The plaintext column goes once every row has one.
+  /// Encrypted (src/lib/field-crypto.ts); the client reads it as the plain field (src/db/encryption.ts).
   nameEnc           String?            @map("name_enc")
   color             String
   currency          String             @default("MXN")
-  cashCountCents    Int?               @map("cash_count_cents")
   cashCountEnc      String?            @map("cash_count_enc")
   cashCountedAt     DateTime?          @map("cash_counted_at") @db.Timestamptz(6)
   closingDay        Int?               @map("closing_day")
@@ -169,8 +166,7 @@ model Category {
   id               String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId           String                 @map("user_id") @db.Uuid
   key              String?
-  name             String?
-  /// Encrypted copy (see src/lib/field-crypto.ts); read in its place once written. The plaintext column goes once every row has one.
+  /// Encrypted (src/lib/field-crypto.ts); the client reads it as the plain field (src/db/encryption.ts).
   nameEnc          String?                @map("name_enc")
   sortOrder        Int                    @default(0) @map("sort_order")
   kind             CategoryKind           @default(EVERYDAY)
@@ -193,9 +189,7 @@ model Purchase {
   itemId           String        @map("item_id") @db.Uuid
   paymentMethodId  String        @map("payment_method_id") @db.Uuid
   date             DateTime      @db.Date
-  amountCents      Int           @map("amount_cents")
-  note             String?
-  /// Encrypted copy (see src/lib/field-crypto.ts); read in its place once written. The plaintext column goes once every row has one.
+  /// Encrypted (src/lib/field-crypto.ts); the client reads it as the plain field (src/db/encryption.ts).
   amountEnc        String?       @map("amount_enc")
   noteEnc          String?       @map("note_enc")
   installmentCount Int           @default(1) @map("installment_count")
@@ -217,11 +211,9 @@ model ExpenseItem {
   id                String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId            String             @map("user_id") @db.Uuid
   categoryId        String             @map("category_id") @db.Uuid
-  name              String
-  normalizedName    String             @map("normalized_name")
-  /// Encrypted copy (see src/lib/field-crypto.ts); read in its place once written. The plaintext column goes once every row has one.
+  /// Encrypted (src/lib/field-crypto.ts); the client reads it as the plain field (src/db/encryption.ts).
   nameEnc           String?            @map("name_enc")
-  /// Keyed hash of `normalizedName` and the user (`nameIndex` in src/lib/field-crypto.ts): finds an item by name without storing it.
+  /// Keyed hash of the user and the normalized name (`nameIndex` in src/lib/field-crypto.ts): finds an item by name without storing it.
   nameIndex         String?            @map("name_index")
   archivedAt        DateTime?          @map("archived_at") @db.Timestamptz(6)
   createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -230,7 +222,6 @@ model ExpenseItem {
   purchases         Purchase[]
   recurringPayments RecurringPayment[]
 
-  @@unique([userId, normalizedName])
   @@unique([userId, nameIndex])
   @@index([categoryId])
   @@map("expense_items")
@@ -241,8 +232,7 @@ model IncomeSource {
   id               String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId           String            @map("user_id") @db.Uuid
   groupId          String?           @map("group_id") @db.Uuid
-  name             String
-  /// Encrypted copy (see src/lib/field-crypto.ts); read in its place once written. The plaintext column goes once every row has one.
+  /// Encrypted (src/lib/field-crypto.ts); the client reads it as the plain field (src/db/encryption.ts).
   nameEnc          String?           @map("name_enc")
   archivedAt       DateTime?         @map("archived_at") @db.Timestamptz(6)
   createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -261,8 +251,7 @@ model IncomeSource {
 model IncomeGroup {
   id         String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId     String                 @map("user_id") @db.Uuid
-  name       String
-  /// Encrypted copy (see src/lib/field-crypto.ts); read in its place once written. The plaintext column goes once every row has one.
+  /// Encrypted (src/lib/field-crypto.ts); the client reads it as the plain field (src/db/encryption.ts).
   nameEnc    String?                @map("name_enc")
   archivedAt DateTime?              @map("archived_at") @db.Timestamptz(6)
   createdAt  DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -293,11 +282,9 @@ model Income {
   userId            String           @map("user_id") @db.Uuid
   sourceId          String           @map("source_id") @db.Uuid
   date              DateTime         @db.Date
-  amountCents       Int              @map("amount_cents")
   /// Received in this currency, into the cash wallet of the same currency.
   currency          String           @default("MXN")
-  note              String?
-  /// Encrypted copy (see src/lib/field-crypto.ts); read in its place once written. The plaintext column goes once every row has one.
+  /// Encrypted (src/lib/field-crypto.ts); the client reads it as the plain field (src/db/encryption.ts).
   amountEnc         String?          @map("amount_enc")
   noteEnc           String?          @map("note_enc")
   recurringIncomeId String?          @map("recurring_income_id") @db.Uuid
@@ -318,22 +305,21 @@ model Income {
 /// Paydays count from `startsOn` (the day it was added or rescheduled, or a later first payday). Each payday stays
 /// expected in its month until income is received for it.
 model RecurringIncome {
-  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId      String       @map("user_id") @db.Uuid
-  sourceId    String       @map("source_id") @db.Uuid
-  amountCents Int          @map("amount_cents")
-  /// Encrypted copy (see src/lib/field-crypto.ts); read in its place once written. The plaintext column goes once every row has one.
-  amountEnc   String?      @map("amount_enc")
-  currency    String       @default("MXN")
-  rhythm      IncomeRhythm
-  anchor      DateTime?    @db.Date
-  payDays     Int[]        @default([]) @map("pay_days")
-  startsOn    DateTime     @map("starts_on") @db.Date
-  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
-  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  source      IncomeSource @relation(fields: [sourceId], references: [id], onDelete: Restrict)
-  incomes     Income[]
+  id        String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String       @map("user_id") @db.Uuid
+  sourceId  String       @map("source_id") @db.Uuid
+  /// Encrypted (src/lib/field-crypto.ts); the client reads it as the plain field (src/db/encryption.ts).
+  amountEnc String?      @map("amount_enc")
+  currency  String       @default("MXN")
+  rhythm    IncomeRhythm
+  anchor    DateTime?    @db.Date
+  payDays   Int[]        @default([]) @map("pay_days")
+  startsOn  DateTime     @map("starts_on") @db.Date
+  createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  source    IncomeSource @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  incomes   Income[]
 
   @@index([userId])
   @@index([sourceId])
@@ -348,8 +334,7 @@ model RecurringPayment {
   userId          String                @map("user_id") @db.Uuid
   itemId          String                @map("item_id") @db.Uuid
   paymentMethodId String                @map("payment_method_id") @db.Uuid
-  amountCents     Int                   @map("amount_cents")
-  /// Encrypted copy (see src/lib/field-crypto.ts); read in its place once written. The plaintext column goes once every row has one.
+  /// Encrypted (src/lib/field-crypto.ts); the client reads it as the plain field (src/db/encryption.ts).
   amountEnc       String?               @map("amount_enc")
   isVariable      Boolean               @default(false) @map("is_variable")
   intervalMonths  Int                   @default(1) @map("interval_months")
@@ -377,8 +362,7 @@ model RecurringOccurrence {
   userId             String           @map("user_id") @db.Uuid
   recurringPaymentId String           @map("recurring_payment_id") @db.Uuid
   month              DateTime         @db.Date
-  amountCents        Int?             @map("amount_cents")
-  /// Encrypted copy (see src/lib/field-crypto.ts); read in its place once written. The plaintext column goes once every row has one.
+  /// Encrypted (src/lib/field-crypto.ts); the client reads it as the plain field (src/db/encryption.ts).
   amountEnc          String?          @map("amount_enc")
   paidAt             DateTime?        @map("paid_at") @db.Timestamptz(6)
   chargedOn          DateTime?        @map("charged_on") @db.Date
@@ -419,11 +403,9 @@ model SavingsFund {
   id          String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   userId      String            @map("user_id") @db.Uuid
   kind        SavingsFundKind
-  name        String?
   /// Its balance and movements are in this currency, moved from and to the cash wallet of the same currency.
   currency    String            @default("MXN")
-  targetCents Int?              @map("target_cents")
-  /// Encrypted copy (see src/lib/field-crypto.ts); read in its place once written. The plaintext column goes once every row has one.
+  /// Encrypted (src/lib/field-crypto.ts); the client reads it as the plain field (src/db/encryption.ts).
   nameEnc     String?           @map("name_enc")
   targetEnc   String?           @map("target_enc")
   coverMonths Int               @default(3) @map("cover_months")
@@ -438,18 +420,16 @@ model SavingsFund {
 
 /// Money moved into (positive) or out of (negative) a savings fund, in centavos.
 model SavingsMovement {
-  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId      String      @map("user_id") @db.Uuid
-  fundId      String      @map("fund_id") @db.Uuid
-  date        DateTime    @db.Date
-  amountCents Int         @map("amount_cents")
-  note        String?
-  /// Encrypted copy (see src/lib/field-crypto.ts); read in its place once written. The plaintext column goes once every row has one.
-  amountEnc   String?     @map("amount_enc")
-  noteEnc     String?     @map("note_enc")
-  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  fund        SavingsFund @relation(fields: [fundId], references: [id], onDelete: Cascade)
+  id        String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String      @map("user_id") @db.Uuid
+  fundId    String      @map("fund_id") @db.Uuid
+  date      DateTime    @db.Date
+  /// Encrypted (src/lib/field-crypto.ts); the client reads it as the plain field (src/db/encryption.ts).
+  amountEnc String?     @map("amount_enc")
+  noteEnc   String?     @map("note_enc")
+  createdAt DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fund      SavingsFund @relation(fields: [fundId], references: [id], onDelete: Cascade)
 
   @@index([userId, date])
   @@index([fundId])
@@ -463,11 +443,8 @@ model CurrencyExchange {
   userId       String   @map("user_id") @db.Uuid
   date         DateTime @db.Date
   fromCurrency String   @map("from_currency")
-  fromCents    Int      @map("from_cents")
   toCurrency   String   @map("to_currency")
-  toCents      Int      @map("to_cents")
-  note         String?
-  /// Encrypted copy (see src/lib/field-crypto.ts); read in its place once written. The plaintext column goes once every row has one.
+  /// Encrypted (src/lib/field-crypto.ts); the client reads it as the plain field (src/db/encryption.ts).
   fromEnc      String?  @map("from_enc")
   toEnc        String?  @map("to_enc")
   noteEnc      String?  @map("note_enc")

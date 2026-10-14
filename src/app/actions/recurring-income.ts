@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db/client";
+import { seal } from "@/db/encryption";
 import { isIncomeRhythmKind, paydaysInMonth, parsePayDays } from "@/lib/income-rhythm";
 import { resolveIncomeSource } from "@/lib/income-source-resolution";
 import { isCurrency, parseAmountToCents } from "@/lib/money";
@@ -58,7 +59,7 @@ async function parseRecurringIncome(userId: string, formData: FormData, { isEdit
   });
   if ("error" in source) return { fieldErrors: (source.error === "name" ? { sourceName: "name" } : { sourceId: "source" }) as FormState["fieldErrors"] };
 
-  return { data: { sourceId: source.sourceId, amountCents: amountCents!, currency }, rhythm };
+  return { data: { sourceId: source.sourceId, ...seal("RecurringIncome", { amountCents: amountCents! }), currency }, rhythm };
 }
 
 export async function createRecurringIncome(_state: FormState, formData: FormData): Promise<FormState> {
@@ -130,7 +131,7 @@ export async function receiveRecurringIncome(_state: FormState, formData: FormDa
     data: [{
       userId,
       sourceId: recurring.sourceId,
-      amountCents,
+      ...seal("Income", { amountCents }),
       currency: recurring.currency,
       date: dateFromKey(payday <= today ? payday : today),
       recurringIncomeId: id,

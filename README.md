@@ -24,8 +24,8 @@ npm run check        # lint, typecheck, tests, build
 Use `npm run db:migrate` only against a disposable development database: when creating new
 migrations it may offer to reset the database.
 
-On Vercel, set the same environment variables. Each deployment applies pending migrations and encrypts anything
-still in plaintext before building (`vercel.json`); without `DATA_ENCRYPTION_KEY`, or with a different key than the
+On Vercel, set the same environment variables. Each deployment encrypts anything still in plaintext before and after
+applying pending migrations, then builds (`vercel.json`); without `DATA_ENCRYPTION_KEY`, or with a different key than the
 one the database was encrypted with, the deployment fails and the current one keeps serving. Every environment that
 shares a database (Production, and Preview if it uses the same one) needs the same key.
 

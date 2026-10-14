@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/db/client";
+import { seal } from "@/db/encryption";
 import { MAX_INSTALLMENTS } from "@/lib/installments";
 import { resolveIncomeSource } from "@/lib/income-source-resolution";
 import { NEW_SOURCE } from "@/lib/income-sources";
@@ -64,7 +65,7 @@ async function parsePurchase(userId: string, formData: FormData, { isEdit }: { i
   if ("error" in item) return { fieldErrors: (item.error === "item" ? { itemName: "item" } : { categoryId: "category" }) as FormState["fieldErrors"] };
 
   return {
-    data: { itemId: item.itemId, paymentMethodId, date: dateFromKey(date), amountCents: amountCents!, note: note || null, installmentCount },
+    data: { itemId: item.itemId, paymentMethodId, date: dateFromKey(date), ...seal("Purchase", { amountCents: amountCents!, note: note || null }), installmentCount },
     month: date.slice(0, 7),
   };
 }
@@ -95,7 +96,7 @@ async function parseIncome(userId: string, formData: FormData, { isEdit }: { isE
     return { fieldErrors: sourceErrors[source.error] as FormState["fieldErrors"] };
   }
 
-  return { data: { sourceId: source.sourceId, date: dateFromKey(date), amountCents: amountCents!, currency, note: note || null }, month: date.slice(0, 7) };
+  return { data: { sourceId: source.sourceId, date: dateFromKey(date), ...seal("Income", { amountCents: amountCents!, note: note || null }), currency }, month: date.slice(0, 7) };
 }
 
 export async function createPurchase(_state: FormState, formData: FormData): Promise<FormState> {
@@ -200,7 +201,9 @@ export async function createExchange(_state: FormState, formData: FormData): Pro
   const existing = id ? await db.currencyExchange.findUnique({ where: { id }, select: { userId: true } }) : null;
   if (existing && existing.userId !== userId) return { error: "generic" };
   if (!existing) {
-    await db.currencyExchange.create({ data: { id, userId, date: dateFromKey(date), fromCurrency, fromCents: fromCents!, toCurrency, toCents: toCents!, note: note || null } });
+    await db.currencyExchange.create({
+      data: { id, userId, date: dateFromKey(date), fromCurrency, toCurrency, ...seal("CurrencyExchange", { fromCents: fromCents!, toCents: toCents!, note: note || null }) },
+    });
   }
   revalidatePath(`/${locale}`, "layout");
   redirect(`/${locale}/month?m=${date.slice(0, 7)}`);
