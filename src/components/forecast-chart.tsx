@@ -13,16 +13,15 @@ export type ForecastChartDay = {
 
 /**
  * Cash on hand day by day: a line from today, solid for the days near enough to trust (`sureDays`) and dashed
- * after, with a mark under each day money comes or goes and a dot at the low point. Dragging across it (or the
+ * after, with a mark under each day money comes or goes. Dragging across it (or the
  * arrow keys) picks a day, whose cash and events show above.
  */
-export function ForecastChart({ days, sureDays, lowIndex, ticks, labels }: {
+export function ForecastChart({ days, sureDays, ticks, labels }: {
   days: ForecastChartDay[];
   sureDays: number;
-  lowIndex: number;
   /** Month starts to label under the line. */
   ticks: { index: number; label: string }[];
-  labels: { title: string; low: string; estimated: string; overdue: string; noEvents: string };
+  labels: { title: string; estimated: string; overdue: string; noEvents: string };
 }) {
   const [selected, setSelected] = useState(0);
   const plot = useRef<HTMLDivElement>(null);
@@ -102,18 +101,6 @@ export function ForecastChart({ days, sureDays, lowIndex, ticks, labels }: {
           className="absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background bg-foreground"
           style={{ left: `${x(selected)}%`, top: `${y(day.cents)}%` }}
         />
-        <span
-          aria-hidden="true"
-          className={cn("absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background", days[lowIndex].cents < 0 ? "bg-loss" : "bg-warning")}
-          style={{ left: `${x(lowIndex)}%`, top: `${y(days[lowIndex].cents)}%` }}
-        />
-        <span
-          aria-hidden="true"
-          className="absolute -translate-x-1/2 whitespace-nowrap pt-2 text-[10px] text-muted-foreground"
-          style={{ left: `${Math.min(88, Math.max(12, x(lowIndex)))}%`, top: `${y(days[lowIndex].cents)}%` }}
-        >
-          {labels.low}
-        </span>
       </div>
 
       <div aria-hidden="true" className="relative h-2">
