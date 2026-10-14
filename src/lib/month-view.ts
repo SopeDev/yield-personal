@@ -1,12 +1,14 @@
 import "server-only";
 
 import { averageMonthlySpending } from "@/lib/averages";
-import { TYPICAL_SPENDING_MONTHS } from "@/lib/daily-balance";
+import { incomePace, todaySoFar, TYPICAL_SPENDING_MONTHS, typicalDailySpending } from "@/lib/daily-balance";
+import { addDays, billEvents, cardStatementEvents, FORECAST_DAYS, forecastCash, monthOfKey, paydayEvents } from "@/lib/forecast";
 import { getCashWallets, getExchanges, getRecurringIncomes, getSavingsFunds, loadCashOnHand, loadLedgerRange } from "@/lib/ledger-data";
 import { getMainCurrency, getUserSettings } from "@/lib/queries";
 import { cardLayout, monthStatContext, type SavingsSnapshot, type StatRef, type SummaryCardId } from "@/lib/stats";
 import { currenciesIn, forCurrency, summarizeMonth, type MonthSummary } from "@/lib/month-summary";
-import { addMonths, type MonthKey } from "@/lib/months";
+import { addMonths, monthDifference, type MonthKey } from "@/lib/months";
+import { occurrencesForMonth, unpaidCashOccurrences } from "@/lib/recurring";
 import { expectedPaydays } from "@/lib/recurring-income";
 import { emergencyFundGoal, fundBalance } from "@/lib/savings";
 import { installmentsOwed } from "@/lib/statements";
@@ -155,3 +157,75 @@ export async function loadSavingsSnapshot(userId: string, currentMonth: MonthKey
     emergency: emergency ? { coverMonths: emergency.coverMonths, emergencyCents: emergency.emergencyCents, installmentsOwedCents } : null,
   };
 }
+
+/**
+ * Cash on hand day by day for the next `FORECAST_DAYS` (main currency): today's cash, the recent pace of income less
+ * typical everyday cash spending each day, and on their dates the cash bills still to pay (unpaid ones from earlier
+ * months on today), each card's statements on their due dates (what's charged plus the card's typical everyday
+ * spending for the days still to come), and recurring income still expected. Null without a counted cash wallet.
+ */
+export async function loadForecast(userId: string, today: string) {
+  const currentMonth = monthOfKey(today);
+  const end = addDays(today, FORECAST_DAYS);
+  const endMonth = monthOfKey(end);
+  const [{ data: allData, cards }, settings, wallets, allRecurringIncomes] = await Promise.all([
+    loadLedgerRange(userId, currentMonth, endMonth, { statementsFrom: addMonths(currentMonth, -CARRY_UNPAID_MONTHS), purchasesFrom: addMonths(currentMonth, -TYPICAL_SPENDING_MONTHS) }),
+    getUserSettings(userId),
+    getCashWallets(userId),
+    getRecurringIncomes(userId),
+  ]);
+  const currency = settings.currency;
+  const { cashOnHandCents } = splitCash(await loadCashOnHand(userId, wallets), currency);
+  if (cashOnHandCents === null) return null;
+
+  const data = forCurrency(allData, currency, currency);
+  const historyStart = settings.historyStartMonth;
+  const recurringIncomes = allRecurringIncomes.filter((recurring) => (recurring.currency ?? currency) === currency);
+  const recurringSourceIds = new Set(recurringIncomes.map((recurring) => recurring.source.id));
+  // Recurring income arrives on its paydays, so the pace leaves it out, as the month's projection does.
+  const paceIncomes = data.incomes.filter((income) => !income.recurringIncomeId && !recurringSourceIds.has(income.source.id));
+  const pace = incomePace({ incomes: paceIncomes, today, historyStart });
+  const cashPurchases = data.purchases.filter((purchase) => purchase.paymentMethod.kind === "CASH");
+  const cashDaily = typicalDailySpending({ purchases: cashPurchases, today, historyStart });
+  const todays = todaySoFar({ purchases: cashPurchases, incomes: paceIncomes, today });
+
+  const months = Array.from({ length: monthDifference(currentMonth, endMonth) + 1 }, (_, index) => addMonths(currentMonth, index));
+  const occurrences = [
+    // Cash bills left unpaid in earlier months are owed now.
+    ...unpaidCashOccurrences(data.definitions, data.overrides, addMonths(currentMonth, -CARRY_UNPAID_MONTHS), currentMonth, data.recurringHistory),
+    ...months.flatMap((month) => occurrencesForMonth(data.definitions, data.overrides, month, data.recurringHistory)),
+  ];
+  const cardEvents = cards
+    .filter((card) => (card.currency ?? currency) === currency && card.closingDay != null && card.paymentDays != null)
+    .flatMap((card) => {
+      const onCard = data.purchases.filter((purchase) => purchase.paymentMethod.id === card.id);
+      return cardStatementEvents({
+        today,
+        end,
+        card: {
+          id: card.id, name: card.name, closingDay: card.closingDay!, paymentDays: card.paymentDays!, archived: card.archivedAt !== null,
+          dailyCents: typicalDailySpending({ purchases: onCard, today, historyStart }).cents,
+          todaySpentCents: todaySoFar({ purchases: onCard, incomes: [], today }).spentCents,
+        },
+        statements: data.statements,
+      });
+    });
+  const events = [
+    ...billEvents(occurrences, { today, end }),
+    ...cardEvents,
+    ...paydayEvents(months.flatMap((month) => expectedPaydays(recurringIncomes, data.incomes, month)), { today, end }),
+  ];
+
+  return {
+    currency,
+    ...forecastCash({
+      today, startCents: cashOnHandCents, paceDailyCents: pace.cents, cashDailyCents: cashDaily.cents,
+      todayIncomeCents: todays.incomeCents, todayCashSpentCents: todays.spentCents, events,
+    }),
+    startCents: cashOnHandCents,
+    paceDailyCents: pace.cents,
+    cashDailyCents: cashDaily.cents,
+    historyDays: pace.days,
+  };
+}
+

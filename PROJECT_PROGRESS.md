@@ -117,8 +117,11 @@ Last updated: 2026-10-10
 
 - Encryption at rest, step 2: amounts, names and notes are now stored only encrypted. The client reads the encrypted columns as the plain fields and writes through `seal`; items are found and kept unique by `name_index`; recurring history is selected by its encrypted amount. Migration `20261020000000_plaintext_cleared` empties every plaintext value that has its copy (dropping the step-1 triggers first) and adds a trigger that keeps plaintext out while the previous deployment still serves; each deploy encrypts before and after migrating. Rehearsed on a production-shaped database (step-1 data plus rows left without copies): every figure, explanation and list identical to step 1's, no plaintext left, the step-1 code still reading and writing safely mid-deploy, 36 server actions keeping every copy valid (369 copies, 22 item indexes), and another key or no key refused. The rehearsal caught a script that cleared plaintext while the step-1 trigger was active (which erased the copy too); the script now never touches plaintext.
 
+- Forecast screen: cash on hand for the next 90 days as a line to drag across (each day's cash and what comes or goes), its low point, cash at each month's end, and what's coming up with the cash left after each day; card spending leaves cash when its statement is due. Checked against seeded data by hand (a card statement: charges on it plus typical card spending for its open days, to the cent).
+
 ## Next
 
+- Forecast: planned one-off expenses (like tires) shown on the line before they're spent.
 - Encryption at rest, step 3 (tidy-up, after step 2 is live): drop the emptied plaintext columns and the `*_clear_plaintext` triggers, and make the required copies NOT NULL.
 
 - Rename the stat labels new users find ambiguous (Spending / To pay / Outstanding, Daily income vs. Daily avg. gross), keeping the explanations in step.
