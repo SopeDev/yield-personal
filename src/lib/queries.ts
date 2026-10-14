@@ -3,6 +3,7 @@ import "server-only";
 import { cache } from "react";
 import { db } from "@/db/client";
 import { incomeRhythmOf } from "@/lib/income-rhythm";
+import { byName } from "@/lib/items";
 import { DEFAULT_CURRENCY, isCurrency, type Currency } from "@/lib/money";
 import { dateKeyOf, monthKeyOf } from "@/lib/months";
 import { parseSummaryCards } from "@/lib/stats";
@@ -16,12 +17,12 @@ export function getCategories(userId: string) {
 }
 
 /** Items offered when recording a purchase or recurring payment. */
-export function getActiveItems(userId: string) {
-  return db.expenseItem.findMany({
+export async function getActiveItems(userId: string) {
+  const items = await db.expenseItem.findMany({
     where: { userId, archivedAt: null, category: { archivedAt: null } },
     select: { id: true, name: true, categoryId: true },
-    orderBy: { name: "asc" },
   });
+  return items.sort(byName);
 }
 
 /** Recent purchases scanned for each item's usual payment method and amount. */
@@ -39,12 +40,12 @@ export async function getUsualPurchases(userId: string) {
 }
 
 /** Every item with its category and how often it is used, for managing items. */
-export function getItemsWithUsage(userId: string) {
-  return db.expenseItem.findMany({
+export async function getItemsWithUsage(userId: string) {
+  const items = await db.expenseItem.findMany({
     where: { userId },
     select: { id: true, name: true, categoryId: true, archivedAt: true, _count: { select: { purchases: true, recurringPayments: true } } },
-    orderBy: { name: "asc" },
   });
+  return items.sort(byName);
 }
 
 /** Categories that can be chosen for new entries. */
