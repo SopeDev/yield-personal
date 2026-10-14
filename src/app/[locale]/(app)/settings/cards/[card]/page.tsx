@@ -10,7 +10,7 @@ import { isLocale, type Locale } from "@/i18n/config";
 import { format, getDictionary } from "@/i18n/dictionaries";
 import { requireUserId } from "@/lib/auth-user";
 import { getCashWallets, loadCashOnHand } from "@/lib/ledger-data";
-import { loadMonthView, splitCash } from "@/lib/month-view";
+import { loadMonthView, loadSavingsSnapshot, splitCash } from "@/lib/month-view";
 import { getIncomeGroupsForManagement, getUserSettings } from "@/lib/queries";
 import {
   availableStats, cardLayout, isSummaryCardId, MAX_GRID_STATS, monthStatContext, statDescription, statLabel, statShown, type StatRef, type SummaryCardId, type SummaryCardLayout,
@@ -28,13 +28,16 @@ export default async function SummaryCardEditorPage({ params }: PageProps<"/[loc
   const currentMonth = currentMonthKey();
 
   const settingsWithCash = Promise.all([getUserSettings(userId), getCashWallets(userId)])
-    .then(async ([settings, wallets]) => ({ settings, ...splitCash(await loadCashOnHand(userId, wallets), settings.currency) }));
-  const [view, { settings, cashOnHandCents, cashOnHandParts, otherCash }, groups] = await Promise.all([
+    .then(async ([settings, wallets]) => {
+      const [balances, savings] = await Promise.all([loadCashOnHand(userId, wallets), loadSavingsSnapshot(userId, currentMonth, settings.currency)]);
+      return { settings, ...splitCash(balances, settings.currency), savings };
+    });
+  const [view, { settings, cashOnHandCents, cashOnHandParts, otherCash, savings }, groups] = await Promise.all([
     loadMonthView(userId, currentMonth, currentMonth),
     settingsWithCash,
     getIncomeGroupsForManagement(userId),
   ]);
-  const context = monthStatContext({ view, today, settings, cashOnHandCents, cashOnHandParts, otherCash, incomeGroups: groups });
+  const context = monthStatContext({ view, today, settings, cashOnHandCents, cashOnHandParts, otherCash, savings, incomeGroups: groups });
   const layout = cardLayout(card, settings.summaryCards, context);
   const customized = settings.summaryCards[card] !== undefined;
   const choices = availableStats(context, groups.filter((group) => !group.archivedAt));

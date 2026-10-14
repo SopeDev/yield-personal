@@ -20,18 +20,18 @@ export function occurrencePaymentStatus(occurrence: RecurringOccurrence, stateme
  * Cash leaving in a month ("total to pay") and what is still unpaid ("outstanding"). Card purchases and
  * card-paid recurring payments are counted only through their card statement, never twice. A statement
  * belongs to the month it closes, so it can be paid as soon as it is issued; its due date is shown with it.
- * Money moved into savings leaves spending money too, so it is part of the total to pay.
+ * Money moved into savings is neither spent nor paid out, so it stays out of the total to pay: it leaves cash on hand,
+ * never the balance.
  *
  * With `carryFrom`, unpaid statements that closed from that month up to the previous month are carried into
  * this month separately, as are `carriedOccurrences` (unpaid cash bills from those months), so nothing unpaid
  * drops out of view when the month changes.
  */
-export function monthCashFlow({ month, purchases, occurrences, statements, savingsNetCents = 0, carryFrom, carriedOccurrences = [] }: {
+export function monthCashFlow({ month, purchases, occurrences, statements, carryFrom, carriedOccurrences = [] }: {
   month: MonthKey;
   purchases: LedgerPurchase[];
   occurrences: RecurringOccurrence[];
   statements: Statement[];
-  savingsNetCents?: number;
   carryFrom?: MonthKey;
   carriedOccurrences?: RecurringOccurrence[];
 }) {
@@ -54,8 +54,8 @@ export function monthCashFlow({ month, purchases, occurrences, statements, savin
   const statementsClosingCents = sum(statementsClosing.map((statement) => statement.totalCents));
 
   return {
-    toPayCents: savingsNetCents + cashPurchasesCents + cashBillsCents + statementsClosingCents,
-    /** The parts of the total to pay besides savings, for showing how it adds up. */
+    toPayCents: cashPurchasesCents + cashBillsCents + statementsClosingCents,
+    /** The parts of the total to pay, for showing how it adds up. */
     cashPurchasesCents,
     cashBillsCents,
     statementsClosingCents,

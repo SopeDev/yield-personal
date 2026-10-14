@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { dailyNet, daysOff, goalProgress, incomePace, neededPerDay, projectedBalance, typicalDailySpending } from "./daily-balance";
+import { dailyNet, daysOff, incomePace, neededPerDay, projectedBalance, typicalDailySpending } from "./daily-balance";
 import type { LedgerCategory, LedgerPurchase, MonthSpendingEntry } from "./ledger";
 import { dateFromKey } from "./months";
 
@@ -50,16 +50,11 @@ test("income needed per remaining day to cover the month's total to pay", () => 
   assert.equal(neededPerDay({ month: "2026-09", today: "2026-10-05", toPayCents: 300000, incomeCents: 0 }), null);
 });
 
-test("the balance goal raises what's needed per day, with savings counting toward it", () => {
+test("the balance goal raises what's needed per day", () => {
   const october = { month: "2026-10" as const, today: "2026-10-05", toPayCents: 2508219, incomeCents: 793924, goalCents: 500000 };
   // (17,142.95 + 5,000) over 27 days.
   assert.equal(neededPerDay(october)?.forGoalCents, 82011);
-  // 2,000 of to pay went into savings: 2,000 less is needed for the goal, the same for breaking even.
-  const saved = neededPerDay({ ...october, savingsNetCents: 200000 });
-  assert.equal(saved?.cents, 63493);
-  assert.equal(saved?.forGoalCents, 74604);
   assert.equal(neededPerDay({ ...october, incomeCents: 3100000 })?.forGoalCents, 0);
-  assert.equal(goalProgress({ balanceCents: -200000, savingsNetCents: 500000 }), 300000);
 });
 
 test("typical daily spending pools everyday purchases since the history start", () => {

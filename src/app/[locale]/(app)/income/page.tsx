@@ -18,10 +18,11 @@ export default async function IncomePage({ params, searchParams }: PageProps<"/[
   const { locale } = await params;
   if (!isLocale(locale)) return null;
   const userId = await requireUserId(locale);
-  const month = monthFromSearchParam((await searchParams).m, currentMonthKey());
+  const currentMonth = currentMonthKey();
+  const month = monthFromSearchParam((await searchParams).m, currentMonth);
   const messages = getDictionary(locale);
 
-  const [view, cardSettings] = await Promise.all([loadMonthView(userId, month, currentMonthKey()), loadCardSettings(userId, "income")]);
+  const [view, cardSettings] = await Promise.all([loadMonthView(userId, month, currentMonth), loadCardSettings(userId, "income", currentMonth)]);
   // The card and source totals are the main currency's; income in other currencies is listed and totalled apart.
   const { income, lists: { incomes } } = view;
   const otherBySource = [...incomes.filter((item) => (item.currency ?? view.currency) !== view.currency)

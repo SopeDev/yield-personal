@@ -229,7 +229,7 @@ test("each stat's working comes to the value it shows", () => {
   }
 });
 
-test("the balance's working shows income less what was paid out, then how far it is from the goal", () => {
+test("the balance's working shows income less what was paid out, then how far it is from the goal; savings never lower it", () => {
   const savings: LedgerData["savingsMovements"][number] = { id: "m1", fundId: "ef", date: dateFromKey("2026-10-05"), amountCents: 20000, note: null };
   const data: LedgerData = {
     categories: [food, car], purchases: [purchase("pho", "2026-10-04", 20000, food)], incomes: [income("u1", "2026-10-01", 100000, uber)],
@@ -238,26 +238,24 @@ test("the balance's working shows income less what was paid out, then how far it
   const summary = summarizeMonth(data, "2026-10");
   const ctx = monthStatContext({ view: { ...summary, purchases: data.purchases }, today: "2026-10-10", settings: { ...noSettings, balanceGoalCents: 90000 } });
   const working = explainStat("balance", ctx, en, "en");
-  // 1,000 income − (200 pho + 200 into savings) = 600; the 900 goal less 600 and the 200 saved leaves 100.
+  // 1,000 income − 200 pho = 800, the 200 moved into savings being kept, not spent; the 900 goal less 800 leaves 100.
   assert.deepEqual(working.blocks, [
     [
       { op: undefined, label: "Income", figure: { cents: 100000 } },
-      { op: "−", label: "To pay", figure: { cents: 40000 } },
-      { op: "=", label: "Balance", figure: { cents: 60000 } },
+      { op: "−", label: "To pay", figure: { cents: 20000 } },
+      { op: "=", label: "Balance", figure: { cents: 80000 } },
     ],
     [
       { op: undefined, label: "Goal", figure: { cents: 90000 } },
-      { op: "−", label: "Balance", figure: { cents: 60000 } },
-      { op: "−", label: "Moved into savings", figure: { cents: 20000 } },
+      { op: "−", label: "Balance", figure: { cents: 80000 } },
       { op: "=", label: "Still to go", figure: { cents: 10000 } },
     ],
   ]);
-  assert.deepEqual(working.notes, ["Money moved into savings counts toward the goal."]);
-  // To pay names its parts, savings included.
+  assert.deepEqual(working.notes, ["Moving money into savings isn't spending, so it never lowers the balance."]);
+  // To pay leaves savings out.
   assert.deepEqual(explainStat("toPay", ctx, en, "en").blocks[0].map((line) => [line.op, line.label, line.figure]), [
     [undefined, "Cash purchases", { cents: 20000 }],
-    ["+", "Moved into savings", { cents: 20000 }],
-    ["=", "To pay", { cents: 40000 }],
+    ["=", "To pay", { cents: 20000 }],
   ]);
 });
 
@@ -310,4 +308,47 @@ test("daily income counts finished days, so income logged today waits until tomo
   // Its working says so.
   const lines = explainStat("dailyIncome", context(incomes), en, "en").blocks[0].map((line) => line.label);
   assert.deepEqual(lines, ["Income through yesterday", "Days finished", "Daily income"]);
+});
+
+test("moving money into savings changes none of the month's figures or forecasts", () => {
+  const incomes = [income("u1", "2026-10-01", 300000, uber), income("u2", "2026-10-05", 300000, uber)];
+  const base: LedgerData = {
+    categories: [food, car], purchases: [purchase("pho", "2026-10-04", 20000, food)], incomes,
+    incomeGroups: [], definitions: [], overrides: [], recurringHistory: [], statements: [], savingsMovements: [],
+  };
+  const saved: LedgerData = { ...base, savingsMovements: [{ id: "m1", fundId: "ef", date: dateFromKey("2026-10-08"), amountCents: 100000, note: null }] };
+  const settings = { ...noSettings, balanceGoalCents: 400000 };
+  const figures = (data: LedgerData) => {
+    const ctx = monthStatContext({ view: { ...summarizeMonth(data, "2026-10"), purchases: data.purchases }, today: "2026-10-10", settings });
+    return resolveStats(["balance", "toPay", "neededPerDay", "projectedBalance"], ctx, en).map((stat) => stat.value);
+  };
+  assert.deepEqual(figures(saved), figures(base));
+});
+
+test("savings adds up each fund and reads against the funds' goals", () => {
+  const savings = {
+    funds: [
+      { kind: "EMERGENCY" as const, name: null, balanceCents: 300000, goalCents: 9000000 },
+      { kind: "GOAL" as const, name: "Trip", balanceCents: 50000, goalCents: 200000 },
+    ],
+    emergency: { coverMonths: 3, emergencyCents: 8500000, installmentsOwedCents: 500000 },
+  };
+  const ctx = context([], { cashOnHandCents: null });
+  const withSavings = { ...ctx, savings };
+  assert.deepEqual(resolveStats(["savings"], withSavings, en)[0].value, { cents: 350000, tone: "gain", note: { text: "Goal $92,000.00 · $88,500.00 to go", tone: "muted" } });
+  const working = explainStat("savings", withSavings, en, "en");
+  assert.deepEqual(working.blocks.map((lines) => lines.map((line) => [line.op, line.label, line.figure])), [
+    [[undefined, "Emergency fund", { cents: 300000 }], ["+", "Trip", { cents: 50000 }], ["=", "Savings", { cents: 350000 }]],
+    [
+      [undefined, "Average spending × 3 months", { cents: 8500000 }],
+      ["+", "Installments owed", { cents: 500000 }],
+      ["+", "Trip", { cents: 200000 }],
+      ["=", "Goal", { cents: 9200000 }],
+      ["−", "Savings", { cents: 350000 }],
+      ["=", "Still to save", { cents: 8850000 }],
+    ],
+  ]);
+  // Not loaded: no value, and no working.
+  assert.equal(resolveStats(["savings"], ctx, en)[0].value, null);
+  assert.deepEqual(explainStat("savings", ctx, en, "en").blocks, []);
 });

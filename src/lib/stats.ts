@@ -2,7 +2,7 @@ import type { Locale } from "../i18n/config";
 import { format, type Messages } from "../i18n/dictionaries";
 import type { CashOnHandParts } from "./cash-on-hand";
 import { categoryLabel } from "./categories";
-import { dailyNet, daysLeftIn, daysOff, goalProgress, incomePace, neededPerDay, projectedBalance, todaySoFar, typicalDailySpending } from "./daily-balance";
+import { dailyNet, daysLeftIn, daysOff, incomePace, neededPerDay, projectedBalance, todaySoFar, typicalDailySpending } from "./daily-balance";
 import { formatShortDate } from "./dates";
 import { incomePerPayday, neededPerPayday, type IncomeRhythm } from "./income-rhythm";
 import type { LedgerIncome, LedgerPurchase } from "./ledger";
@@ -39,8 +39,18 @@ export type OtherCurrencyTotals = { currency: string; incomeCents: number; spend
 /** Settings that shape month figures; the income rhythm defaults to daily. */
 export type StatSettings = { balanceGoalCents: number | null; historyStartMonth: MonthKey | null; incomeRhythm?: IncomeRhythm; currency?: Currency };
 
-/** A month's figures from which every stat is calculated, plus money on hand, which is the same in every month. */
-export function monthStatContext({ view, today, settings, cashOnHandCents = null, cashOnHandParts = null, otherCash = [], incomeGroups = [] }: {
+/**
+ * Savings in the main currency right now, fund by fund (funds in other currencies aren't converted into it): each
+ * fund's balance and goal, the emergency fund's goal being months of average spending plus installments owed.
+ */
+export type SavingsSnapshot = {
+  funds: { kind: "EMERGENCY" | "GOAL"; name: string | null; balanceCents: number; goalCents: number }[];
+  /** How the emergency fund's goal adds up, when there is one. */
+  emergency: { coverMonths: number; emergencyCents: number; installmentsOwedCents: number } | null;
+};
+
+/** A month's figures from which every stat is calculated, plus money on hand and savings, which are the same in every month. */
+export function monthStatContext({ view, today, settings, cashOnHandCents = null, cashOnHandParts = null, otherCash = [], savings = null, incomeGroups = [] }: {
   view: Pick<MonthSummary, "month" | "entries" | "occurrences" | "incomes" | "income" | "spending" | "cashFlow" | "savingsNetCents" | "balanceCents"> & {
     /** Recent purchases and incomes (back to the history window), for figures from past spending and work. */
     purchases: LedgerPurchase[];
@@ -59,10 +69,12 @@ export function monthStatContext({ view, today, settings, cashOnHandCents = null
   cashOnHandParts?: CashOnHandParts | null;
   /** Money on hand in wallets of other currencies, noted beside it. */
   otherCash?: { currency: string; cents: number }[];
+  /** Savings now (`loadSavingsSnapshot`), or null when not loaded. */
+  savings?: SavingsSnapshot | null;
   /** Income groups to name in group stats even in a month without their income, as the card editor lists them. */
   incomeGroups?: { id: string; name: string }[];
 }) {
-  const { month, entries, incomes, income, cashFlow, savingsNetCents, balanceCents } = view;
+  const { month, entries, incomes, income, cashFlow, balanceCents } = view;
   const goalCents = settings.balanceGoalCents;
   const rhythm = settings.incomeRhythm ?? { kind: "DAILY" };
   const dayNet = dailyNet({ month, today, entries, incomes });
@@ -77,9 +89,8 @@ export function monthStatContext({ view, today, settings, cashOnHandCents = null
   const paceIncomes = (view.recentIncomes ?? incomes).filter((item) => !item.recurringIncomeId && !recurringSourceIds.has(item.source.id));
   const pace = incomePace({ incomes: paceIncomes, today, historyStart: settings.historyStartMonth });
   const needed = neededPerDay({
-    month, today, toPayCents: cashFlow.toPayCents, incomeCents: income.totalCents + expected.cents, savingsNetCents, goalCents, typicalDailyCents: typicalDay.cents,
+    month, today, toPayCents: cashFlow.toPayCents, incomeCents: income.totalCents + expected.cents, goalCents, typicalDailyCents: typicalDay.cents,
   });
-  const goalProgressCents = goalProgress({ balanceCents, savingsNetCents });
   // The categories income groups deduct are the costs of working, spent only on days worked.
   const workCategoryIds = income.deductCategoryIds;
   const livingDay = typicalDailySpending({ purchases: view.purchases, today, historyStart: settings.historyStartMonth, excludeCategoryIds: workCategoryIds });
@@ -93,6 +104,7 @@ export function monthStatContext({ view, today, settings, cashOnHandCents = null
     cashOnHandCents,
     cashOnHandParts,
     otherCash,
+    savings,
     incomeGroups,
     goalCents,
     rhythm,
@@ -103,12 +115,12 @@ export function monthStatContext({ view, today, settings, cashOnHandCents = null
     pace,
     needed,
     neededPayday: neededPerPayday({
-      month, today, rhythm, toPayCents: cashFlow.toPayCents, incomeCents: income.totalCents, goalProgressCents, goalCents, typicalDailyCents: typicalDay.cents,
+      month, today, rhythm, toPayCents: cashFlow.toPayCents, incomeCents: income.totalCents, goalCents, typicalDailyCents: typicalDay.cents,
     }),
     daysOff: daysOff({
       month, today, historyStart: settings.historyStartMonth, purchases: view.purchases, incomes: paceIncomes,
       workCategoryIds, livingDailyCents: livingDay.cents,
-      toPayCents: cashFlow.toPayCents, incomeCents: income.totalCents + expected.cents, savingsNetCents, goalCents,
+      toPayCents: cashFlow.toPayCents, incomeCents: income.totalCents + expected.cents, goalCents,
     }),
     paydays,
     expected,
@@ -120,8 +132,7 @@ export function monthStatContext({ view, today, settings, cashOnHandCents = null
     // The day's target is the goal's when one is set; average daily income is gross, like the target.
     targetCents: needed ? (needed.forGoalCents ?? needed.cents) : null,
     dailyIncomeCents: dayPace ? Math.round(dayPace.incomeCents / dayPace.days) : null,
-    // Money moved into savings counts toward the goal.
-    goalLeftCents: goalCents === null ? 0 : goalCents - goalProgressCents,
+    goalLeftCents: goalCents === null ? 0 : goalCents - balanceCents,
   };
 }
 
@@ -198,13 +209,13 @@ const everydayNote = ({ typicalDay }: StatContext, messages: Messages) => format
 
 /**
  * What income still has to cover this month: its total to pay less its income (and, `withExpected`, recurring income
- * still expected), or with a goal, what still reaches the goal, where money moved into savings counts toward it.
+ * still expected), or with a goal, what still reaches the goal.
  */
 function shortfall(context: StatContext, messages: Messages, { withExpected }: { withExpected: boolean }) {
-  const { goalCents, cashFlow, income, expected, savingsNetCents } = context;
+  const { goalCents, cashFlow, income, expected } = context;
   const expectedCents = withExpected ? expected.cents : 0;
   const breakEvenCents = cashFlow.toPayCents - income.totalCents - expectedCents;
-  const cents = goalCents === null ? breakEvenCents : goalCents + breakEvenCents - savingsNetCents;
+  const cents = goalCents === null ? breakEvenCents : goalCents + breakEvenCents;
   return {
     cents,
     lines: [
@@ -212,7 +223,6 @@ function shortfall(context: StatContext, messages: Messages, { withExpected }: {
       amount(messages.month.toPay, cashFlow.toPayCents, "+"),
       amount(messages.month.income, income.totalCents, "−"),
       unlessZero(messages.month.expectedIncome, expectedCents, "−"),
-      goalCents === null ? null : bySign(savingsNetCents, "−", messages.explain.movedToSavings, messages.explain.takenFromSavings),
       amount(messages.explain.stillToCover, cents, "="),
     ],
   };
@@ -251,13 +261,12 @@ const STATS = {
       return { cents: balanceCents, tone: signTone(balanceCents), note };
     },
     description: (_, messages) => messages.explain.aboutBalance,
-    explain: ({ income, cashFlow, balanceCents, goalCents, goalLeftCents, savingsNetCents }, messages, _, { label }) => {
+    explain: ({ income, cashFlow, balanceCents, goalCents, goalLeftCents }, messages, _, { label }) => {
       const balance = block(amount(messages.month.income, income.totalCents), amount(messages.month.toPay, cashFlow.toPayCents, "−"), amount(label, balanceCents, "="));
       if (goalCents === null) return explained([balance], [messages.explain.noGoal]);
       const goal = block(
         amount(messages.explain.goal, goalCents),
         amount(label, balanceCents, "−"),
-        bySign(savingsNetCents, "−", messages.explain.movedToSavings, messages.explain.takenFromSavings),
         goalLeftCents > 0 ? amount(messages.explain.stillToGo, goalLeftCents, "=") : amount(messages.explain.overGoal, -goalLeftCents, "="),
       );
       return explained([balance, goal], [messages.explain.goalSavings]);
@@ -300,12 +309,11 @@ const STATS = {
     label: (_, messages) => messages.month.toPay,
     value: ({ cashFlow, others }) => withNote({ cents: cashFlow.toPayCents }, othersNote(others, "toPayCents")),
     description: (_, messages) => messages.explain.aboutToPay,
-    explain: ({ cashFlow, savingsNetCents, others }, messages, _, { label }) => explained(
+    explain: ({ cashFlow, others }, messages, _, { label }) => explained(
       [block(
         amount(messages.explain.cashPurchases, cashFlow.cashPurchasesCents),
         unlessZero(messages.explain.cashBills, cashFlow.cashBillsCents, "+"),
         unlessZero(messages.explain.statementsClosing, cashFlow.statementsClosingCents, "+"),
-        bySign(savingsNetCents, "+", messages.explain.movedToSavings, messages.explain.takenFromSavings),
         amount(label, cashFlow.toPayCents, "="),
       )],
       [messages.explain.toPayCards, otherCurrenciesNote(others, "toPayCents", messages)],
@@ -456,12 +464,11 @@ const STATS = {
   projectedBalance: {
     label: (_, messages) => messages.month.projectedBalance,
     shown: (context) => context.projected !== null,
-    value: ({ projected, expected, goalCents, savingsNetCents, currency }, messages) => {
+    value: ({ projected, expected, goalCents, currency }, messages) => {
       if (!projected) return null;
       let note: StatNote | undefined;
       if (goalCents !== null) {
-        // Money moved into savings counts toward the goal, as in the balance's progress.
-        const overCents = goalProgress({ balanceCents: projected.cents, savingsNetCents }) - goalCents;
+        const overCents = projected.cents - goalCents;
         const values = { goal: formatCents(goalCents, currency), amount: formatCents(Math.abs(overCents), currency) };
         note = overCents >= 0 ? { text: format(messages.month.projectedGoalOver, values), tone: "gain" } : { text: format(messages.month.projectedGoalShort, values), tone: "warning" };
       } else if (expected.cents > 0) {
@@ -676,6 +683,44 @@ const STATS = {
           amount(label, parts.cents, "="),
         )],
         [messages.explain.cashCards, otherWallets],
+      );
+    },
+  },
+  /** Money in savings now, whatever the month, and how far it is from the savings goals. */
+  savings: {
+    label: (_, messages) => messages.savings.title,
+    value: ({ savings, currency }, messages) => {
+      if (!savings) return null;
+      const balanceCents = sum(savings.funds.map((fund) => fund.balanceCents));
+      const goalCents = sum(savings.funds.map((fund) => fund.goalCents));
+      const goal = formatCents(goalCents, currency);
+      const note: StatNote | undefined = goalCents <= 0 ? undefined
+        : balanceCents >= goalCents ? { text: format(messages.month.goalReached, { goal }), tone: "gain" }
+          : { text: format(messages.month.goalToGo, { goal, amount: formatCents(goalCents - balanceCents, currency) }), tone: "muted" };
+      return withNote({ cents: balanceCents, tone: signTone(balanceCents) }, note);
+    },
+    description: (_, messages) => messages.explain.aboutSavings,
+    explain: ({ savings }, messages, _, { label }) => {
+      if (!savings || savings.funds.length === 0) return why(messages.explain.noSavings);
+      const fundName = (fund: SavingsSnapshot["funds"][number]) => (fund.kind === "EMERGENCY" ? messages.savings.emergencyFund : (fund.name ?? ""));
+      const balanceCents = sum(savings.funds.map((fund) => fund.balanceCents));
+      const goalCents = sum(savings.funds.map((fund) => fund.goalCents));
+      const { emergency } = savings;
+      const goalLines = savings.funds.flatMap((fund) => fund.kind === "EMERGENCY" && emergency ? [
+        amount(format(messages.explain.monthsOfSpending, { months: emergency.coverMonths }), emergency.emergencyCents, "+"),
+        unlessZero(messages.savings.installmentsOwed, emergency.installmentsOwedCents, "+"),
+      ] : [unlessZero(fundName(fund), fund.goalCents, "+")]);
+      return explained(
+        [
+          block(...savings.funds.map((fund) => amount(fundName(fund), fund.balanceCents, "+")), amount(label, balanceCents, "=")),
+          goalCents <= 0 ? [] : block(
+            ...goalLines,
+            amount(messages.savings.goal, goalCents, "="),
+            amount(label, balanceCents, "−"),
+            balanceCents >= goalCents ? amount(messages.explain.overGoal, balanceCents - goalCents, "=") : amount(messages.savings.pending, goalCents - balanceCents, "="),
+          ),
+        ].filter((lines) => lines.length > 0),
+        [messages.explain.savingsKept],
       );
     },
   },
