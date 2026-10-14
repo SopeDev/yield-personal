@@ -109,6 +109,8 @@ Last updated: 2026-10-10
 
 - Daily income (and the net under it) counts finished days only, through yesterday, so it no longer dips every morning and compares fairly with needed per day and the projection. The app reloads its figures when it comes back to the foreground after a minute away or on a new day, so a screen left open overnight never shows yesterday's numbers as today's.
 
+- Savings no longer count against the balance: moving money into savings (or out) changes only cash on hand, so the balance, to pay, needed per day, days off, the projection, and the year's figures read the same before and after a transfer, and the goal compares with the balance directly. A Savings stat (add it in Customize) shows what's in savings now, with the savings goal and what's left to save below, and its working fund by fund.
+
 ## Next
 
 - Rename the stat labels new users find ambiguous (Spending / To pay / Outstanding, Daily income vs. Daily avg. gross), keeping the explanations in step.

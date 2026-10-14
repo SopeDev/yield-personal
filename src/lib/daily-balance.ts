@@ -90,15 +90,13 @@ function everydaySpending(purchases: Pick<LedgerPurchase, "date" | "amountCents"
 
 /**
  * Income needed per remaining day of the month (today included): `cents` to cover its total to pay plus a
- * typical day's everyday spending still to come, and `forGoalCents` to also reach the balance goal, where money
- * moved into savings counts toward the goal. Both are zero once covered. Null for a month that has ended.
+ * typical day's everyday spending still to come, and `forGoalCents` to also reach the balance goal. Both are zero once covered. Null for a month that has ended.
  */
-export function neededPerDay({ month, today, toPayCents, incomeCents, savingsNetCents = 0, goalCents = null, typicalDailyCents = 0 }: {
+export function neededPerDay({ month, today, toPayCents, incomeCents, goalCents = null, typicalDailyCents = 0 }: {
   month: MonthKey;
   today: string;
   toPayCents: number;
   incomeCents: number;
-  savingsNetCents?: number;
   goalCents?: number | null;
   typicalDailyCents?: number;
 }) {
@@ -109,7 +107,7 @@ export function neededPerDay({ month, today, toPayCents, incomeCents, savingsNet
     daysLeft,
     typicalDailyCents,
     cents: perDay(toPayCents - incomeCents),
-    forGoalCents: goalCents === null ? null : perDay(goalCents - goalProgress({ balanceCents: incomeCents - toPayCents, savingsNetCents })),
+    forGoalCents: goalCents === null ? null : perDay(goalCents + toPayCents - incomeCents),
   };
 }
 
@@ -199,7 +197,7 @@ export function projectedBalance({ month, today, balanceCents, expectedCents, pa
  * so the days off never fall short; never below zero or above the days still free (the days left, without today once it has income: a day worked is no day off). Null outside the current month, before
  * any income, or when a day worked costs as much as it earns.
  */
-export function daysOff({ month, today, historyStart = null, purchases, incomes, workCategoryIds, livingDailyCents, toPayCents, incomeCents, savingsNetCents = 0, goalCents = null }: {
+export function daysOff({ month, today, historyStart = null, purchases, incomes, workCategoryIds, livingDailyCents, toPayCents, incomeCents, goalCents = null }: {
   month: MonthKey;
   today: string;
   historyStart?: MonthKey | null;
@@ -210,7 +208,6 @@ export function daysOff({ month, today, historyStart = null, purchases, incomes,
   livingDailyCents: number;
   toPayCents: number;
   incomeCents: number;
-  savingsNetCents?: number;
   goalCents?: number | null;
 }) {
   if (month !== today.slice(0, 7)) return null;
@@ -237,7 +234,7 @@ export function daysOff({ month, today, historyStart = null, purchases, incomes,
   const workDaysFor = (shortfallCents: number) => workTenthsFor(shortfallCents) / 10;
   const off = (workDaysNeeded: number) => Math.max(0, freeDays * 10 - Math.round(workDaysNeeded * 10)) / 10;
   const workDaysNeeded = workDaysFor(toPayCents - incomeCents);
-  const forGoalWorkDaysNeeded = goalCents === null ? null : workDaysFor(goalCents - goalProgress({ balanceCents: incomeCents - toPayCents, savingsNetCents }));
+  const forGoalWorkDaysNeeded = goalCents === null ? null : workDaysFor(goalCents + toPayCents - incomeCents);
   return {
     daysLeft,
     /** Days still free to work or rest: the days left, without today once it has income. */
@@ -255,7 +252,3 @@ export function daysOff({ month, today, historyStart = null, purchases, incomes,
   };
 }
 
-/** Progress toward the balance goal: the month's balance plus what it moved into savings, so saving never counts against it. */
-export function goalProgress({ balanceCents, savingsNetCents }: { balanceCents: number; savingsNetCents: number }) {
-  return balanceCents + savingsNetCents;
-}

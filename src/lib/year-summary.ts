@@ -1,6 +1,5 @@
 import type { Locale } from "../i18n/config";
 import { format, type Messages } from "../i18n/dictionaries";
-import { goalProgress } from "./daily-balance";
 import { formatMonth } from "./dates";
 import type { MonthSummary } from "./month-summary";
 import type { MonthKey } from "./months";
@@ -11,7 +10,7 @@ type YearMonth = Pick<MonthSummary, "month" | "income" | "spending" | "cashFlow"
 /**
  * A calendar year at a glance, from the months that count: those that have started (through `currentMonth`) and
  * aren't before `historyStart`, since earlier months may hold only partial records. Totals add up those months;
- * the goal counts months whose balance plus savings reached it, out of the months that ended plus the current one
+ * the goal counts months whose balance reached it, out of the months that ended plus the current one
  * once it has reached it (a month still under way hasn't missed it yet). Each month's bar is its balance, or null
  * for a month that doesn't count.
  */
@@ -24,8 +23,7 @@ export function summarizeYear({ months, currentMonth, historyStart = null, goalC
   const counts = (month: MonthKey) => month <= currentMonth && (!historyStart || month >= historyStart);
   const counted = months.filter((month) => counts(month.month));
   const sum = (value: (month: YearMonth) => number) => counted.reduce((total, month) => total + value(month), 0);
-  const progressOf = (month: YearMonth) => goalProgress({ balanceCents: month.balanceCents, savingsNetCents: month.savingsNetCents });
-  const reached = (month: YearMonth) => goalCents !== null && progressOf(month) >= goalCents;
+  const reached = (month: YearMonth) => goalCents !== null && month.balanceCents >= goalCents;
 
   const balanceCents = sum((month) => month.balanceCents);
   const best = counted.reduce<YearMonth | null>((top, month) => (top === null || month.balanceCents > top.balanceCents ? month : top), null);
@@ -50,8 +48,8 @@ export function summarizeYear({ months, currentMonth, historyStart = null, goalC
       balanceCents: counts(month.month) ? month.balanceCents : null,
       upcoming: month.month > currentMonth,
       goalReached: counts(month.month) && reached(month),
-      /** How far the month's balance plus savings is from the goal (positive when short of it). */
-      goalLeftCents: goalCents === null ? null : goalCents - progressOf(month),
+      /** How far the month's balance is from the goal (positive when short of it). */
+      goalLeftCents: goalCents === null ? null : goalCents - month.balanceCents,
     })),
   };
 }

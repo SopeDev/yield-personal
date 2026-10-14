@@ -63,15 +63,13 @@ export function paydaysInMonth(rhythm: IncomeRhythm, month: MonthKey) {
  * With a daily rhythm this is needed per day. With no paydays left, the whole shortfall shows. Null for a month
  * that has ended.
  */
-export function neededPerPayday({ month, today, rhythm, toPayCents, incomeCents, goalProgressCents, goalCents = null, typicalDailyCents = 0 }: {
+export function neededPerPayday({ month, today, rhythm, toPayCents, incomeCents, goalCents = null, typicalDailyCents = 0 }: {
   month: MonthKey;
   /** Today as "YYYY-MM-DD". */
   today: string;
   rhythm: IncomeRhythm;
   toPayCents: number;
   incomeCents: number;
-  /** The month's progress toward the balance goal (`goalProgress`). */
-  goalProgressCents: number;
   goalCents?: number | null;
   typicalDailyCents?: number;
 }) {
@@ -84,7 +82,7 @@ export function neededPerPayday({ month, today, rhythm, toPayCents, incomeCents,
   return {
     paydaysLeft,
     cents: perPayday(toPayCents - incomeCents),
-    forGoalCents: goalCents === null ? null : perPayday(goalCents - goalProgressCents),
+    forGoalCents: goalCents === null ? null : perPayday(goalCents + toPayCents - incomeCents),
   };
 }
 

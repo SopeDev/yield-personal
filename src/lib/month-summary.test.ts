@@ -49,9 +49,9 @@ test("summarizes spending, cash out, savings, and balance for a month", () => {
   const october = summarizeMonth(data, "2026-10");
   // Spending: rent 8,000 + food 260 + car 410 + first desk installment 333.
   assert.equal(october.spending.totalCents, 800000 + 26000 + 41000 + 33300);
-  // Cash out: rent, gas, pho, 1,000 into savings, and the Klar statement closing Oct 20 (first desk installment),
-  // which belongs to October even though it is due Nov 20.
-  assert.equal(october.cashFlow.toPayCents, 800000 + 41000 + 26000 + 100000 + 33300);
+  // Cash out: rent, gas, pho, and the Klar statement closing Oct 20 (first desk installment), which belongs to
+  // October even though it is due Nov 20. The 1,000 moved into savings is kept, not spent, so it stays out.
+  assert.equal(october.cashFlow.toPayCents, 800000 + 41000 + 26000 + 33300);
   assert.equal(october.savingsNetCents, 100000);
   assert.equal(october.balanceCents, 326940 - october.cashFlow.toPayCents);
   assert.equal(october.income.byGroup[0].netCents, 326940 - 41000);

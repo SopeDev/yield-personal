@@ -51,7 +51,7 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
   const [view, methods, cardSettings] = await Promise.all([
     loadMonthView(userId, month, currentMonth),
     getActivePaymentMethods(userId),
-    loadCardSettings(userId, "month"),
+    loadCardSettings(userId, "month", currentMonth),
   ]);
 
   // Listed in every currency; the summary card and By category are the main currency's.

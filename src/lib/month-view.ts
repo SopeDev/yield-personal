@@ -4,7 +4,7 @@ import { averageMonthlySpending } from "@/lib/averages";
 import { TYPICAL_SPENDING_MONTHS } from "@/lib/daily-balance";
 import { getCashWallets, getExchanges, getRecurringIncomes, getSavingsFunds, loadCashOnHand, loadLedgerRange } from "@/lib/ledger-data";
 import { getMainCurrency, getUserSettings } from "@/lib/queries";
-import { cardLayout, monthStatContext, type SummaryCardId } from "@/lib/stats";
+import { cardLayout, monthStatContext, type SavingsSnapshot, type StatRef, type SummaryCardId } from "@/lib/stats";
 import { currenciesIn, forCurrency, summarizeMonth, type MonthSummary } from "@/lib/month-summary";
 import { addMonths, type MonthKey } from "@/lib/months";
 import { expectedPaydays } from "@/lib/recurring-income";
@@ -82,22 +82,27 @@ export function splitCash(balances: Awaited<ReturnType<typeof loadCashOnHand>>, 
 }
 
 /**
- * Settings, plus money on hand when the customized summary card shows it. Money on hand takes its own queries, so
- * it is loaded only then, starting as soon as settings and wallets arrive, alongside the month's figures.
+ * Settings, plus money on hand and savings when the customized summary card shows them. Each takes its own queries
+ * (savings, a year of spending for the emergency fund's goal), so it is loaded only then, starting as soon as
+ * settings arrive, alongside the month's figures.
  */
-export async function loadCardSettings(userId: string, card: SummaryCardId) {
+export async function loadCardSettings(userId: string, card: SummaryCardId, currentMonth: MonthKey) {
   const [settings, wallets] = await Promise.all([getUserSettings(userId), getCashWallets(userId)]);
   const stored = settings.summaryCards[card];
-  const showsCash = stored !== undefined && [stored.headline, ...stored.grid].includes("cashOnHand");
-  return { settings, ...(showsCash ? splitCash(await loadCashOnHand(userId, wallets), settings.currency) : { cashOnHandCents: null, cashOnHandParts: null, otherCash: [] }) };
+  const shows = (stat: StatRef) => stored !== undefined && [stored.headline, ...stored.grid].includes(stat);
+  const [cash, savings] = await Promise.all([
+    shows("cashOnHand") ? loadCashOnHand(userId, wallets).then((balances) => splitCash(balances, settings.currency)) : { cashOnHandCents: null, cashOnHandParts: null, otherCash: [] },
+    shows("savings") ? loadSavingsSnapshot(userId, currentMonth, settings.currency) : null,
+  ]);
+  return { settings, ...cash, savings };
 }
 
 /** A summary card's layout (customized or default) and the figures it is calculated from. */
-export function summaryCardFor(card: SummaryCardId, { view, today, settings, cashOnHandCents, cashOnHandParts, otherCash }: {
+export function summaryCardFor(card: SummaryCardId, { view, today, settings, cashOnHandCents, cashOnHandParts, otherCash, savings }: {
   view: Awaited<ReturnType<typeof loadMonthView>>;
   today: string;
 } & Awaited<ReturnType<typeof loadCardSettings>>) {
-  const context = monthStatContext({ view, today, settings, cashOnHandCents, cashOnHandParts, otherCash });
+  const context = monthStatContext({ view, today, settings, cashOnHandCents, cashOnHandParts, otherCash, savings });
   return { context, layout: cardLayout(card, settings.summaryCards, context) };
 }
 
@@ -137,5 +142,16 @@ export async function loadSavingsView(userId: string, currentMonth: MonthKey) {
         : { emergencyCents: 0, goalCents: fund.targetCents ?? 0, pendingCents: Math.max(0, (fund.targetCents ?? 0) - balanceCents) };
       return { ...fund, balanceCents, ...goal };
     }),
+  };
+}
+
+/** Savings in the main currency now, for the savings stat: each fund's balance and goal, as on the Savings page. */
+export async function loadSavingsSnapshot(userId: string, currentMonth: MonthKey, mainCurrency: string): Promise<SavingsSnapshot> {
+  const { funds, installmentsOwedCents } = await loadSavingsView(userId, currentMonth);
+  const main = funds.filter((fund) => fund.currency === mainCurrency);
+  const emergency = main.find((fund) => fund.kind === "EMERGENCY");
+  return {
+    funds: main.map(({ kind, name, balanceCents, goalCents }) => ({ kind, name, balanceCents, goalCents })),
+    emergency: emergency ? { coverMonths: emergency.coverMonths, emergencyCents: emergency.emergencyCents, installmentsOwedCents } : null,
   };
 }

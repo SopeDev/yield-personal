@@ -59,7 +59,7 @@ export function summarizeMonth(data: LedgerData, month: MonthKey, { carryFrom }:
   const income = summarizeIncome(incomes, { groups: data.incomeGroups, spendingByCategory: spending.byCategory });
   const savingsNetCents = netSavingsInMonth(data.savingsMovements, month);
   const carriedOccurrences = carryFrom ? unpaidCashOccurrences(data.definitions, data.overrides, carryFrom, month, data.recurringHistory) : [];
-  const cashFlow = monthCashFlow({ month, purchases: data.purchases, occurrences, statements: data.statements, savingsNetCents, carryFrom, carriedOccurrences });
+  const cashFlow = monthCashFlow({ month, purchases: data.purchases, occurrences, statements: data.statements, carryFrom, carriedOccurrences });
 
   return {
     month,
@@ -70,7 +70,7 @@ export function summarizeMonth(data: LedgerData, month: MonthKey, { carryFrom }:
     income,
     savingsNetCents,
     cashFlow,
-    /** As in the spreadsheet: income minus everything paid out this month. */
+    /** Income minus everything paid out this month. Money moved into savings is kept, not spent, so it never counts. */
     balanceCents: income.totalCents - cashFlow.toPayCents,
   };
 }

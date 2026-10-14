@@ -27,13 +27,13 @@ test("an incomplete stored rhythm counts as daily", () => {
 test("needed per payday spreads the shortfall and coming everyday spending over the paydays left", () => {
   const rhythm = { kind: "MONTH_DAYS" as const, days: [14, 28] };
   // Oct 10: 22 days left, paydays 14 and 28 left; shortfall 9,000 + 22 × 100 everyday = 11,200 → 5,600 each.
-  const needed = neededPerPayday({ month: "2026-10", today: "2026-10-10", rhythm, toPayCents: 1000000, incomeCents: 100000, goalProgressCents: 0, typicalDailyCents: 10000 });
+  const needed = neededPerPayday({ month: "2026-10", today: "2026-10-10", rhythm, toPayCents: 1000000, incomeCents: 100000, typicalDailyCents: 10000 });
   assert.deepEqual(needed, { paydaysLeft: 2, cents: 560000, forGoalCents: null });
   // After the last payday the whole shortfall shows.
-  assert.equal(neededPerPayday({ month: "2026-10", today: "2026-10-29", rhythm, toPayCents: 300000, incomeCents: 100000, goalProgressCents: 0 })?.cents, 200000);
-  assert.equal(neededPerPayday({ month: "2026-09", today: "2026-10-10", rhythm, toPayCents: 0, incomeCents: 0, goalProgressCents: 0 }), null);
+  assert.equal(neededPerPayday({ month: "2026-10", today: "2026-10-29", rhythm, toPayCents: 300000, incomeCents: 100000 })?.cents, 200000);
+  assert.equal(neededPerPayday({ month: "2026-09", today: "2026-10-10", rhythm, toPayCents: 0, incomeCents: 0 }), null);
   // A daily rhythm matches needed per day: shortfall ÷ days left + typical daily spending.
-  const daily = neededPerPayday({ month: "2026-10", today: "2026-10-10", rhythm: { kind: "DAILY" }, toPayCents: 1000000, incomeCents: 100000, goalProgressCents: 0, typicalDailyCents: 10000 });
+  const daily = neededPerPayday({ month: "2026-10", today: "2026-10-10", rhythm: { kind: "DAILY" }, toPayCents: 1000000, incomeCents: 100000, typicalDailyCents: 10000 });
   assert.equal(daily?.cents, Math.ceil(900000 / 22 + 10000));
 });
 
