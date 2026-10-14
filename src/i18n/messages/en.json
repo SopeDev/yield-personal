@@ -5,7 +5,7 @@
     "title": "Sign in to Yield",
     "description": "Your spending, cards, and income, all in one place.",
     "google": "Continue with Google",
-    "denied": "This account isn't allowed to sign in.",
+    "failed": "Couldn't sign in. Please try again.",
     "signOut": "Sign out"
   },
   "nav": {

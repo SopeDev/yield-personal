@@ -25,7 +25,7 @@ export default async function SignInPage({ params, searchParams }: PageProps<"/[
         <h1 className="mt-10 font-display text-2xl font-semibold">{messages.auth.title}</h1>
         <p className="mt-2 text-muted-foreground">{messages.auth.description}</p>
 
-        {error ? <p className="mt-6 rounded-xl border border-loss/40 bg-loss/10 px-4 py-3 text-sm text-loss" role="alert">{messages.auth.denied}</p> : null}
+        {error ? <p className="mt-6 rounded-xl border border-loss/40 bg-loss/10 px-4 py-3 text-sm text-loss" role="alert">{messages.auth.failed}</p> : null}
 
         <form action={signInWithGoogle} className="mt-8">
           <button className="flex min-h-12 w-full items-center justify-center rounded-xl bg-primary px-4 font-semibold text-primary-foreground transition hover:brightness-110" type="submit">

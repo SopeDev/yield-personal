@@ -5,7 +5,7 @@
     "title": "Inicia sesión en Yield",
     "description": "Tus gastos, tarjetas e ingresos, en un solo lugar.",
     "google": "Continuar con Google",
-    "denied": "Esta cuenta no tiene permiso para entrar.",
+    "failed": "No se pudo iniciar sesión. Inténtalo de nuevo.",
     "signOut": "Cerrar sesión"
   },
   "nav": {
