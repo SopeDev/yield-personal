@@ -9,7 +9,6 @@ Personal finances as a mobile-first PWA. Part of the Yield brand — see `BRAND.
    - `AUTH_SECRET`: generate with `npx auth secret`.
    - `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET`: a Google OAuth client with redirect URI
      `http://localhost:3000/api/auth/callback/google` (plus your production URL).
-   - `ALLOWED_EMAILS`: the Google account(s) allowed to sign in.
 2. Install and migrate:
 
 ```bash

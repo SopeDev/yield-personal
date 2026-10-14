@@ -111,6 +111,8 @@ Last updated: 2026-10-10
 
 - Savings no longer count against the balance: moving money into savings (or out) changes only cash on hand, so the balance, to pay, needed per day, days off, the projection, and the year's figures read the same before and after a transfer, and the goal compares with the balance directly. A Savings stat (add it in Customize) shows what's in savings now, with the savings goal and what's left to save below, and its working fund by fund.
 
+- Sign-in is open to any Google account (the `ALLOWED_EMAILS` allowlist is gone); each account's data stays its own.
+
 ## Next
 
 - Rename the stat labels new users find ambiguous (Spending / To pay / Outstanding, Daily income vs. Daily avg. gross), keeping the explanations in step.
