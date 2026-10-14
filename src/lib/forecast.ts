@@ -33,8 +33,7 @@ export function addDays(dateKey: string, count: number) {
 /**
  * Cash on hand day by day from today: today's cash, then each day the pace of income minus typical everyday cash
  * spending, plus the day's events. Today counts only the rest of an average day beyond what's already recorded,
- * as the month's projection does. Each day's figure is the cash at its end. The low point is the least cash on
- * any day, and the first day it's reached.
+ * as the month's projection does. Each day's figure is the cash at its end.
  */
 export function forecastCash({ today, days = FORECAST_DAYS, startCents, paceDailyCents, cashDailyCents, todayIncomeCents = 0, todayCashSpentCents = 0, events }: {
   today: string;
@@ -59,8 +58,7 @@ export function forecastCash({ today, days = FORECAST_DAYS, startCents, paceDail
     cents += (index === 0 ? todayDrift : dailyDrift) + dayEvents.reduce((sum, event) => sum + event.cents, 0);
     result.push({ date, cents, events: dayEvents });
   }
-  const low = result.reduce((lowest, day) => (day.cents < lowest.cents ? day : lowest), result[0]);
-  return { days: result, dailyDriftCents: dailyDrift, low: { date: low.date, cents: low.cents } };
+  return { days: result, dailyDriftCents: dailyDrift };
 }
 
 /**

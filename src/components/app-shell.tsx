@@ -4,25 +4,24 @@ import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, ChartLine, CreditCard, PiggyBank, Plus, Settings, Table2, Wallet } from "lucide-react";
+import { CalendarDays, ChartLine, PiggyBank, Plus, Settings, Wallet } from "lucide-react";
 import type { Locale } from "@/i18n/config";
 import { cn } from "@/lib/cn";
 
 export function AppShell({ children, locale, labels }: {
   children: ReactNode;
   locale: Locale;
-  labels: { month: string; year: string; income: string; add: string; cards: string; settings: string; savings: string; forecast: string };
+  labels: { overview: string; income: string; add: string; settings: string; savings: string; forecast: string };
 }) {
   const pathname = usePathname();
+  // The Overview tab holds the month and year views; Cards are reached from the month's statements and Settings.
   const navigation = [
-    { href: `/${locale}/month`, label: labels.month, icon: CalendarDays },
-    { href: `/${locale}/year`, label: labels.year, icon: Table2 },
-    { href: `/${locale}/income`, label: labels.income, icon: Wallet },
-    { href: `/${locale}/cards`, label: labels.cards, icon: CreditCard },
+    { href: `/${locale}/month`, label: labels.overview, icon: CalendarDays, also: [`/${locale}/year`] },
+    { href: `/${locale}/forecast`, label: labels.forecast, icon: ChartLine, also: [] },
+    { href: `/${locale}/income`, label: labels.income, icon: Wallet, also: [] },
+    { href: `/${locale}/savings`, label: labels.savings, icon: PiggyBank, also: [] },
   ];
   const settingsHref = `/${locale}/settings`;
-  const savingsHref = `/${locale}/savings`;
-  const forecastHref = `/${locale}/forecast`;
   const addActive = pathname === `/${locale}/add`;
   // Settings stays marked on its subpages.
   const settingsActive = pathname === settingsHref || pathname.startsWith(`${settingsHref}/`);
@@ -35,22 +34,6 @@ export function AppShell({ children, locale, labels }: {
             <Image alt="Yield" height={24} priority src="/brand/yield-logo.svg" width={80} />
           </Link>
           <div className="flex items-center gap-1">
-            <Link
-              aria-current={pathname === forecastHref ? "page" : undefined}
-              aria-label={labels.forecast}
-              className={cn("flex size-10 items-center justify-center rounded-full transition hover:bg-surface", pathname === forecastHref ? "text-primary" : "text-muted-foreground")}
-              href={forecastHref}
-            >
-              <ChartLine aria-hidden="true" className="size-5" />
-            </Link>
-            <Link
-              aria-current={pathname === savingsHref ? "page" : undefined}
-              aria-label={labels.savings}
-              className={cn("flex size-10 items-center justify-center rounded-full transition hover:bg-surface", pathname === savingsHref ? "text-primary" : "text-muted-foreground")}
-              href={savingsHref}
-            >
-              <PiggyBank aria-hidden="true" className="size-5" />
-            </Link>
             <Link
               aria-current={settingsActive ? "page" : undefined}
               aria-label={labels.settings}
@@ -67,7 +50,7 @@ export function AppShell({ children, locale, labels }: {
 
       <nav aria-label="Primary" className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
         <div className="mx-auto grid max-w-2xl grid-cols-5">
-          {navigation.slice(0, 2).map((item) => <NavItem active={pathname === item.href} key={item.href} {...item} />)}
+          {navigation.slice(0, 2).map(({ also, ...item }) => <NavItem active={pathname === item.href || also.includes(pathname)} key={item.href} {...item} />)}
           <Link
             aria-current={addActive ? "page" : undefined}
             className="flex min-h-16 flex-col items-center justify-center gap-1 text-xs font-medium text-primary"
@@ -78,7 +61,7 @@ export function AppShell({ children, locale, labels }: {
             </span>
             <span>{labels.add}</span>
           </Link>
-          {navigation.slice(2).map((item) => <NavItem active={pathname === item.href} key={item.href} {...item} />)}
+          {navigation.slice(2).map(({ also, ...item }) => <NavItem active={pathname === item.href || also.includes(pathname)} key={item.href} {...item} />)}
         </div>
       </nav>
     </div>

@@ -16,7 +16,8 @@
     "cards": "Cards",
     "year": "Year",
     "savings": "Savings",
-    "forecast": "Forecast"
+    "forecast": "Forecast",
+    "overview": "Overview"
   },
   "categories": {
     "fixed": "Fixed",
@@ -83,6 +84,7 @@
     "dueToday": "Due today",
     "overdueBy": "{days} days overdue",
     "statements": "Card statements",
+    "allCards": "Cards",
     "carriedTitle": "Unpaid from earlier months",
     "includesCarried": "+ {amount} from earlier",
     "confirm": "Confirm",
@@ -245,6 +247,7 @@
     "categoriesHint": "Names, types, and order",
     "itemsHint": "Rename, recategorize, and merge",
     "recurringPaymentsHint": "Bills that repeat",
+    "cardsHint": "Each card’s statements and upcoming installments",
     "sourcesHint": "Where income comes from, and net by group",
     "recurringIncomeHint": "Income on a schedule, like a salary"
   },
@@ -587,8 +590,7 @@
     "title": "Forecast",
     "subtitle": "Your cash on hand for the next {days} days, if income and spending keep their recent pace.",
     "cashNow": "Cash now",
-    "lowest": "Lowest point",
-    "low": "Low",
+    "inDays": "In {days} days",
     "endOf": "End of {month}",
     "upcoming": "Coming up",
     "leaves": "Leaves",

@@ -119,6 +119,10 @@ Last updated: 2026-10-10
 
 - Forecast screen: cash on hand for the next 90 days as a line to drag across (each day's cash and what comes or goes), its low point, cash at each month's end, and what's coming up with the cash left after each day; card spending leaves cash when its statement is due. Checked against seeded data by hand (a card statement: charges on it plus typical card spending for its open days, to the cent).
 
+- Forecast: the low point gave way to the cash in 30 days, since with income ahead of spending the lowest day is nearly always today.
+
+- Navigation regrouped around the Month view, where nearly all time is spent: the bottom bar is Overview (Month and Year behind a toggle), Forecast, Add, Income, and Savings, with only Settings in the header; Cards are reached from the month's statements and from Settings.
+
 ## Next
 
 - Forecast: planned one-off expenses (like tires) shown on the line before they're spent.

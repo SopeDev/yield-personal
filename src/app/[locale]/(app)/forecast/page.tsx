@@ -17,8 +17,8 @@ const shortDate = (dateKey: string, locale: Locale) => formatShortDate(dateFromK
 
 /**
  * Cash on hand over the next three months, day by day: where it's headed from today's cash at the recent pace of
- * income and spending, with bills, card statements and recurring income on their dates, its low point, and what's
- * coming up.
+ * income and spending, with bills, card statements and recurring income on their dates, where it stands in 30 days,
+ * and what's coming up.
  */
 export default async function ForecastPage({ params }: PageProps<"/[locale]/forecast">) {
   const { locale } = await params;
@@ -41,8 +41,8 @@ export default async function ForecastPage({ params }: PageProps<"/[locale]/fore
     );
   }
 
-  const { days, low, currency } = forecast;
-  const lowIndex = days.findIndex((day) => day.date === low.date);
+  const { days, currency } = forecast;
+  const inMonth = days[FORECAST_SURE_DAYS];
   const chartDays: ForecastChartDay[] = days.map((day) => ({
     label: day.date === today ? `${messages.common.today} · ${shortDate(day.date, locale)}` : shortDate(day.date, locale),
     cents: day.cents,
@@ -68,16 +68,15 @@ export default async function ForecastPage({ params }: PageProps<"/[locale]/fore
             <Money cents={forecast.startCents} className={cn("text-lg font-semibold", forecast.startCents < 0 ? "text-loss" : "text-gain")} />
           </div>
           <div className="px-4 py-4">
-            <p className="text-xs text-muted-foreground">{m.lowest}</p>
-            <Money cents={low.cents} className={cn("text-lg font-semibold", low.cents < 0 ? "text-loss" : low.cents < forecast.startCents ? "text-warning" : "text-gain")} />
-            <p className="text-xs text-muted-foreground">{low.date === today ? messages.common.today : shortDate(low.date, locale)}</p>
+            <p className="text-xs text-muted-foreground">{format(m.inDays, { days: FORECAST_SURE_DAYS })}</p>
+            <Money cents={inMonth.cents} className={cn("text-lg font-semibold", inMonth.cents < 0 ? "text-loss" : "text-gain")} />
+            <p className="text-xs text-muted-foreground">{shortDate(inMonth.date, locale)}</p>
           </div>
         </div>
         <div className="px-4 pb-3 pt-4">
           <ForecastChart
             days={chartDays}
-            labels={{ title: m.title, low: m.low, estimated: m.estimated, overdue: m.overdue, noEvents: m.noEvents }}
-            lowIndex={lowIndex}
+            labels={{ title: m.title, estimated: m.estimated, overdue: m.overdue, noEvents: m.noEvents }}
             sureDays={FORECAST_SURE_DAYS}
             ticks={ticks}
           />

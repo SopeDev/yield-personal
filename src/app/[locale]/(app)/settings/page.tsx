@@ -1,4 +1,4 @@
-import { Banknote, Globe, HandCoins, List, Repeat, Tags, Target } from "lucide-react";
+import { Banknote, CreditCard, Globe, HandCoins, List, Repeat, Tags, Target } from "lucide-react";
 import { signOut } from "@/auth";
 import { Card, Section } from "@/components/section";
 import { LinkRow } from "@/components/settings-layout";
@@ -41,6 +41,7 @@ export default async function SettingsPage({ params }: PageProps<"/[locale]/sett
             <LinkRow hint={settings.categoriesHint} href={href("categories")} icon={Tags} title={messages.manage.categories} />
             <LinkRow hint={settings.itemsHint} href={href("items")} icon={List} title={messages.manage.itemsLink} />
             <LinkRow hint={settings.recurringPaymentsHint} href={href("recurring-payments")} icon={Repeat} title={settings.recurringLink} />
+            <LinkRow hint={settings.cardsHint} href={`/${locale}/cards`} icon={CreditCard} title={messages.nav.cards} />
           </ul>
         </Card>
       </Section>

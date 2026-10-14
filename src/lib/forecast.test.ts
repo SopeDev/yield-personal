@@ -38,12 +38,11 @@ test("cash runs day by day: the rest of today, then pace less cash spending, plu
   assert.deepEqual(forecast.days.map((day) => day.cents), [131500, 241500, 301500, 611500, 721500]);
   assert.equal(forecast.dailyDriftCents, 110000);
   assert.deepEqual(forecast.days[2].events.map((event) => event.label), ["Luz"]);
-  assert.deepEqual(forecast.low, { date: "2026-10-14", cents: 131500 });
   // A day already past its average adds nothing more for today.
   assert.equal(forecastCash({ today: "2026-10-14", days: 0, startCents: 0, paceDailyCents: 1000, cashDailyCents: 500, todayIncomeCents: 3000, todayCashSpentCents: 900, events: [] }).days[0].cents, 0);
 });
 
-test("the low point is the least cash on any day, the first day it's reached", () => {
+test("big bills step the line down on their dates", () => {
   const forecast = forecastCash({
     today: "2026-10-30", days: 6, startCents: 2000000, paceDailyCents: 100000, cashDailyCents: 0,
     events: [
@@ -52,7 +51,8 @@ test("the low point is the least cash on any day, the first day it's reached", (
     ],
   });
   // 20,000 +1,000 (Oct 30) +1,000 (31) +1,000 −11,900 (Nov 1) … +1,000 −4,750 (Nov 5).
-  assert.deepEqual(forecast.low, { date: "2026-11-05", cents: 2000000 + 7 * 100000 - 1190000 - 475000 });
+  assert.equal(forecast.days.find((day) => day.date === "2026-11-01")?.cents, 2000000 + 3 * 100000 - 1190000);
+  assert.equal(forecast.days.at(-1)?.cents, 2000000 + 7 * 100000 - 1190000 - 475000);
 });
 
 test("cash bills fall on their due dates, overdue ones on today; card and paid bills are left out", () => {

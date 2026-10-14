@@ -10,6 +10,7 @@ import { StatementRow } from "@/components/statement-row";
 import { SummaryCard } from "@/components/summary-card";
 import { formatCentsIn } from "@/lib/money";
 import { MonthNav } from "@/components/month-nav";
+import { OverviewToggle } from "@/components/overview-toggle";
 import { OccurrenceAmountForm } from "@/components/occurrence-amount-form";
 import { PaidCheck, PaidCheckForm, StatusBadge } from "@/components/paid-toggle";
 import { ReceiveIncomeForm } from "@/components/receive-income-form";
@@ -329,7 +330,7 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
       ) : null}
 
       {statementsClosing.length > 0 ? (
-        <Section title={messages.month.statements}>
+        <Section action={<Link className="text-sm font-medium text-primary" href={`/${locale}/cards`}>{messages.month.allCards}</Link>} title={messages.month.statements}>
           <Card>
             <ul className="divide-y divide-border">
               {statementsClosing.map((statement) => (
@@ -344,7 +345,10 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
 
   return (
     <div className="space-y-7">
-      <MonthNav labels={messages.common} locale={locale} month={month} path={`/${locale}/month`} />
+      <div className="space-y-3">
+        <OverviewToggle labels={messages.nav} locale={locale} month={month} view="month" />
+        <MonthNav labels={messages.common} locale={locale} month={month} path={`/${locale}/month`} />
+      </div>
 
       {itemFilter ? (
         <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/40 bg-primary/10 px-4 py-3 text-sm">

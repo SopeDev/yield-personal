@@ -16,7 +16,8 @@
     "cards": "Tarjetas",
     "year": "Año",
     "savings": "Ahorro",
-    "forecast": "Pronóstico"
+    "forecast": "Pronóstico",
+    "overview": "Resumen"
   },
   "categories": {
     "fixed": "Fijos",
@@ -83,6 +84,7 @@
     "dueToday": "Vence hoy",
     "overdueBy": "{days} días vencido",
     "statements": "Estados de cuenta",
+    "allCards": "Tarjetas",
     "carriedTitle": "Pendientes de meses anteriores",
     "includesCarried": "+ {amount} de meses anteriores",
     "confirm": "Confirmar",
@@ -245,6 +247,7 @@
     "categoriesHint": "Nombres, tipos y orden",
     "itemsHint": "Renombrar, cambiar de categoría y combinar",
     "recurringPaymentsHint": "Pagos que se repiten",
+    "cardsHint": "Los estados de cuenta de cada tarjeta y sus mensualidades",
     "sourcesHint": "De dónde vienen tus ingresos, y neto por grupo",
     "recurringIncomeHint": "Ingresos con calendario, como un sueldo"
   },
@@ -587,8 +590,7 @@
     "title": "Pronóstico",
     "subtitle": "Tu dinero disponible en los próximos {days} días, si ingresos y gastos siguen a su ritmo reciente.",
     "cashNow": "Disponible hoy",
-    "lowest": "Punto más bajo",
-    "low": "Mínimo",
+    "inDays": "En {days} días",
     "endOf": "Fin de {month}",
     "upcoming": "Lo que viene",
     "leaves": "Quedan",

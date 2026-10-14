@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { BalanceChart, type ChartBar } from "@/components/balance-chart";
+import { OverviewToggle } from "@/components/overview-toggle";
 import { ScrollToEnd } from "@/components/scroll-to-end";
 import { StatsCard } from "@/components/summary-card";
 import { isLocale, type Locale } from "@/i18n/config";
@@ -97,6 +98,8 @@ export default async function YearPage({ params, searchParams }: PageProps<"/[lo
 
   return (
     <div className="space-y-5">
+      {/* Opening a month from here keeps the calendar month you're in, in the year shown. */}
+      <OverviewToggle labels={messages.nav} locale={locale} month={`${year}-${currentMonth.slice(5, 7)}` as MonthKey} view="year" />
       <div className="flex items-center justify-between">
         <Link aria-label={messages.year.previous} className={navClass} href={`/${locale}/year?year=${year - 1}`}>
           <ChevronLeft aria-hidden="true" className="size-5" />
