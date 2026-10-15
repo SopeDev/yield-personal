@@ -27,21 +27,12 @@ export async function completeOnboarding(answers: OnboardingAnswers, locale: Loc
   const { plan } = result;
   const today = todayKey();
 
-  let saved: boolean;
-  try {
-    saved = await save(userId, plan, today);
-  } catch (error) {
-    if (error instanceof EstimateCategoryError) return { error: "estimates" };
-    throw error;
-  }
+  const saved = await save(userId, plan, today);
 
   if (saved) (await cookies()).set(LOCALE_COOKIE, locale, { maxAge: LOCALE_COOKIE_MAX_AGE_SECONDS, sameSite: "lax", path: "/" });
   revalidatePath(`/${locale}`, "layout");
   redirect(`/${locale}/month`);
 }
-
-/** An estimate for a category that isn't one of the account's everyday ones: nothing is saved. */
-class EstimateCategoryError extends Error {}
 
 /** Everything the plan sets up, in one transaction; false when the account was already set up. */
 function save(userId: string, plan: OnboardingPlan, today: string) {
@@ -106,16 +97,21 @@ function save(userId: string, plan: OnboardingPlan, today: string) {
       }
     }
 
-    // Estimates are only for the account's own everyday categories, the ones typical spending counts.
-    if (plan.spendingEstimates.length > 0) {
-      const everyday = await tx.category.findMany({
-        where: { userId, kind: "EVERYDAY", id: { in: plan.spendingEstimates.map((estimate) => estimate.categoryId) } },
-        select: { id: true },
-      });
-      if (everyday.length !== plan.spendingEstimates.length) throw new EstimateCategoryError();
-      for (const estimate of plan.spendingEstimates) {
-        await tx.category.update({ where: { id: estimate.categoryId }, data: seal("Category", { monthlyEstimateCents: estimate.monthlyCents }) });
-      }
+    // The everyday categories picked come first, each with its estimate, then the account's bills and extras.
+    const existing = await tx.category.findMany({ where: { userId }, select: { id: true, key: true, kind: true } });
+    for (const [sortOrder, category] of plan.categories.entries()) {
+      const data = { sortOrder, archivedAt: null, ...seal("Category", { monthlyEstimateCents: category.monthlyEstimateCents }) };
+      const builtIn = category.key && existing.find((other) => other.key === category.key);
+      if (builtIn) await tx.category.update({ where: { id: builtIn.id }, data });
+      else if (category.key) await tx.category.create({ data: { userId, key: category.key, kind: "EVERYDAY", ...data } });
+      else await tx.category.create({ data: { userId, kind: "EVERYDAY", ...seal("Category", { name: category.name! }), ...data } });
+    }
+    const picked = new Set<string>(plan.categories.flatMap((category) => (category.key ? [category.key] : [])));
+    for (const category of existing) {
+      if (category.key === "fixed") await tx.category.update({ where: { id: category.id }, data: { sortOrder: plan.categories.length } });
+      else if (category.key === "extras") await tx.category.update({ where: { id: category.id }, data: { sortOrder: plan.categories.length + 1 } });
+      // An everyday category made before the wizard but not picked (from older defaults) is put away.
+      else if (category.kind === "EVERYDAY" && !(category.key && picked.has(category.key))) await tx.category.update({ where: { id: category.id }, data: { archivedAt: new Date() } });
     }
 
     if (plan.salary) {

@@ -8,6 +8,15 @@ export const BILL_PRESETS = ["rent", "electricity", "water", "gas", "internet", 
 export type BillPreset = (typeof BILL_PRESETS)[number];
 export const VARIABLE_BILLS: readonly BillPreset[] = ["electricity", "water", "gas"];
 
+/**
+ * Everyday categories offered to tap in the wizard. Food and car are built-in (their names follow the language);
+ * the others are created with their name in the language the wizard was in.
+ */
+export const CATEGORY_SUGGESTIONS = ["food", "transport", "car", "home", "health", "fun", "pets", "kids", "personal"] as const;
+export type CategorySuggestion = (typeof CATEGORY_SUGGESTIONS)[number];
+export const BUILT_IN_SUGGESTIONS: readonly CategorySuggestion[] = ["food", "car"];
+export const MAX_ONBOARDING_CATEGORIES = 12;
+
 /** How a salary is paid: on one or two days of the month, or every week or two from a payday. */
 export const SALARY_SCHEDULES = ["MONTHLY", "TWICE_MONTHLY", "WEEKLY", "BIWEEKLY"] as const;
 export type SalarySchedule = (typeof SALARY_SCHEDULES)[number];
@@ -27,8 +36,11 @@ export type OnboardingAnswers = {
   cards: { name: string; closingDay: string; paymentDays: string }[];
   /** `card` is the index of one of `cards`, or null for cash. */
   bills: { name: string; amount: string; day: string; card: number | null; variable: boolean }[];
-  /** Roughly how much is spent a month on each everyday category; empty ones are left out. */
-  spendingEstimates: { categoryId: string; amount: string }[];
+  /**
+   * The everyday categories to start with, each with roughly how much is spent on it a month (empty when not given):
+   * a built-in one by its key, or one named by the user. None means food alone.
+   */
+  categories: { key: "food" | "car" | null; name: string; estimate: string }[];
 };
 
 /** What the answers save: every amount in cents and every day checked. */
@@ -41,7 +53,7 @@ export type OnboardingPlan = {
   cards: { name: string; closingDay: number; paymentDays: number; color: string }[];
   bills: { name: string; amountCents: number; dayOfMonth: number; card: number | null; isVariable: boolean }[];
   incomeEstimateCents: number | null;
-  spendingEstimates: { categoryId: string; monthlyCents: number }[];
+  categories: { key: "food" | "car" | null; name: string | null; monthlyEstimateCents: number | null }[];
 };
 
 const day = (text: string, max = MAX_STATEMENT_DAY) => {
@@ -64,7 +76,7 @@ function payDays(text: string, count: number) {
  * The answers checked and turned into what gets saved, or the first step with a problem. The wizard checks each
  * step as it goes; this is the server's own check of the whole thing.
  */
-export function planOnboarding(answers: OnboardingAnswers): { plan: OnboardingPlan } | { error: "currency" | "salary" | "cash" | "cards" | "bills" | "estimates" } {
+export function planOnboarding(answers: OnboardingAnswers): { plan: OnboardingPlan } | { error: "currency" | "salary" | "cash" | "cards" | "bills" | "categories" | "estimates" } {
   if (!isCurrency(answers.currency)) return { error: "currency" };
 
   let salary: OnboardingPlan["salary"] = null;
@@ -116,22 +128,30 @@ export function planOnboarding(answers: OnboardingAnswers): { plan: OnboardingPl
   const incomeText = answers.incomeEstimate.trim();
   const incomeEstimateCents = !answers.variableIncome || incomeText === "" ? null : parseAmountToCents(incomeText);
   if (answers.variableIncome && incomeText !== "" && incomeEstimateCents === null) return { error: "estimates" };
-  const spendingEstimates: OnboardingPlan["spendingEstimates"] = [];
-  for (const estimate of answers.spendingEstimates) {
-    if (estimate.amount.trim() === "") continue;
-    const monthlyCents = parseAmountToCents(estimate.amount);
-    if (!monthlyCents || !/^[\w-]+$/.test(estimate.categoryId) || spendingEstimates.some((other) => other.categoryId === estimate.categoryId)) return { error: "estimates" };
-    spendingEstimates.push({ categoryId: estimate.categoryId, monthlyCents });
+  if (answers.categories.length > MAX_ONBOARDING_CATEGORIES) return { error: "categories" };
+  const categories: OnboardingPlan["categories"] = [];
+  const categoryNames = new Set<string>();
+  for (const category of answers.categories) {
+    const categoryName = category.key ? null : name(category.name);
+    const estimateText = category.estimate.trim();
+    const monthlyEstimateCents = estimateText === "" ? null : parseAmountToCents(estimateText);
+    const unique = category.key ?? categoryName?.toLocaleLowerCase();
+    if ((category.key === null && !categoryName) || !unique || categoryNames.has(unique)) return { error: "categories" };
+    if (estimateText !== "" && monthlyEstimateCents === null) return { error: "estimates" };
+    categoryNames.add(unique);
+    categories.push({ key: category.key, name: categoryName, monthlyEstimateCents });
   }
+  // Anything bought needs a category: with none picked, food.
+  if (categories.length === 0) categories.push({ key: "food", name: null, monthlyEstimateCents: null });
 
   // Income that comes in as it's earned counts day by day, alongside any salary's paydays.
   const rhythm: OnboardingPlan["rhythm"] = salary && !answers.variableIncome ? salary.rhythm : { kind: "DAILY" };
-  return { plan: { currency: answers.currency, rhythm, salary, cashCents, cards, bills, incomeEstimateCents, spendingEstimates } };
+  return { plan: { currency: answers.currency, rhythm, salary, cashCents, cards, bills, incomeEstimateCents, categories } };
 }
 
 /** Nothing set up: what skipping the whole wizard saves. */
 export function emptyAnswers(currency: string): OnboardingAnswers {
-  return { currency, salary: null, variableIncome: false, incomeEstimate: "", cash: "", cards: [], bills: [], spendingEstimates: [] };
+  return { currency, salary: null, variableIncome: false, incomeEstimate: "", cash: "", cards: [], bills: [], categories: [] };
 }
 
 /** The setup checklist's steps, done or not, from what the account holds. */

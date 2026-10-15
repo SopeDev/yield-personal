@@ -10,16 +10,18 @@ import { format, type Messages } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
 import { CURRENCIES, formatCents, parseAmountToCents } from "@/lib/money";
 import {
-  BILL_PRESETS, emptyAnswers, MAX_ONBOARDING_BILLS, MAX_ONBOARDING_CARDS, planOnboarding, SALARY_SCHEDULES, VARIABLE_BILLS,
-  type BillPreset, type OnboardingAnswers, type SalarySchedule,
+  BILL_PRESETS, BUILT_IN_SUGGESTIONS, CATEGORY_SUGGESTIONS, emptyAnswers, MAX_ONBOARDING_BILLS, MAX_ONBOARDING_CARDS, MAX_ONBOARDING_CATEGORIES,
+  planOnboarding, SALARY_SCHEDULES, VARIABLE_BILLS, type BillPreset, type CategorySuggestion, type OnboardingAnswers, type SalarySchedule,
 } from "@/lib/onboarding";
 
-const STEPS = ["welcome", "income", "cash", "cards", "bills", "spending", "done"] as const;
+const STEPS = ["welcome", "income", "cash", "cards", "bills", "categories", "done"] as const;
 type Step = (typeof STEPS)[number];
 
 type CardDraft = { key: number; name: string; closingDay: string; paymentDays: string };
 /** A bill as being filled in: a preset's name comes from the preset; `card` is a card's key, or null for cash. */
 type BillDraft = { key: number; preset: BillPreset | null; name: string; amount: string; day: string; card: number | null };
+/** A category picked: one of the suggestions, or named by the user. */
+type CategoryDraft = { key: number; suggestion: CategorySuggestion | null; name: string; estimate: string };
 type SalaryDraft = { name: string; amount: string; schedule: SalarySchedule; days: string; anchor: string };
 
 /**
@@ -27,11 +29,9 @@ type SalaryDraft = { name: string; amount: string; schedule: SalarySchedule; day
  * them all at once, so going back or skipping never leaves anything half saved. Without `save` it's the preview,
  * which goes through the same screens and saves nothing.
  */
-export function OnboardingWizard({ locale, labels: m, categories, currency: initialCurrency, today, basePath, save }: {
+export function OnboardingWizard({ locale, labels: m, currency: initialCurrency, today, basePath, save }: {
   locale: Locale;
   labels: Messages["onboarding"];
-  /** The everyday categories, to estimate monthly spending on. */
-  categories: { id: string; label: string }[];
   currency: string;
   /** Today as "YYYY-MM-DD", for a weekly salary's payday. */
   today: string;
@@ -45,7 +45,7 @@ export function OnboardingWizard({ locale, labels: m, categories, currency: init
   const [salary, setSalary] = useState<SalaryDraft>({ name: m.income.salaryNameDefault, amount: "", schedule: "TWICE_MONTHLY", days: "15, 30", anchor: today });
   const [variableIncome, setVariableIncome] = useState(false);
   const [incomeEstimate, setIncomeEstimate] = useState("");
-  const [spending, setSpending] = useState<Record<string, string>>({});
+  const [categories, setCategories] = useState<CategoryDraft[]>([{ key: 0, suggestion: "food", name: "", estimate: "" }]);
   const [cash, setCash] = useState("");
   const [cards, setCards] = useState<CardDraft[]>([]);
   const [bills, setBills] = useState<BillDraft[]>([]);
@@ -73,7 +73,11 @@ export function OnboardingWizard({ locale, labels: m, categories, currency: init
       card: bill.card === null ? null : cards.findIndex((card) => card.key === bill.card),
       variable: bill.preset !== null && VARIABLE_BILLS.includes(bill.preset),
     })),
-    spendingEstimates: categories.map((category) => ({ categoryId: category.id, amount: spending[category.id] ?? "" })),
+    categories: categories.map((category) => ({
+      key: category.suggestion && BUILT_IN_SUGGESTIONS.includes(category.suggestion) ? (category.suggestion as "food" | "car") : null,
+      name: category.suggestion ? m.categories.suggestions[category.suggestion] : category.name,
+      estimate: category.estimate,
+    })),
   });
 
   /** The step's own answers checked the way the server will, as the message to show, or null when they're fine. */
@@ -84,12 +88,12 @@ export function OnboardingWizard({ locale, labels: m, categories, currency: init
       cash: { cash: all.cash },
       cards: { cards: all.cards },
       bills: { cards: all.cards, bills: all.bills },
-      spending: { spendingEstimates: all.spendingEstimates },
+      categories: { categories: all.categories },
     };
     if (!only[current]) return null;
     const result = planOnboarding({ ...emptyAnswers(currency), ...only[current] });
     if (!("error" in result)) return null;
-    return { salary: m.income.invalid, cash: m.cash.invalid, cards: m.cards.invalid, bills: m.bills.invalid, estimates: m.spending.invalid, currency: null }[result.error];
+    return { salary: m.income.invalid, cash: m.cash.invalid, cards: m.cards.invalid, bills: m.bills.invalid, categories: m.categories.invalid, estimates: m.categories.invalidEstimate, currency: null }[result.error];
   };
 
   const index = STEPS.indexOf(step);
@@ -113,7 +117,7 @@ export function OnboardingWizard({ locale, labels: m, categories, currency: init
       setCards([]);
       setBills((current) => current.map((bill) => ({ ...bill, card: null })));
     } else if (step === "bills") setBills([]);
-    else if (step === "spending") setSpending({});
+    else if (step === "categories") setCategories([]);
     go(STEPS[index + 1]);
   };
   const finish = (toSave: OnboardingAnswers) => {
@@ -168,7 +172,16 @@ export function OnboardingWizard({ locale, labels: m, categories, currency: init
     setBills((current) => (current.some((bill) => bill.preset === preset) ? current.filter((bill) => bill.preset !== preset) : [...current, added]));
   };
 
-  const spendingTotal = Object.values(spending).reduce((sum, amount) => sum + (parseAmountToCents(amount) ?? 0), 0);
+  const spendingTotal = categories.reduce((sum, category) => sum + (parseAmountToCents(category.estimate) ?? 0), 0);
+  const categoryName = (category: CategoryDraft) => (category.suggestion ? m.categories.suggestions[category.suggestion] : category.name);
+  const updateCategory = (categoryKey: number, change: Partial<CategoryDraft>) =>
+    setCategories((current) => current.map((category) => (category.key === categoryKey ? { ...category, ...change } : category)));
+  const toggleSuggestion = (suggestion: CategorySuggestion) => {
+    const added: CategoryDraft = { key: key(), suggestion, name: "", estimate: "" };
+    setCategories((current) => (current.some((category) => category.suggestion === suggestion)
+      ? current.filter((category) => category.suggestion !== suggestion)
+      : [...current, added]));
+  };
   const summary = (() => {
     const all = answers();
     const cashCents = parseAmountToCents(all.cash) ?? (all.cash.trim() ? 0 : null);
@@ -178,6 +191,7 @@ export function OnboardingWizard({ locale, labels: m, categories, currency: init
       cashCents === null ? null : format(m.done.cash, { amount: formatCents(cashCents, currency) }),
       all.cards.length > 0 ? format(m.done.cards, { count: all.cards.length }) : null,
       all.bills.length > 0 ? format(m.done.bills, { count: all.bills.length }) : null,
+      categories.length > 0 ? format(m.done.categories, { names: categories.map(categoryName).filter(Boolean).join(", ") }) : null,
       spendingTotal > 0 ? format(m.done.estimates, { amount: formatCents(spendingTotal, currency) }) : null,
     ].filter((line): line is string => line !== null);
     return lines;
@@ -333,27 +347,65 @@ export function OnboardingWizard({ locale, labels: m, categories, currency: init
         </Screen>
       ) : null}
 
-      {step === "spending" ? (
-        <Screen body={m.spending.body} title={m.spending.title}>
-          <div className="divide-y divide-border rounded-xl border border-border">
-            {categories.map((category) => (
-              <label className="flex items-center gap-3 px-4 py-2" key={category.id}>
-                <span className="flex-1 font-medium">{category.label}</span>
-                <input
-                  aria-label={category.label}
-                  className={cn(inputClass, "w-36 text-right")}
-                  inputMode="decimal"
-                  onChange={(event) => setSpending((current) => ({ ...current, [category.id]: event.target.value }))}
-                  placeholder="0.00"
-                  value={spending[category.id] ?? ""}
-                />
-              </label>
-            ))}
+      {step === "categories" ? (
+        <Screen body={m.categories.body} title={m.categories.title}>
+          <div className="flex flex-wrap gap-2">
+            {CATEGORY_SUGGESTIONS.map((suggestion) => {
+              const on = categories.some((category) => category.suggestion === suggestion);
+              return (
+                <button
+                  aria-pressed={on}
+                  className={cn("flex min-h-10 items-center gap-1.5 rounded-full border px-4 text-sm font-medium transition", on ? "border-primary bg-primary/10 text-foreground" : "border-border bg-surface text-muted-foreground")}
+                  key={suggestion}
+                  onClick={() => toggleSuggestion(suggestion)}
+                  type="button"
+                >
+                  {on ? <Check aria-hidden="true" className="size-3.5 text-primary" strokeWidth={3} /> : null}
+                  {m.categories.suggestions[suggestion]}
+                </button>
+              );
+            })}
           </div>
-          {spendingTotal > 0 ? (
-            <p className="flex justify-between px-1 text-sm"><span className="text-muted-foreground">{m.spending.total}</span><span className="font-semibold">{formatCents(spendingTotal, currency)}</span></p>
+          {categories.length > 0 ? (
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">{m.categories.estimateIntro}</p>
+              <div className="divide-y divide-border rounded-xl border border-border">
+                {categories.map((category) => (
+                  <div className="flex items-center gap-2 py-2 pl-4 pr-1" key={category.key}>
+                    {category.suggestion ? <span className="min-w-0 flex-1 truncate font-medium">{categoryName(category)}</span> : (
+                      <input
+                        aria-label={m.categories.ownName}
+                        className={cn(inputClass, "min-w-0 flex-1")}
+                        maxLength={40}
+                        onChange={(event) => updateCategory(category.key, { name: event.target.value })}
+                        placeholder={m.categories.ownName}
+                        value={category.name}
+                      />
+                    )}
+                    <input
+                      aria-label={format(m.categories.estimateFor, { category: categoryName(category) || m.categories.ownName })}
+                      className={cn(inputClass, "w-28 shrink-0 text-right")}
+                      inputMode="decimal"
+                      onChange={(event) => updateCategory(category.key, { estimate: event.target.value })}
+                      placeholder={m.categories.perMonth}
+                      value={category.estimate}
+                    />
+                    <RemoveButton label={m.bills.remove} onClick={() => setCategories((current) => current.filter((other) => other.key !== category.key))} />
+                  </div>
+                ))}
+              </div>
+              {spendingTotal > 0 ? (
+                <p className="flex justify-between px-1 text-sm"><span className="text-muted-foreground">{m.categories.total}</span><span className="font-semibold">{formatCents(spendingTotal, currency)}</span></p>
+              ) : null}
+            </div>
           ) : null}
-          <p className="text-sm text-muted-foreground">{m.spending.hint}</p>
+          {categories.length < MAX_ONBOARDING_CATEGORIES ? (
+            <AddButton label={m.categories.own} onClick={() => {
+              const added: CategoryDraft = { key: key(), suggestion: null, name: "", estimate: "" };
+              setCategories((current) => [...current, added]);
+            }} />
+          ) : null}
+          <p className="text-sm text-muted-foreground">{m.categories.structural}</p>
         </Screen>
       ) : null}
 

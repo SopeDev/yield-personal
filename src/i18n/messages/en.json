@@ -708,15 +708,15 @@
     "skipAll": "Skip setup, I'll do it later",
     "error": "Something didn't save. Check your answers and try again.",
     "welcome": {
-      "title": "Welcome to Yield",
-      "body": "Yield shows where your month is headed: what you've earned and spent, what's still to pay, and whether it'll last until the next one. A few questions now set it up for you. All of it is optional, and everything can be changed later in Settings.",
+      "title": "Where does your money go?",
+      "body": "Payday comes, payday goes, and you're never quite sure where it went. Yield tells you how your month is going before it's over: whether rent's covered, how much you can spend today, and how close you are to that trip you keep putting off. A few quick questions and you're in; everything can be changed later.",
       "language": "Language",
       "currency": "Main currency",
       "currencyHint": "The currency your figures are shown in."
     },
     "income": {
-      "title": "How do you get paid?",
-      "body": "Pick all that apply.",
+      "title": "How does money come in?",
+      "body": "A steady paycheck, gigs on the side, tips, commissions… or a bit of everything. This is how Yield knows what to expect, and when. Pick all that apply.",
       "salary": "A salary or fixed pay",
       "salaryHint": "About the same amount on set days",
       "variable": "Income that varies",
@@ -737,17 +737,17 @@
       "anchor": "A recent or upcoming payday",
       "invalid": "Check the name, the amount and the pay days.",
       "estimate": "Roughly how much does it bring in a month?",
-      "estimateHint": "Optional. Until you've logged a few weeks of income, this stands in for it."
+      "estimateHint": "Optional. So your first numbers don't start at zero."
     },
     "cash": {
-      "title": "How much money do you have right now?",
-      "body": "Cash plus what's in your debit account and apps, but not savings or credit cards. Your forecast starts here; you can recount it any time in Settings.",
+      "title": "How much do you have right now?",
+      "body": "Cash, debit and apps, not savings or credit cards. It's your starting line for knowing whether you'll make it to the end of the month, and with how much.",
       "amount": "Money on hand",
       "invalid": "Enter an amount like 2,500."
     },
     "cards": {
       "title": "Do you use credit cards?",
-      "body": "Card spending leaves your money when the statement is due, not when you buy. Add each card with the day its statement closes and how many days you have to pay it.",
+      "body": "Cards are sneaky: you buy today, but the money leaves when the bill is due. Yield keeps track of every statement so a due date never catches you off guard.",
       "name": "Card name",
       "namePlaceholder": "Like Nu or BBVA",
       "closingDay": "Closing day",
@@ -758,8 +758,8 @@
       "invalid": "Each card needs a name, a closing day (1–31) and days to pay (1–60)."
     },
     "bills": {
-      "title": "Your fixed bills",
-      "body": "Tap the ones you pay. They count toward what each month needs and show up on their day.",
+      "title": "What you pay every month, no matter what",
+      "body": "Rent, power, internet, the gym you swear you'll start going to… Add them once and Yield shows you when they're coming and what you need to cover them.",
       "presets": {
         "rent": "Rent",
         "electricity": "Electricity",
@@ -782,16 +782,33 @@
       "invalid": "Each bill needs a name, an amount and a day (1–31), and names can't repeat.",
       "remove": "Remove"
     },
-    "spending": {
-      "title": "Your everyday spending",
-      "body": "Roughly how much do you spend a month on each? A guess is fine. Until you've logged a few weeks, these stand in for your real averages, so your first numbers aren't empty; they fade out as your records come in.",
+    "categories": {
+      "title": "Where does it all go?",
+      "body": "The daily coffee? Weekend plans? Groceries? Categories are the buckets your spending falls into, like Food or Transport. Inside go items, the actual things you buy: Tacos or Groceries inside Food. Items get created as you log, so for now just pick your categories.",
+      "suggestions": {
+        "food": "Food",
+        "transport": "Transport",
+        "car": "Car",
+        "home": "Home",
+        "health": "Health",
+        "fun": "Entertainment",
+        "pets": "Pets",
+        "kids": "Kids",
+        "personal": "Personal"
+      },
+      "own": "Add your own category",
+      "ownName": "Category name",
+      "estimateIntro": "Optional: how much do you think you spend a month on each? A guess is fine. We'll use it while your real numbers come in, and in a few weeks we'll show you how close you were (spoiler: almost nobody gets it right).",
+      "estimateFor": "About how much a month on {category}",
+      "perMonth": "$ a month",
       "total": "About a month",
-      "hint": "Optional: leave any blank.",
-      "invalid": "Enter amounts like 4,000, or leave them blank."
+      "structural": "Fixed (for your bills) and Extras (one-off purchases that shouldn't count toward your averages) are added for you. You can change all of this later in Settings.",
+      "invalid": "Each category needs a name, and names can't repeat.",
+      "invalidEstimate": "Enter amounts like 4,000, or leave them blank."
     },
     "done": {
-      "title": "You're set",
-      "body": "Log what you spend and earn as it happens with the + button. For the first couple of weeks the numbers are rough; they get sharper as your history grows.",
+      "title": "You're set. Now let's see where it goes.",
+      "body": "Log what you spend and earn as it happens with the + button; it takes five seconds. The first couple of weeks are rough: the more you log, the more it tells you.",
       "summary": "Ready to save",
       "salary": "Salary: {name}",
       "variable": "Income logged as it comes in",
@@ -799,7 +816,8 @@
       "cards": "Cards: {count}",
       "bills": "Fixed bills: {count}",
       "nothing": "Nothing set up yet. That's fine: you can do it all from Settings.",
-      "estimates": "Everyday spending: about {amount} a month"
+      "estimates": "Everyday spending: about {amount} a month",
+      "categories": "Categories: {names}"
     }
   },
   "setup": {
@@ -811,8 +829,8 @@
     "dismiss": "Hide"
   },
   "estimates": {
-    "title": "Your estimates so far",
-    "body": "How your first {days} days compare with what you guessed, a month at a time.",
+    "title": "How close were you?",
+    "body": "Your guesses against your first {days} days.",
     "income": "Varying income",
     "line": "You estimated {estimate} a month",
     "pace": "on pace for {amount}"
