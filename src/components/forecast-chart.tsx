@@ -11,25 +11,29 @@ export type ForecastChartDay = {
   cents: number;
   /** What leaves cash that day, as a positive amount. */
   spendingCents: number;
-  events: { label: string; cents: number; estimated: boolean; overdue: boolean }[];
+  /** Cash plus savings that day, and the interest the savings have earned by then; null without savings. */
+  savings: { totalCents: number; interestCents: number } | null;
+  events: { label: string; cents: number; estimated: boolean; overdue: boolean; savings: boolean }[];
 };
 
 /**
  * Cash on hand day by day: a line from today, solid for the days near enough to trust (`sureDays`) and dashed
  * after, over red bars of what leaves cash each day (big bills and statements stand out against the everyday ones),
- * against amounts down the left. A mark under each day income comes in. Dragging across it (or the arrow keys)
- * picks a day, whose cash, spending, and events show above.
+ * against amounts down the left, and with savings, a second line above it for cash plus savings growing with their
+ * interest (the gap between the two is the savings). A mark under each day income comes in (green) or money moves
+ * into savings (blue). Dragging across it (or the arrow keys) picks a day, whose figures and events show above.
  */
 export function ForecastChart({ days, sureDays, ticks, labels }: {
   days: ForecastChartDay[];
   sureDays: number;
   /** Month starts to label under the line. */
   ticks: { index: number; label: string }[];
-  labels: { title: string; estimated: string; overdue: string; noEvents: string; forecast: string; spending: string };
+  labels: { title: string; estimated: string; overdue: string; noEvents: string; forecast: string; spending: string; withSavings: string; interest: string };
 }) {
   const [selected, setSelected] = useState(0);
   const plot = useRef<HTMLDivElement>(null);
-  const values = days.flatMap((day) => [day.cents, day.spendingCents]);
+  const values = days.flatMap((day) => [day.cents, day.spendingCents, ...(day.savings ? [day.savings.totalCents] : [])]);
+  const hasSavings = days.some((day) => day.savings !== null);
   const min = Math.min(0, ...values);
   const max = Math.max(0, ...values);
   // A little room above and below the line.
@@ -43,6 +47,7 @@ export function ForecastChart({ days, sureDays, ticks, labels }: {
   const points = (from: number, to: number, value: (day: ForecastChartDay) => number) =>
     days.slice(from, to + 1).map((day, offset) => `${x(from + offset)},${y(value(day))}`).join(" ");
   const cash = (day: ForecastChartDay) => day.cents;
+  const total = (day: ForecastChartDay) => day.savings?.totalCents ?? day.cents;
   // Each day's bar is centred on its point of the line, a little narrower than the day.
   const barWidth = (100 / (last + 1)) * 0.6;
   const amounts = axisTicks(bottom, top);
@@ -68,6 +73,15 @@ export function ForecastChart({ days, sureDays, ticks, labels }: {
           <span className="text-sm text-muted-foreground">{day.label}</span>
           <Money cents={day.cents} className={cn("text-xl font-semibold", day.cents < 0 ? "text-loss" : "text-foreground")} />
         </p>
+        {day.savings ? (
+          <p className="flex items-baseline justify-between gap-3 text-xs">
+            <span className="text-sky-400">{labels.withSavings}</span>
+            <span className="text-sky-400">
+              <Money cents={day.savings.totalCents} />
+              {day.savings.interestCents > 0 ? <span className="text-sky-400/80"> · {labels.interest} <Money cents={day.savings.interestCents} signed /></span> : null}
+            </span>
+          </p>
+        ) : null}
         <p className="flex items-baseline justify-between gap-3 text-xs">
           <span className="text-loss/80">{labels.spending}</span>
           <Money cents={-day.spendingCents} className="text-loss/80" signed />
@@ -80,7 +94,7 @@ export function ForecastChart({ days, sureDays, ticks, labels }: {
                   {event.label}
                   {event.overdue ? <span className="ml-1 text-warning">· {labels.overdue}</span> : event.estimated ? <span className="ml-1 text-subtle">· {labels.estimated}</span> : null}
                 </span>
-                <Money cents={event.cents} className={event.cents < 0 ? "text-foreground" : "text-gain"} signed />
+                <Money cents={event.cents} className={event.savings ? "text-sky-400" : event.cents < 0 ? "text-foreground" : "text-gain"} signed />
               </li>
             ))}
           </ul>
@@ -117,6 +131,14 @@ export function ForecastChart({ days, sureDays, ticks, labels }: {
               y={y(entry.spendingCents)}
             />
           ))}
+          {hasSavings ? (
+            <>
+              <polyline className="stroke-sky-400" fill="none" points={points(0, sureEnd, total)} strokeLinejoin="round" strokeWidth={2} vectorEffect="non-scaling-stroke" />
+              {sureEnd < last ? (
+                <polyline className="stroke-sky-400/50" fill="none" points={points(sureEnd, last, total)} strokeDasharray="4 4" strokeLinejoin="round" strokeWidth={2} vectorEffect="non-scaling-stroke" />
+              ) : null}
+            </>
+          ) : null}
           <polyline className="stroke-primary" fill="none" points={points(0, sureEnd, cash)} strokeLinejoin="round" strokeWidth={2} vectorEffect="non-scaling-stroke" />
           {sureEnd < last ? (
             <polyline className="stroke-primary/50" fill="none" points={points(sureEnd, last, cash)} strokeDasharray="4 4" strokeLinejoin="round" strokeWidth={2} vectorEffect="non-scaling-stroke" />
@@ -128,16 +150,27 @@ export function ForecastChart({ days, sureDays, ticks, labels }: {
           className="absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background bg-foreground"
           style={{ left: `${x(selected)}%`, top: `${y(day.cents)}%` }}
         />
+        {day.savings ? (
+          <span
+            aria-hidden="true"
+            className="absolute size-2 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background bg-sky-400"
+            style={{ left: `${x(selected)}%`, top: `${y(day.savings.totalCents)}%` }}
+          />
+        ) : null}
       </div>
 
       <div aria-hidden="true" className="relative ml-9 h-2">
-        {days.map((entry, index) => !entry.events.some((event) => event.cents > 0) ? null : (
-          <span
-            className="absolute top-0 h-2 w-0.5 -translate-x-1/2 rounded-full bg-gain"
-            key={entry.label}
-            style={{ left: `${x(index)}%` }}
-          />
-        ))}
+        {days.map((entry, index) => {
+          const income = entry.events.some((event) => event.cents > 0);
+          const saved = entry.events.some((event) => event.savings);
+          return !income && !saved ? null : (
+            <span
+              className={cn("absolute top-0 h-2 w-0.5 -translate-x-1/2 rounded-full", income ? "bg-gain" : "bg-sky-400")}
+              key={entry.label}
+              style={{ left: `${x(index)}%` }}
+            />
+          );
+        })}
       </div>
       <div aria-hidden="true" className="relative ml-9 h-4 text-[10px] text-muted-foreground">
         {ticks.map((tick) => (
@@ -146,6 +179,7 @@ export function ForecastChart({ days, sureDays, ticks, labels }: {
       </div>
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5"><span aria-hidden="true" className="h-0.5 w-4 rounded-full bg-primary" />{labels.forecast}</span>
+        {hasSavings ? <span className="flex items-center gap-1.5"><span aria-hidden="true" className="h-0.5 w-4 rounded-full bg-sky-400" />{labels.withSavings}</span> : null}
         <span className="flex items-center gap-1.5"><span aria-hidden="true" className="h-2.5 w-1.5 rounded-sm bg-loss/55" />{labels.spending}</span>
       </div>
     </section>

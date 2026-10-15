@@ -68,6 +68,18 @@ const name = (text: string) => {
   return value && value.length <= MAX_NAME_LENGTH ? value : null;
 };
 
+/**
+ * A schedule as chosen in a form: once or twice a month on the days given ("15, 30"), or weekly or every two weeks
+ * counting from a date. Null when the days or date don't fit it. Used for a salary's paydays and planned deposits.
+ */
+export function parseSchedule(schedule: string, days: string, anchor: string): { kind: "MONTH_DAYS"; days: number[] } | { kind: "WEEKLY" | "BIWEEKLY"; anchor: string } | null {
+  if (schedule === "MONTHLY" || schedule === "TWICE_MONTHLY") {
+    const parsed = payDays(days, schedule === "MONTHLY" ? 1 : 2);
+    return parsed && { kind: "MONTH_DAYS", days: parsed };
+  }
+  return (schedule === "WEEKLY" || schedule === "BIWEEKLY") && isDateKey(anchor) ? { kind: schedule, anchor } : null;
+}
+
 /** Pay days of the month from "15, 30": one for a monthly salary, two for twice a month. */
 function payDays(text: string, count: number) {
   const days = [...new Set(text.split(/[\s,;]+/).filter(Boolean).map((part) => day(part)))];
@@ -87,12 +99,7 @@ export function planOnboarding(answers: OnboardingAnswers): { plan: OnboardingPl
     const salaryName = name(answers.salary.name);
     const amountCents = parseAmountToCents(answers.salary.amount);
     const { schedule } = answers.salary;
-    const rhythm = schedule === "MONTHLY" || schedule === "TWICE_MONTHLY"
-      ? (() => {
-        const days = payDays(answers.salary!.days, schedule === "MONTHLY" ? 1 : 2);
-        return days && { kind: "MONTH_DAYS" as const, days };
-      })()
-      : (schedule === "WEEKLY" || schedule === "BIWEEKLY") && isDateKey(answers.salary.anchor) ? { kind: schedule, anchor: answers.salary.anchor } : null;
+    const rhythm = parseSchedule(schedule, answers.salary.days, answers.salary.anchor);
     if (!salaryName || !amountCents || !rhythm) return { error: "salary" };
     salary = { name: salaryName, amountCents, rhythm };
   }

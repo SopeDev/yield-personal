@@ -37,6 +37,7 @@ export const ENCRYPTED_FIELDS = {
   SavingsFund: {
     name: { copy: "nameEnc", column: "name_enc", kind: "text", optional: true, context: "savings_funds.name" },
     targetCents: { copy: "targetEnc", column: "target_enc", kind: "int", optional: true, context: "savings_funds.target_cents" },
+    depositCents: { copy: "depositEnc", column: "deposit_enc", kind: "int", optional: true, context: "savings_funds.deposit_cents" },
   },
   SavingsMovement: {
     amountCents: { copy: "amountEnc", column: "amount_enc", kind: "int", optional: false, context: "savings_movements.amount_cents" },
@@ -193,6 +194,7 @@ export function withEncryption(base: PrismaClient) {
       savingsFund: {
         name: { needs: { nameEnc: true }, compute: (row) => optionalText(row.nameEnc, F.SavingsFund.name.context) },
         targetCents: { needs: { targetEnc: true }, compute: (row) => optionalInt(row.targetEnc, F.SavingsFund.targetCents.context) },
+        depositCents: { needs: { depositEnc: true }, compute: (row) => optionalInt(row.depositEnc, F.SavingsFund.depositCents.context) },
       },
       savingsMovement: {
         amountCents: { needs: { amountEnc: true }, compute: (row) => requiredInt(row.amountEnc, F.SavingsMovement.amountCents.context) },

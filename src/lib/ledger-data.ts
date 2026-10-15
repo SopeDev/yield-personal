@@ -97,7 +97,10 @@ export async function getIncomeGroups(userId: string, { activeOnly = false } = {
 export function getSavingsFunds(userId: string) {
   return db.savingsFund.findMany({
     where: { userId, archivedAt: null },
-    select: { id: true, kind: true, name: true, targetCents: true, coverMonths: true, currency: true },
+    select: {
+      id: true, kind: true, name: true, targetCents: true, coverMonths: true, currency: true,
+      interestRateBps: true, interestUntil: true, interestAfterBps: true, depositCents: true, depositRhythm: true, depositAnchor: true, depositDays: true,
+    },
     orderBy: [{ kind: "asc" }, { createdAt: "asc" }],
   });
 }

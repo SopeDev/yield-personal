@@ -134,9 +134,11 @@ Last updated: 2026-10-10
 - Onboarding: categories are picked in the wizard (suggestions or their own, each with its optional estimate) instead of every account getting Food and Car; accounts start with only Fixed and Extras. Checked against seeded data: picked categories in order with their estimates, and Food when skipped.
 - Language before sign-in: a language switch on the sign-in screen and the phone's language as the default; the wizard's first screen is only the main currency (pesos for Spanish, dollars for English).
 - Privacy notice and terms of use (plain-language, bilingual, linked from sign-in and Settings) and self-serve account deletion. Checked against seeded data: deleting a full account leaves no record in any table, and a wrong confirmation word deletes nothing.
+- Savings that grow in the forecast: each fund's interest rate (with a promotional rate's end and the rate after) and planned deposits; a cash-plus-savings line above cash, deposits leaving cash on their days, interest compounding daily; earnings shown on the Savings screen. Checked against seeded data: deposits on their days, cash lower by them, spending unchanged, interest over 90 days, and clearing restores the forecast.
 
 ## Next
 
+- Savings: rate tiers by balance (a higher rate only up to an amount, like 15% on the first $25,000), if they turn out to matter.
 - Forecast: planned one-off expenses (like tires) shown on the line before they're spent.
 - Custom stats, next: a limit on an average stat ("$180 of $300 this week", the limit stored encrypted), and possibly how many times something was bought.
 - Encryption at rest, step 3 (tidy-up, after step 2 is live): drop the emptied plaintext columns and the `*_clear_plaintext` triggers, and make the required copies NOT NULL.

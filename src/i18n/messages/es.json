@@ -275,7 +275,8 @@
     "itemExists": "Ya existe otro concepto con este nombre. Mejor combínalos.",
     "paymentDays": "Usa un número entero de días entre 1 y 60.",
     "interval": "Repite cada 1 a 12 meses.",
-    "payDays": "Usa días del 1 al 31 separados por comas (hasta 8)."
+    "payDays": "Usa días del 1 al 31 separados por comas (hasta 8).",
+    "rate": "Escribe una tasa entre 0 y 100%, como 15 u 8.5."
   },
   "recurring": {
     "title": "Pagos recurrentes",
@@ -402,7 +403,18 @@
     "archiveGoal": "Archivar meta",
     "confirmArchiveGoal": "¿Archivar esta meta? Sus movimientos se conservan.",
     "settings": "Ajustes",
-    "excludedNote": "Las categorías que no cuentan en el promedio (como Extras) quedan fuera."
+    "excludedNote": "Las categorías que no cuentan en el promedio (como Extras) quedan fuera.",
+    "growth": "Intereses y depósitos",
+    "rate": "Tasa anual (%)",
+    "rateUntil": "Tasa promocional hasta",
+    "rateAfter": "Tasa después (%)",
+    "rateHint": "Opcional. Si la tasa es promocional, el día que termina y la tasa que sigue; el pronóstico cambia ese día.",
+    "plannedDeposit": "Depósito planeado",
+    "depositEvery": "Cada cuándo",
+    "depositFrom": "A partir del",
+    "depositHint": "Opcional. El pronóstico lo pasa de tu dinero a este fondo en sus días. Registra el depósito real cuando lo hagas.",
+    "earning": "{rate}% anual · unos {daily} al día, {monthly} al mes",
+    "earningUntil": "hasta el {date}, luego {rate}%"
   },
   "manage": {
     "categoryKind": "Tipo",
@@ -693,7 +705,12 @@
     "spending": "Gastos",
     "spendingNote": "Las barras rojas son lo que sale de tu dinero cada día: el gasto diario, y los pagos y estados de cuenta en su fecha.",
     "needsCash": "El pronóstico parte de tu dinero disponible. Cuéntalo en Ajustes para ver hacia dónde va.",
-    "countCash": "Contar tu dinero"
+    "countCash": "Contar tu dinero",
+    "withSavings": "Con ahorros",
+    "interest": "intereses",
+    "toSavings": "A ahorros: {fund}",
+    "savingsSummary": "En {days} días tus ahorros serían {amount}, {interest} de ellos en intereses.",
+    "howSavings": "La línea azul suma tus ahorros a tu dinero: lo que hay hoy en cada fondo, los depósitos que planeaste (salen de tu dinero en su día, pero no son gasto) y los intereses de cada fondo, calculados día a día a su tasa y cambiando a la siguiente cuando termina una promocional."
   },
   "onboarding": {
     "preview": "Vista previa: nada de lo que escribas aquí se guarda.",
