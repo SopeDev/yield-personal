@@ -127,11 +127,12 @@ Last updated: 2026-10-10
 - Forecast: the "if you stopped working" line and runway gave way to red daily spending bars on the same scale (everyday spending, with bills and statements standing tall on their dates); income days keep their green mark under the chart.
 - Month view: card-paid recurring bills no longer read Unpaid until their statement is paid. They show Paid once charged, Scheduled before, and To confirm while estimated.
 - Custom stats: an "Average spending" stat added from the card editor with its settings (everyday spending, a category, or an item; per day, week, or month), showing the usual amount and the current period so far, with its working.
+- Stats revamp: Spending, Income, and Average income join Average spending as stats built from settings (what they're about, gross or net, and over what time), with "Change settings" in place. Total income, Net, groups' gross and net, and the daily averages were folded into them, saved cards migrating to the same figures; the income card's daily averages now look back over the history window. Checked against seeded data: saving, changing settings in place, and old cards reading the same.
 
 ## Next
 
 - Forecast: planned one-off expenses (like tires) shown on the line before they're spent.
-- Custom stats, next kinds: a limit on an average spending stat ("$180 of $300 this week", the limit stored encrypted), editing a custom stat's settings in place, and possibly income per period or how many times something was bought.
+- Custom stats, next: a limit on an average stat ("$180 of $300 this week", the limit stored encrypted), and possibly how many times something was bought.
 - Encryption at rest, step 3 (tidy-up, after step 2 is live): drop the emptied plaintext columns and the `*_clear_plaintext` triggers, and make the required copies NOT NULL.
 
 - Rename the stat labels new users find ambiguous (Spending / To pay / Outstanding, Daily income vs. Daily avg. gross), keeping the explanations in step.

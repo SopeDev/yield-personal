@@ -4,7 +4,7 @@ import { averageMonthlySpending } from "@/lib/averages";
 import { incomePace, todaySoFar, TYPICAL_SPENDING_MONTHS, typicalDailySpending } from "@/lib/daily-balance";
 import { addDays, billEvents, cardStatementEvents, FORECAST_DAYS, forecastCash, monthOfKey, paydayEvents } from "@/lib/forecast";
 import { getCashWallets, getExchanges, getRecurringIncomes, getSavingsFunds, loadCashOnHand, loadLedgerRange } from "@/lib/ledger-data";
-import { getMainCurrency, getSpendingNames, getUserSettings } from "@/lib/queries";
+import { getMainCurrency, getStatNames, getUserSettings } from "@/lib/queries";
 import { cardLayout, monthStatContext, type SavingsSnapshot, type StatRef, type SummaryCardId } from "@/lib/stats";
 import { currenciesIn, forCurrency, summarizeMonth, type MonthSummary } from "@/lib/month-summary";
 import { addMonths, monthDifference, type MonthKey } from "@/lib/months";
@@ -51,6 +51,7 @@ export async function loadMonthView(userId: string, month: MonthKey, currentMont
     statements: data.statements,
     purchases: main.data.purchases,
     recentIncomes: main.data.incomes,
+    incomeGroupDefs: main.data.incomeGroups,
     recurringIncomes: recurringIncomes.filter((recurring) => (recurring.currency ?? currency) === currency),
     lists: {
       entries: newestFirst(summaries.flatMap((summary) => summary.entries), (entry) => entry.purchase.date),
@@ -92,21 +93,22 @@ export async function loadCardSettings(userId: string, card: SummaryCardId, curr
   const [settings, wallets] = await Promise.all([getUserSettings(userId), getCashWallets(userId)]);
   const stored = settings.summaryCards[card];
   const shows = (stat: StatRef) => stored !== undefined && [stored.headline, ...stored.grid].includes(stat);
-  const showsAverage = stored !== undefined && [stored.headline, ...stored.grid].some((ref) => ref.startsWith("averageSpending:"));
-  const [cash, savings, spendingNames] = await Promise.all([
+  // Configurable stats name categories, items, and sources (a stat about one with no records lately still has its name).
+  const showsConfigurable = stored !== undefined && [stored.headline, ...stored.grid].some((ref) => ref.includes(":"));
+  const [cash, savings, statNames] = await Promise.all([
     shows("cashOnHand") ? loadCashOnHand(userId, wallets).then((balances) => splitCash(balances, settings.currency)) : { cashOnHandCents: null, cashOnHandParts: null, otherCash: [] },
     shows("savings") ? loadSavingsSnapshot(userId, currentMonth, settings.currency) : null,
-    showsAverage ? getSpendingNames(userId) : null,
+    showsConfigurable ? getStatNames(userId) : null,
   ]);
-  return { settings, ...cash, savings, spendingNames };
+  return { settings, ...cash, savings, statNames };
 }
 
 /** A summary card's layout (customized or default) and the figures it is calculated from. */
-export function summaryCardFor(card: SummaryCardId, { view, today, settings, cashOnHandCents, cashOnHandParts, otherCash, savings, spendingNames }: {
+export function summaryCardFor(card: SummaryCardId, { view, today, settings, cashOnHandCents, cashOnHandParts, otherCash, savings, statNames }: {
   view: Awaited<ReturnType<typeof loadMonthView>>;
   today: string;
 } & Awaited<ReturnType<typeof loadCardSettings>>) {
-  const context = monthStatContext({ view, today, settings, cashOnHandCents, cashOnHandParts, otherCash, savings, spendingNames });
+  const context = monthStatContext({ view, today, settings, cashOnHandCents, cashOnHandParts, otherCash, savings, statNames });
   return { context, layout: cardLayout(card, settings.summaryCards, context) };
 }
 
