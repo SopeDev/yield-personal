@@ -703,7 +703,6 @@
     "nothingUpcoming": "No bills, statements or recurring income in the next three months.",
     "estimated": "estimated",
     "overdue": "overdue",
-    "noEvents": "Just an average day",
     "howTitle": "How it's worked out",
     "how": "It starts from your cash on hand and adds each day your recent income pace ({pace} a day) less your typical everyday cash spending ({spending} a day), from your last {days} days. Bills paid in cash fall on their due dates, and recurring income on its paydays.",
     "howCards": "Card spending leaves your cash when its statement is due: what's already on it (purchases, installments, card bills), plus the card's typical everyday spending for the days still to come in its cycle.",
@@ -714,11 +713,9 @@
     "needsCash": "The forecast starts from your cash on hand. Count it in Settings to see where it's headed.",
     "countCash": "Count your cash",
     "withSavings": "Cash + savings",
-    "interest": "interest",
     "toSavings": "To savings: {fund}",
     "howSavings": "The blue line adds your savings to your cash: what's in each fund now, the deposits you've planned, and the interest each fund earns, worked out daily at its rate and switching to the next rate when a promotional one ends. Planned deposits show in blue on top of that day's bar: they leave your cash, but they aren't spending.",
-    "savings": "Savings",
-    "plusSavings": "+ {amount} savings"
+    "savings": "Savings"
   },
   "onboarding": {
     "preview": "Preview: nothing you enter here is saved.",

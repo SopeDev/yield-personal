@@ -8,7 +8,7 @@ import { requireUserId } from "@/lib/auth-user";
 import { cn } from "@/lib/cn";
 import { formatShortDate } from "@/lib/dates";
 import { FORECAST_DAYS, FORECAST_SURE_DAYS, monthOfKey } from "@/lib/forecast";
-import { formatCents } from "@/lib/money";
+import { formatWholeUnits } from "@/lib/money";
 import { dateFromKey, daysInMonth } from "@/lib/months";
 import { loadForecast } from "@/lib/month-view";
 import { todayKey } from "@/lib/today";
@@ -60,38 +60,28 @@ export default async function ForecastPage({ params }: PageProps<"/[locale]/fore
   const ticks = days.flatMap((day, index) => (day.date.endsWith("-01") ? [{ index, label: monthName(day.date) }] : []));
   // The cash left at the end of each month the forecast reaches.
   const monthEnds = days.filter((day) => Number(day.date.slice(8)) === daysInMonth(monthOfKey(day.date)));
-  // Savings on a day, shown small under its cash (savings aren't cash to spend, so they're never added to it).
-  const savingsOn = (date: string) => forecast.savings?.find((entry) => entry.date === date)?.savingsCents ?? null;
-  const savingsLine = (date: string) => {
-    const cents = savingsOn(date);
-    return cents === null ? null : <p className="text-xs text-sky-400">{format(m.plusSavings, { amount: formatCents(cents, currency) })}</p>;
-  };
   const upcoming = days.filter((day) => day.events.length > 0);
 
   return (
     <div className="space-y-8">
-      <div className="space-y-1">
-        <h1 className="font-display text-2xl font-semibold">{m.title}</h1>
-        <p className="text-sm text-muted-foreground">{format(m.subtitle, { days: FORECAST_DAYS })}</p>
-      </div>
+      <h1 className="font-display text-2xl font-semibold">{m.title}</h1>
 
       <Card className="divide-y divide-border">
         <div className="grid grid-cols-2 divide-x divide-border">
           <div className="px-4 py-4">
             <p className="text-xs text-muted-foreground">{m.cashNow}</p>
-            <Money cents={forecast.startCents} className={cn("text-lg font-semibold", forecast.startCents < 0 ? "text-loss" : "text-gain")} />
+            <Money cents={forecast.startCents} className={cn("text-lg font-semibold", forecast.startCents < 0 ? "text-loss" : "text-gain")} whole />
           </div>
           <div className="px-4 py-4">
             <p className="text-xs text-muted-foreground">{format(m.inDays, { days: FORECAST_SURE_DAYS })}</p>
-            <Money cents={inMonth.cents} className={cn("text-lg font-semibold", inMonth.cents < 0 ? "text-loss" : "text-gain")} />
-            {savingsLine(inMonth.date)}
+            <Money cents={inMonth.cents} className={cn("text-lg font-semibold", inMonth.cents < 0 ? "text-loss" : "text-gain")} whole />
             <p className="text-xs text-muted-foreground">{shortDate(inMonth.date, locale)}</p>
           </div>
         </div>
         <div className="px-4 pb-3 pt-4">
           <ForecastChart
             days={chartDays}
-            labels={{ title: m.title, estimated: m.estimated, overdue: m.overdue, noEvents: m.noEvents, forecast: m.line, spending: m.spending, savings: m.savings, withSavings: m.withSavings, interest: m.interest }}
+            labels={{ title: m.title, estimated: m.estimated, overdue: m.overdue, forecast: m.line, spending: m.spending, savings: m.savings, withSavings: m.withSavings }}
             sureDays={FORECAST_SURE_DAYS}
             ticks={ticks}
           />
@@ -102,8 +92,7 @@ export default async function ForecastPage({ params }: PageProps<"/[locale]/fore
               <div className="px-2 py-3" key={day.date}>
                 <dt className="text-xs text-muted-foreground">{format(m.endOf, { month: monthName(day.date) })}</dt>
                 <dd>
-                  <Money cents={day.cents} className={cn("text-sm font-medium", day.cents < 0 ? "text-loss" : "text-foreground")} />
-                  {savingsLine(day.date)}
+                  <Money cents={day.cents} className={cn("text-sm font-medium", day.cents < 0 ? "text-loss" : "text-foreground")} whole />
                 </dd>
               </div>
             ))}
@@ -120,7 +109,7 @@ export default async function ForecastPage({ params }: PageProps<"/[locale]/fore
                   <div className="flex items-baseline justify-between gap-3">
                     <p className="text-sm font-medium">{day.date === today ? messages.common.today : shortDate(day.date, locale)}</p>
                     <p className="text-xs text-muted-foreground">
-                      {m.leaves} <Money cents={day.cents} className={cn("text-sm font-medium", day.cents < 0 ? "text-loss" : "text-foreground")} />
+                      {m.leaves} <Money cents={day.cents} className={cn("text-sm font-medium", day.cents < 0 ? "text-loss" : "text-foreground")} whole />
                     </p>
                   </div>
                   <ul className="mt-1 space-y-0.5">
@@ -130,7 +119,7 @@ export default async function ForecastPage({ params }: PageProps<"/[locale]/fore
                           {eventLabel(event)}
                           {event.overdue ? <span className="ml-1 text-xs text-warning">· {m.overdue}</span> : event.estimated ? <span className="ml-1 text-xs text-subtle">· {m.estimated}</span> : null}
                         </span>
-                        <Money cents={event.cents} className={event.kind === "savings" ? "text-sky-400" : event.cents < 0 ? undefined : "text-gain"} signed />
+                        <Money cents={event.cents} className={event.kind === "savings" ? "text-sky-400" : event.cents < 0 ? undefined : "text-gain"} signed whole />
                       </li>
                     ))}
                   </ul>
@@ -143,9 +132,10 @@ export default async function ForecastPage({ params }: PageProps<"/[locale]/fore
 
       <Section title={m.howTitle}>
         <Card className="space-y-2 px-4 py-4 text-sm text-muted-foreground">
+          <p>{format(m.subtitle, { days: FORECAST_DAYS })}</p>
           <p>{format(m.how, {
-            pace: formatCents(forecast.paceDailyCents, currency),
-            spending: formatCents(forecast.cashDailyCents, currency),
+            pace: formatWholeUnits(forecast.paceDailyCents, currency),
+            spending: formatWholeUnits(forecast.cashDailyCents, currency),
             days: forecast.historyDays,
           })}</p>
           <p>{m.howCards}</p>

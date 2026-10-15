@@ -29,7 +29,7 @@ export function ForecastChart({ days, sureDays, ticks, labels }: {
   sureDays: number;
   /** Month starts to label under the line. */
   ticks: { index: number; label: string }[];
-  labels: { title: string; estimated: string; overdue: string; noEvents: string; forecast: string; spending: string; savings: string; withSavings: string; interest: string };
+  labels: { title: string; estimated: string; overdue: string; forecast: string; spending: string; savings: string; withSavings: string };
 }) {
   const [selected, setSelected] = useState(0);
   const plot = useRef<HTMLDivElement>(null);
@@ -71,25 +71,22 @@ export function ForecastChart({ days, sureDays, ticks, labels }: {
 
   return (
     <section aria-label={labels.title} className="space-y-3">
+      {/* The day's cash, its savings, and what happens that day, if anything: the bars show the rest. */}
       <div aria-live="polite" className="min-h-14">
         <p className="flex items-baseline justify-between gap-3">
           <span className="text-sm text-muted-foreground">{day.label}</span>
-          <Money cents={day.cents} className={cn("text-xl font-semibold", day.cents < 0 ? "text-loss" : "text-foreground")} />
+          <Money cents={day.cents} className={cn("text-xl font-semibold", day.cents < 0 ? "text-loss" : "text-foreground")} whole />
         </p>
         {day.savings ? (
-          <p className="flex items-baseline justify-between gap-3 text-xs">
-            <span className="text-sky-400">{labels.savings}</span>
-            <span className="text-sky-400">
-              <Money cents={day.savings.savingsCents} />
-              {day.savings.interestCents > 0 ? <span className="text-sky-400/80"> · {labels.interest} <Money cents={day.savings.interestCents} signed /></span> : null}
+          <p className="flex items-baseline justify-between gap-3 text-xs text-sky-400">
+            <span>{labels.savings}</span>
+            <span>
+              <Money cents={day.savings.savingsCents} whole />
+              {day.savings.interestCents >= 100 ? <> · <Money cents={day.savings.interestCents} signed whole /></> : null}
             </span>
           </p>
         ) : null}
-        <p className="flex items-baseline justify-between gap-3 text-xs">
-          <span className="text-loss/80">{labels.spending}</span>
-          <Money cents={-day.spendingCents} className="text-loss/80" signed />
-        </p>
-        {day.events.length === 0 ? <p className="text-xs text-subtle">{labels.noEvents}</p> : (
+        {day.events.length === 0 ? null : (
           <ul className="mt-1 space-y-0.5 text-xs">
             {day.events.map((event, index) => (
               <li className="flex justify-between gap-3" key={`${event.label}-${index}`}>
@@ -97,7 +94,7 @@ export function ForecastChart({ days, sureDays, ticks, labels }: {
                   {event.label}
                   {event.overdue ? <span className="ml-1 text-warning">· {labels.overdue}</span> : event.estimated ? <span className="ml-1 text-subtle">· {labels.estimated}</span> : null}
                 </span>
-                <Money cents={event.cents} className={event.savings ? "text-sky-400" : event.cents < 0 ? "text-foreground" : "text-gain"} signed />
+                <Money cents={event.cents} className={event.savings ? "text-sky-400" : event.cents < 0 ? "text-foreground" : "text-gain"} signed whole />
               </li>
             ))}
           </ul>
