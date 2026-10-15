@@ -706,11 +706,11 @@
     "spendingNote": "Red bars are what leaves your cash each day: everyday spending, and bills and card statements on their dates.",
     "needsCash": "The forecast starts from your cash on hand. Count it in Settings to see where it's headed.",
     "countCash": "Count your cash",
-    "withSavings": "With savings",
+    "withSavings": "Cash + savings",
     "interest": "interest",
     "toSavings": "To savings: {fund}",
-    "savingsSummary": "In {days} days your savings would be {amount}, {interest} of it interest.",
-    "howSavings": "The blue line adds your savings to your cash: what's in each fund now, the deposits you've planned (they leave your cash on their days, but aren't spending), and the interest each fund earns, worked out daily at its rate and switching to the next rate when a promotional one ends."
+    "howSavings": "The blue line adds your savings to your cash: what's in each fund now, the deposits you've planned, and the interest each fund earns, worked out daily at its rate and switching to the next rate when a promotional one ends. Planned deposits show in blue on top of that day's bar: they leave your cash, but they aren't spending.",
+    "savings": "Savings"
   },
   "onboarding": {
     "preview": "Preview: nothing you enter here is saved.",

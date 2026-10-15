@@ -706,11 +706,11 @@
     "spendingNote": "Las barras rojas son lo que sale de tu dinero cada día: el gasto diario, y los pagos y estados de cuenta en su fecha.",
     "needsCash": "El pronóstico parte de tu dinero disponible. Cuéntalo en Ajustes para ver hacia dónde va.",
     "countCash": "Contar tu dinero",
-    "withSavings": "Con ahorros",
+    "withSavings": "Dinero + ahorros",
     "interest": "intereses",
     "toSavings": "A ahorros: {fund}",
-    "savingsSummary": "En {days} días tus ahorros serían {amount}, {interest} de ellos en intereses.",
-    "howSavings": "La línea azul suma tus ahorros a tu dinero: lo que hay hoy en cada fondo, los depósitos que planeaste (salen de tu dinero en su día, pero no son gasto) y los intereses de cada fondo, calculados día a día a su tasa y cambiando a la siguiente cuando termina una promocional."
+    "howSavings": "La línea azul suma tus ahorros a tu dinero: lo que hay hoy en cada fondo, los depósitos que planeaste y los intereses de cada fondo, calculados día a día a su tasa y cambiando a la siguiente cuando termina una promocional. Los depósitos planeados aparecen en azul encima de la barra de ese día: salen de tu dinero, pero no son gasto.",
+    "savings": "Ahorros"
   },
   "onboarding": {
     "preview": "Vista previa: nada de lo que escribas aquí se guarda.",

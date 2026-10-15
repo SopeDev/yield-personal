@@ -11,8 +11,8 @@ export type ForecastChartDay = {
   cents: number;
   /** What leaves cash that day, as a positive amount. */
   spendingCents: number;
-  /** Cash plus savings that day, and the interest the savings have earned by then; null without savings. */
-  savings: { totalCents: number; interestCents: number } | null;
+  /** Cash plus savings that day (the blue line), the savings alone, and the interest they've earned by then; null without savings. */
+  savings: { totalCents: number; savingsCents: number; interestCents: number } | null;
   events: { label: string; cents: number; estimated: boolean; overdue: boolean; savings: boolean }[];
 };
 
@@ -20,19 +20,22 @@ export type ForecastChartDay = {
  * Cash on hand day by day: a line from today, solid for the days near enough to trust (`sureDays`) and dashed
  * after, over red bars of what leaves cash each day (big bills and statements stand out against the everyday ones),
  * against amounts down the left, and with savings, a second line above it for cash plus savings growing with their
- * interest (the gap between the two is the savings). A mark under each day income comes in (green) or money moves
- * into savings (blue). Dragging across it (or the arrow keys) picks a day, whose figures and events show above.
+ * interest (the gap between the two is the savings). Money moved into savings stacks in blue on that day's bar: it
+ * leaves cash without being spent. A mark under each day income comes in. Dragging across it (or the arrow keys)
+ * picks a day, whose figures and events show above.
  */
 export function ForecastChart({ days, sureDays, ticks, labels }: {
   days: ForecastChartDay[];
   sureDays: number;
   /** Month starts to label under the line. */
   ticks: { index: number; label: string }[];
-  labels: { title: string; estimated: string; overdue: string; noEvents: string; forecast: string; spending: string; withSavings: string; interest: string };
+  labels: { title: string; estimated: string; overdue: string; noEvents: string; forecast: string; spending: string; savings: string; withSavings: string; interest: string };
 }) {
   const [selected, setSelected] = useState(0);
   const plot = useRef<HTMLDivElement>(null);
-  const values = days.flatMap((day) => [day.cents, day.spendingCents, ...(day.savings ? [day.savings.totalCents] : [])]);
+  // What each day moves into savings, stacked on its spending bar.
+  const saved = (day: ForecastChartDay) => -day.events.filter((event) => event.savings).reduce((sum, event) => sum + event.cents, 0);
+  const values = days.flatMap((day) => [day.cents, day.spendingCents + saved(day), ...(day.savings ? [day.savings.totalCents] : [])]);
   const hasSavings = days.some((day) => day.savings !== null);
   const min = Math.min(0, ...values);
   const max = Math.max(0, ...values);
@@ -75,9 +78,9 @@ export function ForecastChart({ days, sureDays, ticks, labels }: {
         </p>
         {day.savings ? (
           <p className="flex items-baseline justify-between gap-3 text-xs">
-            <span className="text-sky-400">{labels.withSavings}</span>
+            <span className="text-sky-400">{labels.savings}</span>
             <span className="text-sky-400">
-              <Money cents={day.savings.totalCents} />
+              <Money cents={day.savings.savingsCents} />
               {day.savings.interestCents > 0 ? <span className="text-sky-400/80"> · {labels.interest} <Money cents={day.savings.interestCents} signed /></span> : null}
             </span>
           </p>
@@ -121,16 +124,26 @@ export function ForecastChart({ days, sureDays, ticks, labels }: {
           </div>
         ))}
         <svg aria-hidden="true" className="absolute inset-0 size-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 100">
-          {days.map((entry, index) => entry.spendingCents <= 0 ? null : (
-            <rect
-              className={index === selected ? "fill-loss" : index <= sureEnd ? "fill-loss/55" : "fill-loss/30"}
-              height={y(0) - y(entry.spendingCents)}
-              key={entry.label}
-              width={barWidth}
-              x={Math.min(100 - barWidth, Math.max(0, x(index) - barWidth / 2))}
-              y={y(entry.spendingCents)}
-            />
-          ))}
+          {days.map((entry, index) => {
+            const left = Math.min(100 - barWidth, Math.max(0, x(index) - barWidth / 2));
+            const toSavings = saved(entry);
+            return (
+              <g key={entry.label}>
+                {entry.spendingCents > 0 ? (
+                  <rect className={index === selected ? "fill-loss" : index <= sureEnd ? "fill-loss/55" : "fill-loss/30"} height={y(0) - y(entry.spendingCents)} width={barWidth} x={left} y={y(entry.spendingCents)} />
+                ) : null}
+                {toSavings > 0 ? (
+                  <rect
+                    className={index === selected ? "fill-sky-400" : index <= sureEnd ? "fill-sky-400/70" : "fill-sky-400/40"}
+                    height={y(entry.spendingCents) - y(entry.spendingCents + toSavings)}
+                    width={barWidth}
+                    x={left}
+                    y={y(entry.spendingCents + toSavings)}
+                  />
+                ) : null}
+              </g>
+            );
+          })}
           {hasSavings ? (
             <>
               <polyline className="stroke-sky-400" fill="none" points={points(0, sureEnd, total)} strokeLinejoin="round" strokeWidth={2} vectorEffect="non-scaling-stroke" />
@@ -160,17 +173,13 @@ export function ForecastChart({ days, sureDays, ticks, labels }: {
       </div>
 
       <div aria-hidden="true" className="relative ml-9 h-2">
-        {days.map((entry, index) => {
-          const income = entry.events.some((event) => event.cents > 0);
-          const saved = entry.events.some((event) => event.savings);
-          return !income && !saved ? null : (
-            <span
-              className={cn("absolute top-0 h-2 w-0.5 -translate-x-1/2 rounded-full", income ? "bg-gain" : "bg-sky-400")}
-              key={entry.label}
-              style={{ left: `${x(index)}%` }}
-            />
-          );
-        })}
+        {days.map((entry, index) => !entry.events.some((event) => event.cents > 0) ? null : (
+          <span
+            className="absolute top-0 h-2 w-0.5 -translate-x-1/2 rounded-full bg-gain"
+            key={entry.label}
+            style={{ left: `${x(index)}%` }}
+          />
+        ))}
       </div>
       <div aria-hidden="true" className="relative ml-9 h-4 text-[10px] text-muted-foreground">
         {ticks.map((tick) => (
