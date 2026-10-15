@@ -11,7 +11,8 @@ const plan = (changes: Partial<OnboardingAnswers>) => {
 
 test("skipping everything saves only the currency, counting income day by day", () => {
   assert.deepEqual(plan({}), {
-    currency: "MXN", rhythm: { kind: "DAILY" }, salary: null, cashCents: null, cards: [], bills: [], incomeEstimateCents: null, spendingEstimates: [],
+    currency: "MXN", rhythm: { kind: "DAILY" }, salary: null, cashCents: null, cards: [], bills: [], incomeEstimateCents: null,
+    categories: [{ key: "food", name: null, monthlyEstimateCents: null }],
   });
   assert.deepEqual(planOnboarding(answers({ currency: "GBP" })), { error: "currency" });
 });
@@ -52,15 +53,17 @@ test("cash on hand, cards with their colors, and bills paid in cash or with one 
   assert.deepEqual(planOnboarding(answers({ cash: "-5" })), { error: "cash" });
 });
 
-test("rough monthly estimates: income only when it varies, spending for the categories given", () => {
+test("the categories picked, built-in or named, each with an optional monthly estimate; income estimated only when it varies", () => {
   const result = plan({
     variableIncome: true, incomeEstimate: "25,000",
-    spendingEstimates: [{ categoryId: "food", amount: "10000" }, { categoryId: "car", amount: "" }],
+    categories: [{ key: "food", name: "", estimate: "10000" }, { key: null, name: " Mascotas ", estimate: "" }],
   });
   assert.equal(result.incomeEstimateCents, 2500000);
-  assert.deepEqual(result.spendingEstimates, [{ categoryId: "food", monthlyCents: 1000000 }]);
+  assert.deepEqual(result.categories, [{ key: "food", name: null, monthlyEstimateCents: 1000000 }, { key: null, name: "Mascotas", monthlyEstimateCents: null }]);
   assert.equal(plan({ variableIncome: false, incomeEstimate: "25,000" }).incomeEstimateCents, null);
-  assert.deepEqual(planOnboarding(answers({ spendingEstimates: [{ categoryId: "food", amount: "lots" }] })), { error: "estimates" });
+  assert.deepEqual(planOnboarding(answers({ categories: [{ key: "food", name: "", estimate: "lots" }] })), { error: "estimates" });
+  assert.deepEqual(planOnboarding(answers({ categories: [{ key: null, name: "Pets", estimate: "" }, { key: null, name: "pets", estimate: "" }] })), { error: "categories" });
+  assert.deepEqual(planOnboarding(answers({ categories: [{ key: null, name: "  ", estimate: "" }] })), { error: "categories" });
   assert.deepEqual(planOnboarding(answers({ variableIncome: true, incomeEstimate: "0" })), { error: "estimates" });
 });
 

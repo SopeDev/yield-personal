@@ -782,12 +782,29 @@
       "invalid": "Cada pago necesita nombre, cantidad y día (1–31), y los nombres no se pueden repetir.",
       "remove": "Quitar"
     },
-    "spending": {
-      "title": "Tu gasto del día a día",
-      "body": "¿Más o menos cuánto gastas al mes en cada una? Un cálculo al tanteo está bien. Hasta que registres unas semanas, esto ocupa el lugar de tus promedios reales para que tus primeras cifras no salgan vacías; se va desvaneciendo conforme llegan tus registros.",
+    "categories": {
+      "title": "Tus categorías",
+      "body": "Las categorías son los grupos en los que cae tu gasto, como Comida o Transporte. Dentro de cada una van los conceptos, las cosas específicas que compras: Tacos y Súper dentro de Comida, Gasolina dentro de Transporte. Los conceptos se crean conforme registras, así que por ahora solo elige tus categorías.",
+      "suggestions": {
+        "food": "Comida",
+        "transport": "Transporte",
+        "car": "Carro",
+        "home": "Hogar",
+        "health": "Salud",
+        "fun": "Entretenimiento",
+        "pets": "Mascotas",
+        "kids": "Hijos",
+        "personal": "Personal"
+      },
+      "own": "Agregar tu propia categoría",
+      "ownName": "Nombre de la categoría",
+      "estimateIntro": "Opcional: ¿más o menos cuánto al mes en cada una? Un cálculo al tanteo está bien. Hasta que registres unas semanas, esto ocupa el lugar de tus promedios reales y se desvanece conforme llegan tus registros.",
+      "estimateFor": "Más o menos cuánto al mes en {category}",
+      "perMonth": "$ al mes",
       "total": "Más o menos al mes",
-      "hint": "Opcional: deja en blanco las que quieras.",
-      "invalid": "Escribe cantidades como 4,000, o déjalas en blanco."
+      "structural": "Fijos (para tus pagos) y Extras (compras únicas que no deben contar en tus promedios) se agregan solos. Puedes cambiar todo esto después en Ajustes.",
+      "invalid": "Cada categoría necesita nombre, y los nombres no se pueden repetir.",
+      "invalidEstimate": "Escribe cantidades como 4,000, o déjalas en blanco."
     },
     "done": {
       "title": "Listo",
@@ -799,7 +816,8 @@
       "cards": "Tarjetas: {count}",
       "bills": "Pagos fijos: {count}",
       "nothing": "Nada configurado todavía. No pasa nada: puedes hacerlo todo desde Ajustes.",
-      "estimates": "Gasto del día a día: unos {amount} al mes"
+      "estimates": "Gasto del día a día: unos {amount} al mes",
+      "categories": "Categorías: {names}"
     }
   },
   "setup": {

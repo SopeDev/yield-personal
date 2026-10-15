@@ -782,12 +782,29 @@
       "invalid": "Each bill needs a name, an amount and a day (1–31), and names can't repeat.",
       "remove": "Remove"
     },
-    "spending": {
-      "title": "Your everyday spending",
-      "body": "Roughly how much do you spend a month on each? A guess is fine. Until you've logged a few weeks, these stand in for your real averages, so your first numbers aren't empty; they fade out as your records come in.",
+    "categories": {
+      "title": "Your categories",
+      "body": "Categories are the buckets your spending falls into, like Food or Transport. Inside each go items, the specific things you buy: Tacos and Groceries inside Food, Gas inside Transport. You'll create items as you log, so for now just pick your categories.",
+      "suggestions": {
+        "food": "Food",
+        "transport": "Transport",
+        "car": "Car",
+        "home": "Home",
+        "health": "Health",
+        "fun": "Entertainment",
+        "pets": "Pets",
+        "kids": "Kids",
+        "personal": "Personal"
+      },
+      "own": "Add your own category",
+      "ownName": "Category name",
+      "estimateIntro": "Optional: roughly how much a month on each? A guess is fine. Until you've logged a few weeks, these stand in for your real averages, fading out as your records come in.",
+      "estimateFor": "About how much a month on {category}",
+      "perMonth": "$ a month",
       "total": "About a month",
-      "hint": "Optional: leave any blank.",
-      "invalid": "Enter amounts like 4,000, or leave them blank."
+      "structural": "Fixed (for your bills) and Extras (one-off purchases that shouldn't count toward your averages) are added for you. You can change all of this later in Settings.",
+      "invalid": "Each category needs a name, and names can't repeat.",
+      "invalidEstimate": "Enter amounts like 4,000, or leave them blank."
     },
     "done": {
       "title": "You're set",
@@ -799,7 +816,8 @@
       "cards": "Cards: {count}",
       "bills": "Fixed bills: {count}",
       "nothing": "Nothing set up yet. That's fine: you can do it all from Settings.",
-      "estimates": "Everyday spending: about {amount} a month"
+      "estimates": "Everyday spending: about {amount} a month",
+      "categories": "Categories: {names}"
     }
   },
   "setup": {
