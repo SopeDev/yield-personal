@@ -833,5 +833,24 @@
     "income": "Ingresos variables",
     "line": "Calculaste {estimate} al mes",
     "pace": "vas para {amount}"
+  },
+  "legal": {
+    "privacy": "Aviso de privacidad",
+    "terms": "Términos de uso",
+    "updated": "Última actualización: {date}",
+    "back": "Volver a Yield",
+    "agreeBefore": "Al continuar aceptas los",
+    "agreeAnd": "y el",
+    "legalTitle": "Legal"
+  },
+  "account": {
+    "title": "Eliminar mi cuenta",
+    "hint": "Borra tu cuenta y todos tus datos",
+    "body": "Esto borra tu cuenta y todo lo que tiene, para siempre: tus gastos, ingresos, pagos, tarjetas, ahorros y ajustes. No se puede deshacer.",
+    "confirmWord": "ELIMINAR",
+    "confirm": "Escribe {word} para confirmar",
+    "button": "Eliminar mi cuenta para siempre",
+    "mismatch": "Escribe {word} tal cual para confirmar.",
+    "deleted": "Tu cuenta y todos sus datos se eliminaron. Gracias por probar Yield."
   }
 }

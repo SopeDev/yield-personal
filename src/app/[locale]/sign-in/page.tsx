@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { signIn } from "@/auth";
@@ -13,7 +14,7 @@ export default async function SignInPage({ params, searchParams }: PageProps<"/[
   if (await getCurrentUserId()) redirect(`/${locale}/month`);
 
   const messages = getDictionary(locale);
-  const { error } = await searchParams;
+  const { error, deleted } = await searchParams;
 
   async function signInWithGoogle() {
     "use server";
@@ -50,6 +51,7 @@ export default async function SignInPage({ params, searchParams }: PageProps<"/[
         <h1 className="mt-10 font-display text-2xl font-semibold">{messages.auth.title}</h1>
         <p className="mt-2 text-muted-foreground">{messages.auth.description}</p>
 
+        {deleted ? <p className="mt-6 rounded-xl border border-border bg-surface px-4 py-3 text-sm text-muted-foreground" role="status">{messages.account.deleted}</p> : null}
         {error ? <p className="mt-6 rounded-xl border border-loss/40 bg-loss/10 px-4 py-3 text-sm text-loss" role="alert">{messages.auth.failed}</p> : null}
 
         <form action={signInWithGoogle} className="mt-8">
@@ -57,6 +59,12 @@ export default async function SignInPage({ params, searchParams }: PageProps<"/[
             {messages.auth.google}
           </button>
         </form>
+        <p className="mt-6 text-xs text-muted-foreground">
+          {messages.legal.agreeBefore}{" "}
+          <Link className="underline underline-offset-2" href={`/${locale}/terms`}>{messages.legal.terms.toLocaleLowerCase(locale)}</Link>{" "}
+          {messages.legal.agreeAnd}{" "}
+          <Link className="underline underline-offset-2" href={`/${locale}/privacy`}>{messages.legal.privacy.toLocaleLowerCase(locale)}</Link>.
+        </p>
       </div>
     </main>
   );

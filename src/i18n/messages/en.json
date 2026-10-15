@@ -833,5 +833,24 @@
     "income": "Varying income",
     "line": "You estimated {estimate} a month",
     "pace": "on pace for {amount}"
+  },
+  "legal": {
+    "privacy": "Privacy notice",
+    "terms": "Terms of use",
+    "updated": "Last updated {date}",
+    "back": "Back to Yield",
+    "agreeBefore": "By continuing you accept the",
+    "agreeAnd": "and the",
+    "legalTitle": "Legal"
+  },
+  "account": {
+    "title": "Delete my account",
+    "hint": "Erase your account and all your data",
+    "body": "This erases your account and everything in it, for good: your spending, income, bills, cards, savings and settings. It can't be undone.",
+    "confirmWord": "DELETE",
+    "confirm": "Type {word} to confirm",
+    "button": "Delete my account forever",
+    "mismatch": "Type {word} exactly to confirm.",
+    "deleted": "Your account and all its data were deleted. Thanks for trying Yield."
   }
 }
