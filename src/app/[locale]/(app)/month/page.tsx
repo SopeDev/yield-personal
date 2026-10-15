@@ -8,6 +8,9 @@ import { Money } from "@/components/money";
 import { MonthEntries, type EntryItem } from "@/components/month-entries";
 import { StatementRow } from "@/components/statement-row";
 import { EstimateCheckCard } from "@/components/estimate-check-card";
+import { PlannedDepositRow } from "@/components/planned-deposit-row";
+import { addDays } from "@/lib/forecast";
+import { DEPOSIT_MATCH_DAYS } from "@/lib/savings-growth";
 import { SetupChecklistCard } from "@/components/setup-checklist";
 import { estimateCheck } from "@/lib/estimate-check";
 import { SummaryCard } from "@/components/summary-card";
@@ -30,7 +33,7 @@ import type { LedgerIncome, LedgerPaymentMethod, MonthSpendingEntry } from "@/li
 import { paymentMethodLabel } from "@/lib/payment-methods";
 import type { RecurringOccurrence } from "@/lib/recurring";
 import type { ExpectedPayday } from "@/lib/recurring-income";
-import { loadCardSettings, loadMonthView, summaryCardFor } from "@/lib/month-view";
+import { loadCardSettings, loadMonthView, loadPlannedDeposits, summaryCardFor } from "@/lib/month-view";
 import { getActivePaymentMethods, getSetupChecklist } from "@/lib/queries";
 import { monthFromSearchParam } from "@/lib/search-params";
 import { currentMonthKey, todayKey } from "@/lib/today";
@@ -52,12 +55,13 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
   // Opening a cell of the year view filters the month's entries and recurring payments to one item.
   const itemFilter = typeof query.item === "string" ? query.item : null;
   const messages = getDictionary(locale);
-  const [view, methods, cardSettings, setupChecklist] = await Promise.all([
+  const [view, methods, cardSettings, setupChecklist, plannedDeposits] = await Promise.all([
     loadMonthView(userId, month, currentMonth),
     getActivePaymentMethods(userId),
     loadCardSettings(userId, "month", currentMonth),
     // What's left to set up after the wizard, on the current month only.
     month === currentMonth ? getSetupChecklist(userId) : null,
+    loadPlannedDeposits(userId, month, currentMonth),
   ]);
 
   // Listed in every currency; the summary card and By category are the main currency's.
@@ -339,6 +343,32 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
         <Section action={<Link className="text-sm font-medium text-primary" href={`/${locale}/settings/recurring-income`}>{messages.common.manage}</Link>} title={messages.month.expectedTitle}>
           <Card>
             <ul className="divide-y divide-border">{expectedPaydays.map(paydayRow)}</ul>
+          </Card>
+        </Section>
+      ) : null}
+
+      {/* Planned moves into savings, each made with one tap; like paydays, only from the current month on. */}
+      {plannedDeposits.length > 0 ? (
+        <Section action={<Link className="text-sm font-medium text-primary" href={`/${locale}/savings`}>{messages.common.manage}</Link>} title={messages.month.savingsTitle}>
+          <Card>
+            <ul className="divide-y divide-border">
+              {plannedDeposits.map((deposit) => (
+                <PlannedDepositRow
+                  confirmable={deposit.date <= addDays(today, DEPOSIT_MATCH_DAYS.before)}
+                  currency={deposit.currency}
+                  date={deposit.date}
+                  dateLabel={formatShortDate(dateFromKey(deposit.date), locale)}
+                  fundId={deposit.fundId}
+                  fundName={deposit.fundName || messages.savings.emergencyFund}
+                  key={`${deposit.fundId}-${deposit.date}`}
+                  locale={locale}
+                  made={deposit.made ? { dateLabel: formatShortDate(dateFromKey(deposit.made.date), locale), amountCents: deposit.made.amountCents } : null}
+                  messages={messages}
+                  overdue={deposit.date < today}
+                  plannedCents={deposit.plannedCents}
+                />
+              ))}
+            </ul>
           </Card>
         </Section>
       ) : null}

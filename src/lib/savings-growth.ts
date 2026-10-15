@@ -14,8 +14,8 @@ export type GrowingFund = {
   rateUntil: string | null;
   afterBps: number | null;
   deposit: { cents: number; rhythm: RecurringIncomeRhythm } | null;
-  /** Money already moved into the fund today, so today's planned deposit is taken as done. */
-  depositedToday: boolean;
+  /** Planned deposit days already done (see `matchDeposits`), which the forecast no longer moves. */
+  doneDates: string[];
 };
 
 /** Days interest is spread over in a year, as banks count it day by day. */
@@ -49,7 +49,7 @@ export function depositDays(rhythm: RecurringIncomeRhythm, fromKey: string, toKe
 export function projectSavings({ today, days, funds }: { today: string; days: number; funds: GrowingFund[] }) {
   const end = addDays(today, days);
   const balances = funds.map((fund) => fund.balanceCents);
-  const deposits = funds.map((fund) => new Set(fund.deposit ? depositDays(fund.deposit.rhythm, today, end).filter((day) => day !== today || !fund.depositedToday) : []));
+  const deposits = funds.map((fund) => new Set(fund.deposit ? depositDays(fund.deposit.rhythm, today, end).filter((day) => !fund.doneDates.includes(day)) : []));
   const events: ForecastEvent[] = [];
   const result: { date: string; savingsCents: number; interestCents: number; depositedCents: number }[] = [];
   let interest = 0;
@@ -80,3 +80,23 @@ export function parseRatePercent(text: string) {
 
 /** Basis points as a percentage to show or edit: 1500 → "15", 850 → "8.5". */
 export const ratePercent = (bps: number) => String(bps / 100);
+
+/** How far before and after a planned deposit's day a deposit into its fund counts as making it. */
+export const DEPOSIT_MATCH_DAYS = { before: 3, after: 10 } as const;
+
+/**
+ * Which planned deposits were made: each planned day, in order, takes the first deposit into the fund (money in, not
+ * yet taken by an earlier day) from 3 days before it to 10 days after, so a deposit made a little early or late still
+ * counts. The deposit made for each day, or null.
+ */
+export function matchDeposits<M extends { date: string; amountCents: number }>(plannedDays: string[], movements: M[]) {
+  const deposits = movements.filter((movement) => movement.amountCents > 0).sort((a, b) => a.date.localeCompare(b.date));
+  const used = new Set<M>();
+  return new Map(plannedDays.map((day) => {
+    const from = addDays(day, -DEPOSIT_MATCH_DAYS.before);
+    const to = addDays(day, DEPOSIT_MATCH_DAYS.after);
+    const match = deposits.find((deposit) => !used.has(deposit) && deposit.date >= from && deposit.date <= to) ?? null;
+    if (match) used.add(match);
+    return [day, match] as const;
+  }));
+}
