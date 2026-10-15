@@ -1,14 +1,17 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { Locale } from "@/i18n/config";
 import { formatMonth } from "@/lib/dates";
 import { addMonths, type MonthKey } from "@/lib/months";
 
-export function MonthNav({ path, month, locale, labels }: {
+/** The previous and next month around the month's name, or around `title` in its place (like the Overview's view menu). */
+export function MonthNav({ path, month, locale, labels, title }: {
   path: string;
   month: MonthKey;
   locale: Locale;
   labels: { previousMonth: string; nextMonth: string };
+  title?: ReactNode;
 }) {
   const linkClass = "flex size-11 items-center justify-center rounded-full text-muted-foreground transition hover:bg-surface hover:text-foreground";
   return (
@@ -16,7 +19,7 @@ export function MonthNav({ path, month, locale, labels }: {
       <Link aria-label={labels.previousMonth} className={linkClass} href={`${path}?m=${addMonths(month, -1)}`}>
         <ChevronLeft aria-hidden="true" className="size-5" />
       </Link>
-      <h1 className="font-display text-xl font-semibold">{formatMonth(month, locale)}</h1>
+      {title ?? <h1 className="font-display text-xl font-semibold">{formatMonth(month, locale)}</h1>}
       <Link aria-label={labels.nextMonth} className={linkClass} href={`${path}?m=${addMonths(month, 1)}`}>
         <ChevronRight aria-hidden="true" className="size-5" />
       </Link>

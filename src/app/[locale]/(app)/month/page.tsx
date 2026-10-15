@@ -20,7 +20,7 @@ import { format, getDictionary } from "@/i18n/dictionaries";
 import { requireUserId } from "@/lib/auth-user";
 import { occurrencePaymentStatus, occurrenceRowStatus } from "@/lib/cash-flow";
 import { categoryLabel } from "@/lib/categories";
-import { daysBetween, formatDayHeading, formatShortDate, groupByDay } from "@/lib/dates";
+import { daysBetween, formatDayHeading, formatMonth, formatShortDate, groupByDay } from "@/lib/dates";
 import { searchText } from "@/lib/entry-filter";
 import { dateFromKey, dateKeyOf } from "@/lib/months";
 import type { LedgerIncome, LedgerPaymentMethod, MonthSpendingEntry } from "@/lib/ledger";
@@ -346,10 +346,13 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
 
   return (
     <div className="space-y-7">
-      <div className="space-y-3">
-        <OverviewToggle labels={messages.nav} locale={locale} month={month} view="month" />
-        <MonthNav labels={messages.common} locale={locale} month={month} path={`/${locale}/month`} />
-      </div>
+      <MonthNav
+        labels={messages.common}
+        locale={locale}
+        month={month}
+        path={`/${locale}/month`}
+        title={<OverviewToggle labels={messages.nav} locale={locale} month={month} title={formatMonth(month, locale)} view="month" />}
+      />
 
       {itemFilter ? (
         <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/40 bg-primary/10 px-4 py-3 text-sm">

@@ -128,6 +128,7 @@ Last updated: 2026-10-10
 - Month view: card-paid recurring bills no longer read Unpaid until their statement is paid. They show Paid once charged, Scheduled before, and To confirm while estimated.
 - Custom stats: an "Average spending" stat added from the card editor with its settings (everyday spending, a category, or an item; per day, week, or month), showing the usual amount and the current period so far, with its working.
 - Stats revamp: Spending, Income, and Average income join Average spending as stats built from settings (what they're about, gross or net, and over what time), with "Change settings" in place. Total income, Net, groups' gross and net, and the daily averages were folded into them, saved cards migrating to the same figures; the income card's daily averages now look back over the history window. Checked against seeded data: saving, changing settings in place, and old cards reading the same.
+- Overview: the Month / Year switch moved into the title between the period arrows, as a small menu, freeing the row it took above them.
 
 ## Next
 

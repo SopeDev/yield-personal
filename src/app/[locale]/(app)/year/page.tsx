@@ -98,13 +98,12 @@ export default async function YearPage({ params, searchParams }: PageProps<"/[lo
 
   return (
     <div className="space-y-5">
-      {/* Opening a month from here keeps the calendar month you're in, in the year shown. */}
-      <OverviewToggle labels={messages.nav} locale={locale} month={`${year}-${currentMonth.slice(5, 7)}` as MonthKey} view="year" />
       <div className="flex items-center justify-between">
         <Link aria-label={messages.year.previous} className={navClass} href={`/${locale}/year?year=${year - 1}`}>
           <ChevronLeft aria-hidden="true" className="size-5" />
         </Link>
-        <h1 className="text-center font-display text-lg font-semibold">{year}</h1>
+        {/* Opening a month from here keeps the calendar month you're in, in the year shown. */}
+        <OverviewToggle labels={messages.nav} locale={locale} month={`${year}-${currentMonth.slice(5, 7)}` as MonthKey} title={String(year)} view="year" />
         <Link aria-label={messages.year.next} className={navClass} href={`/${locale}/year?year=${year + 1}`}>
           <ChevronRight aria-hidden="true" className="size-5" />
         </Link>
