@@ -708,15 +708,15 @@
     "skipAll": "Omitir, lo configuro después",
     "error": "Algo no se guardó. Revisa tus respuestas e intenta de nuevo.",
     "welcome": {
-      "title": "Te damos la bienvenida a Yield",
-      "body": "Yield te muestra hacia dónde va tu mes: lo que has ganado y gastado, lo que falta por pagar y si te alcanza hasta el siguiente. Unas preguntas ahora lo dejan listo. Todo es opcional y lo puedes cambiar después en Ajustes.",
+      "title": "¿A dónde se va tu dinero?",
+      "body": "Llega la quincena, se va la quincena, y no sabes bien en qué. Yield te dice cómo va tu mes antes de que se acabe: si te alcanza para la renta, cuánto puedes gastar hoy y qué tan cerca estás de ese viaje que llevas meses posponiendo. Unas preguntas rápidas y listo; todo se puede cambiar después.",
       "language": "Idioma",
       "currency": "Moneda principal",
       "currencyHint": "La moneda en la que ves tus cifras."
     },
     "income": {
-      "title": "¿Cómo recibes tus ingresos?",
-      "body": "Elige todas las que apliquen.",
+      "title": "¿Cómo te llega el dinero?",
+      "body": "Sueldo fijo, chambas por tu cuenta, propinas, comisiones… o un poco de todo. Así Yield sabe qué esperar y cuándo. Elige todas las que apliquen.",
       "salary": "Un sueldo o pago fijo",
       "salaryHint": "Más o menos la misma cantidad en días fijos",
       "variable": "Ingresos que varían",
@@ -737,17 +737,17 @@
       "anchor": "Un día de pago reciente o próximo",
       "invalid": "Revisa el nombre, la cantidad y los días de pago.",
       "estimate": "¿Más o menos cuánto te deja al mes?",
-      "estimateHint": "Opcional. Hasta que registres unas semanas de ingresos, esto ocupa su lugar."
+      "estimateHint": "Opcional. Así tus primeras cifras no salen en ceros."
     },
     "cash": {
-      "title": "¿Cuánto dinero tienes ahora?",
-      "body": "Efectivo más lo que tienes en tu cuenta de débito y apps, sin ahorros ni tarjetas de crédito. Tu pronóstico parte de aquí; lo puedes volver a contar cuando quieras en Ajustes.",
+      "title": "¿Cuánto traes ahorita?",
+      "body": "Efectivo, débito y apps, sin ahorros ni tarjetas de crédito. Es tu punto de partida para saber si llegas a fin de mes, y con cuánto.",
       "amount": "Dinero disponible",
       "invalid": "Escribe una cantidad como 2,500."
     },
     "cards": {
       "title": "¿Usas tarjetas de crédito?",
-      "body": "Lo que gastas con tarjeta sale de tu dinero cuando vence el estado de cuenta, no cuando compras. Agrega cada tarjeta con su día de corte y cuántos días tienes para pagar.",
+      "body": "La tarjeta engaña: compras hoy, pero el dinero sale cuando pagas. Yield lleva la cuenta de cada corte para que la fecha de pago nunca te tome por sorpresa.",
       "name": "Nombre de la tarjeta",
       "namePlaceholder": "Como Nu o BBVA",
       "closingDay": "Día de corte",
@@ -758,8 +758,8 @@
       "invalid": "Cada tarjeta necesita nombre, día de corte (1–31) y días para pagar (1–60)."
     },
     "bills": {
-      "title": "Tus pagos fijos",
-      "body": "Toca los que pagas. Cuentan para lo que necesita cada mes y aparecen en su día.",
+      "title": "Lo que pagas cada mes, sí o sí",
+      "body": "Renta, luz, internet, el gym al que juras que vas a empezar a ir… Agrégalos una vez y Yield te muestra cuándo vienen y cuánto necesitas para cubrirlos.",
       "presets": {
         "rent": "Renta",
         "electricity": "Luz",
@@ -783,8 +783,8 @@
       "remove": "Quitar"
     },
     "categories": {
-      "title": "Tus categorías",
-      "body": "Las categorías son los grupos en los que cae tu gasto, como Comida o Transporte. Dentro de cada una van los conceptos, las cosas específicas que compras: Tacos y Súper dentro de Comida, Gasolina dentro de Transporte. Los conceptos se crean conforme registras, así que por ahora solo elige tus categorías.",
+      "title": "¿En qué se te va?",
+      "body": "¿El cafecito de todos los días? ¿Las salidas del fin? ¿El súper? Las categorías son los grupos donde cae tu gasto, como Comida o Transporte. Dentro van los conceptos, lo que compras en sí: Tacos o Súper dentro de Comida. Los conceptos se crean solos cuando registras; por ahora solo elige tus categorías.",
       "suggestions": {
         "food": "Comida",
         "transport": "Transporte",
@@ -798,7 +798,7 @@
       },
       "own": "Agregar tu propia categoría",
       "ownName": "Nombre de la categoría",
-      "estimateIntro": "Opcional: ¿más o menos cuánto al mes en cada una? Un cálculo al tanteo está bien. Hasta que registres unas semanas, esto ocupa el lugar de tus promedios reales y se desvanece conforme llegan tus registros.",
+      "estimateIntro": "Opcional: ¿cuánto crees que gastas al mes en cada una? Al tanteo está bien. Lo usamos mientras juntas datos reales, y en unas semanas te decimos qué tan cerca estabas (spoiler: casi nadie le atina).",
       "estimateFor": "Más o menos cuánto al mes en {category}",
       "perMonth": "$ al mes",
       "total": "Más o menos al mes",
@@ -807,8 +807,8 @@
       "invalidEstimate": "Escribe cantidades como 4,000, o déjalas en blanco."
     },
     "done": {
-      "title": "Listo",
-      "body": "Registra lo que gastas y ganas conforme pasa con el botón +. Las primeras semanas las cifras son aproximadas; se afinan conforme crece tu historial.",
+      "title": "Listo. Ahora sí, a ver a dónde se va.",
+      "body": "Registra lo que gastas y ganas al momento con el botón +; toma cinco segundos. Las primeras semanas las cifras son aproximadas: entre más registras, más te dicen.",
       "summary": "Listo para guardar",
       "salary": "Sueldo: {name}",
       "variable": "Ingresos registrados conforme llegan",
@@ -829,8 +829,8 @@
     "dismiss": "Ocultar"
   },
   "estimates": {
-    "title": "Tus estimados hasta ahora",
-    "body": "Cómo van tus primeros {days} días comparados con lo que calculaste, por mes.",
+    "title": "¿Qué tan cerca estabas?",
+    "body": "Lo que calculaste contra cómo vas en tus primeros {days} días.",
     "income": "Ingresos variables",
     "line": "Calculaste {estimate} al mes",
     "pace": "vas para {amount}"
