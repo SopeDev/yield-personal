@@ -7,10 +7,12 @@ import { getCashWallets, getExchanges, getRecurringIncomes, getSavingsFunds, loa
 import { getMainCurrency, getStatNames, getUserSettings } from "@/lib/queries";
 import { cardLayout, monthStatContext, type SavingsSnapshot, type StatRef, type SummaryCardId } from "@/lib/stats";
 import { currenciesIn, forCurrency, summarizeMonth, type MonthSummary } from "@/lib/month-summary";
-import { addMonths, monthDifference, type MonthKey } from "@/lib/months";
+import { db } from "@/db/client";
+import { addMonths, dateKeyOf, monthDifference, type MonthKey } from "@/lib/months";
 import { occurrencesForMonth, unpaidCashOccurrences } from "@/lib/recurring";
-import { expectedPaydays } from "@/lib/recurring-income";
+import { expectedPaydays, recurringIncomeRhythmOf } from "@/lib/recurring-income";
 import { emergencyFundGoal, fundBalance } from "@/lib/savings";
+import { projectSavings, type GrowingFund } from "@/lib/savings-growth";
 import { installmentsOwed } from "@/lib/statements";
 
 /** The year view and averages cover the last 12 months, ending with the given month. */
@@ -226,12 +228,20 @@ export async function loadForecast(userId: string, today: string) {
     ...paydayEvents(months.flatMap((month) => expectedPaydays(recurringIncomes, data.incomes, month)), { today, end }),
   ];
 
+  // Savings grow beside cash: planned deposits leave cash on their days, and interest adds up on the funds.
+  const funds = await growingFunds(userId, currency, today);
+  const savings = projectSavings({ today, days: FORECAST_DAYS, funds });
+  const cash = forecastCash({
+    today, startCents: cashOnHandCents, paceDailyCents: pace.cents, cashDailyCents: cashDaily.cents,
+    todayIncomeCents: todays.incomeCents, todayCashSpentCents: todays.spentCents, events: [...events, ...savings.events],
+  });
+
   return {
     currency,
-    ...forecastCash({
-      today, startCents: cashOnHandCents, paceDailyCents: pace.cents, cashDailyCents: cashDaily.cents,
-      todayIncomeCents: todays.incomeCents, todayCashSpentCents: todays.spentCents, events,
-    }),
+    ...cash,
+    // Cash plus savings each day, with the interest earned so far; none without savings.
+    savings: funds.length === 0 ? null : savings.days,
+    funds,
     startCents: cashOnHandCents,
     paceDailyCents: pace.cents,
     cashDailyCents: cashDaily.cents,
@@ -239,3 +249,29 @@ export async function loadForecast(userId: string, today: string) {
   };
 }
 
+/**
+ * The main currency's savings funds as the forecast grows them: each one's balance now (from all its movements), its
+ * interest rates, and its planned deposit (today's taken as done once money has gone into the fund today).
+ */
+async function growingFunds(userId: string, currency: string, today: string): Promise<GrowingFund[]> {
+  const funds = (await getSavingsFunds(userId)).filter((fund) => fund.currency === currency);
+  if (funds.length === 0) return [];
+  const movements = await db.savingsMovement.findMany({ where: { userId, fundId: { in: funds.map((fund) => fund.id) } }, select: { fundId: true, amountCents: true, date: true } });
+  return funds.map((fund) => {
+    const own = movements.filter((movement) => movement.fundId === fund.id);
+    const rhythm = fund.depositRhythm && fund.depositCents
+      ? recurringIncomeRhythmOf({ kind: fund.depositRhythm, anchor: fund.depositAnchor ? dateKeyOf(fund.depositAnchor) : null, days: fund.depositDays })
+      : null;
+    return {
+      id: fund.id,
+      // The emergency fund's name is shown in the interface's language.
+      name: fund.kind === "EMERGENCY" ? "" : (fund.name ?? ""),
+      balanceCents: own.reduce((sum, movement) => sum + movement.amountCents, 0),
+      rateBps: fund.interestRateBps,
+      rateUntil: fund.interestUntil ? dateKeyOf(fund.interestUntil) : null,
+      afterBps: fund.interestAfterBps,
+      deposit: rhythm && fund.depositCents ? { cents: fund.depositCents, rhythm } : null,
+      depositedToday: own.some((movement) => movement.amountCents > 0 && dateKeyOf(movement.date) === today),
+    };
+  });
+}

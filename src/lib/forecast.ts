@@ -8,11 +8,11 @@ export const FORECAST_DAYS = 90;
 /** Days near enough to forecast with some confidence; the line is drawn fainter after them. */
 export const FORECAST_SURE_DAYS = 30;
 
-/** Money arriving (positive) or leaving (negative) cash on a day: a bill, a card statement, or recurring income. */
+/** Money arriving (positive) or leaving (negative) cash on a day: a bill, a card statement, recurring income, or a planned move into savings. */
 export type ForecastEvent = {
   /** "YYYY-MM-DD"; a bill or statement already overdue falls on today. */
   date: string;
-  kind: "bill" | "statement" | "income";
+  kind: "bill" | "statement" | "income" | "savings";
   label: string;
   cents: number;
   /** Partly or wholly estimated: a variable bill, or a statement still to be charged. */
@@ -62,9 +62,10 @@ export function forecastCash({ today, days = FORECAST_DAYS, startCents, paceDail
   for (let index = 0; index <= days; index += 1) {
     const date = addDays(today, index);
     const dayEvents = (byDate.get(date) ?? []).sort((a, b) => a.cents - b.cents);
-    const outgoing = dayEvents.filter((event) => event.cents < 0).reduce((sum, event) => sum + event.cents, 0);
     cents += (index === 0 ? todayDrift : dailyDrift) + dayEvents.reduce((sum, event) => sum + event.cents, 0);
-    const spendingCents = (index === 0 ? todaySpendingLeft : cashDailyCents) - outgoing;
+    // Money moved into savings leaves cash but isn't spent.
+    const spent = dayEvents.filter((event) => event.cents < 0 && event.kind !== "savings").reduce((sum, event) => sum + event.cents, 0);
+    const spendingCents = (index === 0 ? todaySpendingLeft : cashDailyCents) - spent;
     result.push({ date, cents, spendingCents, events: dayEvents });
   }
   return { days: result, dailyDriftCents: dailyDrift };

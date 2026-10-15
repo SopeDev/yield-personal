@@ -43,12 +43,20 @@ export default async function ForecastPage({ params }: PageProps<"/[locale]/fore
 
   const { days, currency } = forecast;
   const inMonth = days[FORECAST_SURE_DAYS];
-  const chartDays: ForecastChartDay[] = days.map((day) => ({
-    label: day.date === today ? `${messages.common.today} · ${shortDate(day.date, locale)}` : shortDate(day.date, locale),
-    cents: day.cents,
-    spendingCents: day.spendingCents,
-    events: day.events.map(({ label, cents, estimated, overdue }) => ({ label, cents, estimated, overdue })),
-  }));
+  // A move into savings is named by its fund (the emergency fund in the interface's language).
+  const eventLabel = (event: (typeof days)[number]["events"][number]) =>
+    event.kind === "savings" ? format(m.toSavings, { fund: event.label || messages.savings.emergencyFund }) : event.label;
+  const chartDays: ForecastChartDay[] = days.map((day, index) => {
+    const savings = forecast.savings?.[index];
+    return {
+      label: day.date === today ? `${messages.common.today} · ${shortDate(day.date, locale)}` : shortDate(day.date, locale),
+      cents: day.cents,
+      spendingCents: day.spendingCents,
+      savings: savings ? { totalCents: day.cents + savings.savingsCents, interestCents: savings.interestCents } : null,
+      events: day.events.map((event) => ({ label: eventLabel(event), cents: event.cents, estimated: event.estimated, overdue: event.overdue, savings: event.kind === "savings" })),
+    };
+  });
+  const savingsEnd = forecast.savings?.at(-1);
   const monthName = (dateKey: string) => new Intl.DateTimeFormat(locale, { month: "short", timeZone: "UTC" }).format(dateFromKey(dateKey)).replace(".", "");
   const ticks = days.flatMap((day, index) => (day.date.endsWith("-01") ? [{ index, label: monthName(day.date) }] : []));
   // The cash left at the end of each month the forecast reaches.
@@ -77,10 +85,15 @@ export default async function ForecastPage({ params }: PageProps<"/[locale]/fore
         <div className="px-4 pb-3 pt-4">
           <ForecastChart
             days={chartDays}
-            labels={{ title: m.title, estimated: m.estimated, overdue: m.overdue, noEvents: m.noEvents, forecast: m.line, spending: m.spending }}
+            labels={{ title: m.title, estimated: m.estimated, overdue: m.overdue, noEvents: m.noEvents, forecast: m.line, spending: m.spending, withSavings: m.withSavings, interest: m.interest }}
             sureDays={FORECAST_SURE_DAYS}
             ticks={ticks}
           />
+          {savingsEnd ? (
+            <p className="mt-3 text-sm text-muted-foreground">
+              {format(m.savingsSummary, { days: FORECAST_DAYS, amount: formatCents(savingsEnd.savingsCents, currency), interest: formatCents(savingsEnd.interestCents, currency) })}
+            </p>
+          ) : null}
         </div>
         {monthEnds.length > 0 ? (
           <dl className={cn("grid divide-x divide-border text-center", monthEnds.length === 3 ? "grid-cols-3" : monthEnds.length === 2 ? "grid-cols-2" : "grid-cols-1")}>
@@ -110,10 +123,10 @@ export default async function ForecastPage({ params }: PageProps<"/[locale]/fore
                     {day.events.map((event, index) => (
                       <li className="flex justify-between gap-3 text-sm" key={`${event.label}-${index}`}>
                         <span className="truncate text-muted-foreground">
-                          {event.label}
+                          {eventLabel(event)}
                           {event.overdue ? <span className="ml-1 text-xs text-warning">· {m.overdue}</span> : event.estimated ? <span className="ml-1 text-xs text-subtle">· {m.estimated}</span> : null}
                         </span>
-                        <Money cents={event.cents} className={event.cents < 0 ? undefined : "text-gain"} signed />
+                        <Money cents={event.cents} className={event.kind === "savings" ? "text-sky-400" : event.cents < 0 ? undefined : "text-gain"} signed />
                       </li>
                     ))}
                   </ul>
@@ -133,6 +146,7 @@ export default async function ForecastPage({ params }: PageProps<"/[locale]/fore
           })}</p>
           <p>{m.howCards}</p>
           <p>{m.spendingNote}</p>
+          {savingsEnd ? <p>{m.howSavings}</p> : null}
           <p>{format(m.howFaded, { days: FORECAST_SURE_DAYS })}</p>
         </Card>
       </Section>

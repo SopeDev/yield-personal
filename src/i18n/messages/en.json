@@ -275,7 +275,8 @@
     "itemExists": "Another item already has this name. Merge them instead.",
     "paymentDays": "Use a whole number of days from 1 to 60.",
     "interval": "Repeat every 1 to 12 months.",
-    "payDays": "Use days from 1 to 31, separated by commas (up to 8)."
+    "payDays": "Use days from 1 to 31, separated by commas (up to 8).",
+    "rate": "Enter a rate between 0 and 100%, like 15 or 8.5."
   },
   "recurring": {
     "title": "Recurring payments",
@@ -402,7 +403,18 @@
     "archiveGoal": "Archive goal",
     "confirmArchiveGoal": "Archive this goal? Its movements stay in your history.",
     "settings": "Settings",
-    "excludedNote": "Categories set to not count in the average (like Extras) are left out."
+    "excludedNote": "Categories set to not count in the average (like Extras) are left out.",
+    "growth": "Interest and deposits",
+    "rate": "Annual interest rate (%)",
+    "rateUntil": "Promo rate until",
+    "rateAfter": "Rate after (%)",
+    "rateHint": "Optional. If the rate is a promotion, the day it ends and the rate after it; the forecast switches on that day.",
+    "plannedDeposit": "Planned deposit",
+    "depositEvery": "How often",
+    "depositFrom": "Starting on",
+    "depositHint": "Optional. The forecast moves it from your cash into this fund on its days. Record the actual deposit when you make it.",
+    "earning": "{rate}% a year · about {daily} a day, {monthly} a month",
+    "earningUntil": "until {date}, then {rate}%"
   },
   "manage": {
     "categoryKind": "Type",
@@ -693,7 +705,12 @@
     "spending": "Spending",
     "spendingNote": "Red bars are what leaves your cash each day: everyday spending, and bills and card statements on their dates.",
     "needsCash": "The forecast starts from your cash on hand. Count it in Settings to see where it's headed.",
-    "countCash": "Count your cash"
+    "countCash": "Count your cash",
+    "withSavings": "With savings",
+    "interest": "interest",
+    "toSavings": "To savings: {fund}",
+    "savingsSummary": "In {days} days your savings would be {amount}, {interest} of it interest.",
+    "howSavings": "The blue line adds your savings to your cash: what's in each fund now, the deposits you've planned (they leave your cash on their days, but aren't spending), and the interest each fund earns, worked out daily at its rate and switching to the next rate when a promotional one ends."
   },
   "onboarding": {
     "preview": "Preview: nothing you enter here is saved.",

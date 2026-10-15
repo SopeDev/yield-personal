@@ -2,6 +2,7 @@ import { archiveGoalFund, deleteSavingsMovement } from "@/app/actions/savings";
 import { DeleteButton } from "@/components/delete-button";
 import { InfoDialog } from "@/components/info-dialog";
 import { Money } from "@/components/money";
+import { FundGrowthForm, type FundGrowthValues } from "@/components/fund-growth-form";
 import { EmergencyMonthsForm, GoalForm, SavingsMovementForm } from "@/components/savings-forms";
 import { Card, Section } from "@/components/section";
 import { isLocale } from "@/i18n/config";
@@ -9,7 +10,10 @@ import { format, getDictionary } from "@/i18n/dictionaries";
 import { requireUserId } from "@/lib/auth-user";
 import { categoryLabel } from "@/lib/categories";
 import { cn } from "@/lib/cn";
-import { formatDayHeading } from "@/lib/dates";
+import { formatDayHeading, formatShortDate } from "@/lib/dates";
+import { formatCents } from "@/lib/money";
+import { dateKeyOf } from "@/lib/months";
+import { dailyInterestCents, ratePercent } from "@/lib/savings-growth";
 import { loadSavingsView } from "@/lib/month-view";
 import { getActivePaymentMethods, getMainCurrency, walletCurrencies } from "@/lib/queries";
 import { currentMonthKey, todayKey } from "@/lib/today";
@@ -40,6 +44,34 @@ export default async function SavingsPage({ params }: PageProps<"/[locale]/savin
   const goals = funds.filter((fund) => fund.kind === "GOAL");
   const fundLabel = (fund: (typeof funds)[number]) => (fund.kind === "EMERGENCY" ? messages.savings.emergencyFund : (fund.name ?? ""));
   const fundNames = new Map(funds.map((fund) => [fund.id, fundLabel(fund)]));
+  type Fund = (typeof funds)[number];
+  // What a fund earns at its rate today, and when a promotional rate ends, what it earns after.
+  const earning = (fund: Fund) => {
+    if (!fund.interestRateBps) return null;
+    const rates = { rateBps: fund.interestRateBps, rateUntil: fund.interestUntil ? dateKeyOf(fund.interestUntil) : null, afterBps: fund.interestAfterBps };
+    const daily = dailyInterestCents({ balanceCents: fund.balanceCents, ...rates }, today);
+    return [
+      format(messages.savings.earning, {
+        rate: ratePercent(fund.interestRateBps), daily: formatCents(Math.round(daily), fund.currency), monthly: formatCents(Math.round(daily * 30.4), fund.currency),
+      }),
+      fund.interestUntil ? format(messages.savings.earningUntil, { date: formatShortDate(fund.interestUntil, locale), rate: ratePercent(fund.interestAfterBps ?? 0) }) : null,
+    ].filter(Boolean).join(" · ");
+  };
+  const growthValues = (fund: Fund): FundGrowthValues => ({
+    rate: fund.interestRateBps ? ratePercent(fund.interestRateBps) : "",
+    until: fund.interestUntil ? dateKeyOf(fund.interestUntil) : "",
+    after: fund.interestAfterBps !== null && fund.interestUntil ? ratePercent(fund.interestAfterBps) : "",
+    deposit: fund.depositCents ? (fund.depositCents / 100).toFixed(2) : "",
+    schedule: fund.depositRhythm === "WEEKLY" || fund.depositRhythm === "BIWEEKLY" ? fund.depositRhythm : fund.depositDays.length === 1 ? "MONTHLY" : "TWICE_MONTHLY",
+    days: fund.depositDays.join(", ") || "15, 30",
+    anchor: fund.depositAnchor ? dateKeyOf(fund.depositAnchor) : today,
+  });
+  const growth = (fund: Fund) => (
+    <details className="border-t border-border">
+      <summary className="flex min-h-12 cursor-pointer items-center px-4 text-sm font-medium text-primary">{messages.savings.growth}</summary>
+      <FundGrowthForm fundId={fund.id} initial={growthValues(fund)} locale={locale} messages={messages} />
+    </details>
+  );
 
   const averageBreakdown = average.byCategory.length === 0 ? (
     <p className="px-4 py-4 text-muted-foreground">{messages.savings.averageEmpty}</p>
@@ -85,6 +117,7 @@ export default async function SavingsPage({ params }: PageProps<"/[locale]/savin
                 </div>
               </div>
               <Progress balanceCents={emergency.balanceCents} goalCents={emergency.goalCents} />
+              {earning(emergency) ? <p className="text-sm text-sky-400">{earning(emergency)}</p> : null}
               <p className={cn("text-sm font-medium", emergency.pendingCents > 0 ? "text-warning" : "text-gain")}>
                 {emergency.pendingCents > 0 ? <>{messages.savings.pending}: <Money cents={emergency.pendingCents} /></> : messages.savings.reached}
               </p>
@@ -112,6 +145,7 @@ export default async function SavingsPage({ params }: PageProps<"/[locale]/savin
               <summary className="flex min-h-12 cursor-pointer items-center px-4 text-sm font-medium text-primary">{messages.savings.settings}</summary>
               <EmergencyMonthsForm coverMonths={emergency.coverMonths} fundId={emergency.id} locale={locale} messages={messages} />
             </details>
+            {growth(emergency)}
           </Card>
         </Section>
       ) : null}
@@ -135,9 +169,11 @@ export default async function SavingsPage({ params }: PageProps<"/[locale]/savin
                         <p className="text-sm"><Money cents={goal.balanceCents} currency={goal.currency} /> <span className="text-muted-foreground">/ <Money cents={goal.goalCents} currency={goal.currency} /></span></p>
                       </div>
                       <Progress balanceCents={goal.balanceCents} goalCents={goal.goalCents} />
+                      {earning(goal) ? <p className="text-xs text-sky-400">{earning(goal)}</p> : null}
                     </summary>
                     <div className="border-t border-border bg-background/40">
                       <GoalForm initial={{ id: goal.id, name: goal.name ?? "", target: ((goal.targetCents ?? 0) / 100).toFixed(2) }} locale={locale} messages={messages} />
+                      {growth(goal)}
                       <div className="flex items-center justify-end gap-2 px-4 pb-4 text-sm text-muted-foreground">
                         {messages.savings.archiveGoal}
                         <DeleteButton action={archiveGoalFund} confirmMessage={messages.savings.confirmArchiveGoal} id={goal.id} label={messages.savings.archiveGoal} locale={locale} />

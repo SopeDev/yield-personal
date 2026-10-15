@@ -6,7 +6,9 @@ import { db } from "@/db/client";
 import { seal } from "@/db/encryption";
 import { isCurrency, parseAmountToCents } from "@/lib/money";
 import { dateFromKey, isDateKey } from "@/lib/months";
+import { parseSchedule } from "@/lib/onboarding";
 import { getMainCurrency } from "@/lib/queries";
+import { parseRatePercent } from "@/lib/savings-growth";
 import { localeFromForm, requireActionUserId } from "./action-user";
 import type { FormState } from "./form-state";
 
@@ -116,4 +118,48 @@ export async function archiveGoalFund(formData: FormData) {
   if (!isUuid(id)) return;
   await db.savingsFund.updateMany({ where: { id, userId, kind: "GOAL" }, data: { archivedAt: new Date() } });
   revalidatePath(`/${localeFromForm(formData)}`, "layout");
+}
+
+/**
+ * Sets how a fund grows: its annual interest rate (a percentage; blank for none), optionally until a day with the rate
+ * after it, and a planned deposit (an amount and how often; blank amount for none), which the forecast moves from cash
+ * into the fund on its days.
+ */
+export async function setFundGrowth(_state: FormState, formData: FormData): Promise<FormState> {
+  const userId = await requireActionUserId();
+  const id = readText(formData, "id");
+  if (!isUuid(id)) return { error: "generic" };
+  const fund = await db.savingsFund.findFirst({ where: { id, userId, archivedAt: null }, select: { id: true } });
+  if (!fund) return { error: "generic" };
+
+  const fieldErrors: FormState["fieldErrors"] = {};
+  const rateText = readText(formData, "rate");
+  const rate = rateText === "" ? null : parseRatePercent(rateText);
+  if (rateText !== "" && rate === null) fieldErrors.rate = "rate";
+  const until = readText(formData, "until");
+  const afterText = readText(formData, "after");
+  const after = afterText === "" ? null : parseRatePercent(afterText);
+  if (until !== "" && (!isDateKey(until) || rate === null)) fieldErrors.until = "date";
+  if (until !== "" && after === null && afterText !== "0") fieldErrors.after = "rate";
+  const depositText = readText(formData, "deposit");
+  const depositCents = depositText === "" ? null : parseAmountToCents(depositText);
+  if (depositText !== "" && depositCents === null) fieldErrors.deposit = "amount";
+  const schedule = depositCents === null ? null : parseSchedule(readText(formData, "schedule"), readText(formData, "days"), readText(formData, "anchor"));
+  if (depositCents !== null && schedule === null) fieldErrors.schedule = "payDays";
+  if (Object.keys(fieldErrors).length > 0) return { fieldErrors };
+
+  await db.savingsFund.update({
+    where: { id },
+    data: {
+      interestRateBps: rate,
+      interestUntil: until === "" ? null : dateFromKey(until),
+      interestAfterBps: until === "" ? null : (after ?? 0),
+      ...seal("SavingsFund", { depositCents }),
+      depositRhythm: schedule?.kind ?? null,
+      depositAnchor: schedule && schedule.kind !== "MONTH_DAYS" ? dateFromKey(schedule.anchor) : null,
+      depositDays: schedule?.kind === "MONTH_DAYS" ? schedule.days : [],
+    },
+  });
+  revalidatePath(`/${localeFromForm(formData)}`, "layout");
+  return { savedAt: Date.now() };
 }

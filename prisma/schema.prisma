@@ -424,6 +424,18 @@ model SavingsFund {
   nameEnc     String?           @map("name_enc")
   targetEnc   String?           @map("target_enc")
   coverMonths Int               @default(3) @map("cover_months")
+  /// Annual interest the fund earns, in basis points (1500 = 15%), compounded daily in the forecast; none when unset.
+  interestRateBps  Int?         @map("interest_rate_bps")
+  /// When a promotional rate ends: from the day after, the fund earns `interestAfterBps` instead.
+  interestUntil    DateTime?    @map("interest_until") @db.Date
+  interestAfterBps Int?         @map("interest_after_bps")
+  /// A planned deposit, for the forecast: this amount (encrypted; read as `depositCents`) moved from cash into the
+  /// fund on each of its days, set like a recurring income's (days of the month, or weekly or every two weeks from
+  /// a date).
+  depositEnc       String?      @map("deposit_enc")
+  depositRhythm    IncomeRhythm? @map("deposit_rhythm")
+  depositAnchor    DateTime?    @map("deposit_anchor") @db.Date
+  depositDays      Int[]        @default([]) @map("deposit_days")
   archivedAt  DateTime?         @map("archived_at") @db.Timestamptz(6)
   createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
   user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
