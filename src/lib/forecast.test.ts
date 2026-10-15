@@ -110,7 +110,7 @@ test("recurring income not received yet falls on its payday, or today once it's 
   assert.equal(addDays("2026-12-31", 1), "2027-01-01");
 });
 
-test("without work, cash only falls: everyday spending, bills and statements, no income; the runway is the first day below zero", () => {
+test("each day's spending: the rest of today's typical spending, then a typical day plus its bills and statements", () => {
   const forecast = forecastCash({
     today: "2026-10-14", days: 3, startCents: 100000, paceDailyCents: 170000, cashDailyCents: 30000, todayCashSpentCents: 10000,
     events: [
@@ -118,10 +118,8 @@ test("without work, cash only falls: everyday spending, bills and statements, no
       { date: "2026-10-16", kind: "bill", label: "Luz", cents: -50000, estimated: false, overdue: false },
     ],
   });
-  // 1,000 − 200 left of today; −300 a day; the income never arrives; Luz −500 on the 16th.
-  assert.deepEqual(forecast.days.map((day) => day.withoutWorkCents), [80000, 50000, -30000, -60000]);
-  assert.equal(forecast.runway, "2026-10-16");
-  assert.equal(forecastCash({ today: "2026-10-14", days: 2, startCents: 100000, paceDailyCents: 0, cashDailyCents: 100, events: [] }).runway, null);
+  // 200 left of today's 300; 300 a day; income isn't spending; Luz adds 500 on the 16th.
+  assert.deepEqual(forecast.days.map((day) => day.spendingCents), [20000, 30000, 80000, 30000]);
 });
 
 test("the amount axis steps by round numbers and reads them short", () => {

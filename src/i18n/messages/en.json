@@ -603,10 +603,8 @@
     "howCards": "Card spending leaves your cash when its statement is due: what's already on it (purchases, installments, card bills), plus the card's typical everyday spending for the days still to come in its cycle.",
     "howFaded": "Past {days} days the line is dashed: the further out, the rougher the guess, until more months of history firm it up.",
     "line": "Forecast",
-    "withoutWork": "If you stopped working",
-    "runway": "If you stopped working today, your cash would run out on {date}.",
-    "runwayBeyond": "If you stopped working today, your cash would still last past {date}.",
-    "howWithoutWork": "The red line is the same spending, bills and statements with no income at all: how long your cash would last if work stopped today.",
+    "spending": "Spending",
+    "spendingNote": "Red bars are what leaves your cash each day: everyday spending, and bills and card statements on their dates.",
     "needsCash": "The forecast starts from your cash on hand. Count it in Settings to see where it's headed.",
     "countCash": "Count your cash"
   }

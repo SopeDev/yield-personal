@@ -9,27 +9,27 @@ export type ForecastChartDay = {
   /** "Nov 1" in the user's language. */
   label: string;
   cents: number;
-  /** The cash with no income from today on. */
-  withoutWorkCents: number;
+  /** What leaves cash that day, as a positive amount. */
+  spendingCents: number;
   events: { label: string; cents: number; estimated: boolean; overdue: boolean }[];
 };
 
 /**
  * Cash on hand day by day: a line from today, solid for the days near enough to trust (`sureDays`) and dashed
- * after, and in red the cash if no income came in, against amounts down the left. A mark under each day money
- * comes or goes. Dragging across it (or the arrow keys) picks a day, whose cash, cash without work, and events
- * show above.
+ * after, over red bars of what leaves cash each day (big bills and statements stand out against the everyday ones),
+ * against amounts down the left. A mark under each day income comes in. Dragging across it (or the arrow keys)
+ * picks a day, whose cash, spending, and events show above.
  */
 export function ForecastChart({ days, sureDays, ticks, labels }: {
   days: ForecastChartDay[];
   sureDays: number;
   /** Month starts to label under the line. */
   ticks: { index: number; label: string }[];
-  labels: { title: string; estimated: string; overdue: string; noEvents: string; forecast: string; withoutWork: string };
+  labels: { title: string; estimated: string; overdue: string; noEvents: string; forecast: string; spending: string };
 }) {
   const [selected, setSelected] = useState(0);
   const plot = useRef<HTMLDivElement>(null);
-  const values = days.flatMap((day) => [day.cents, day.withoutWorkCents]);
+  const values = days.flatMap((day) => [day.cents, day.spendingCents]);
   const min = Math.min(0, ...values);
   const max = Math.max(0, ...values);
   // A little room above and below the line.
@@ -43,7 +43,8 @@ export function ForecastChart({ days, sureDays, ticks, labels }: {
   const points = (from: number, to: number, value: (day: ForecastChartDay) => number) =>
     days.slice(from, to + 1).map((day, offset) => `${x(from + offset)},${y(value(day))}`).join(" ");
   const cash = (day: ForecastChartDay) => day.cents;
-  const withoutWork = (day: ForecastChartDay) => day.withoutWorkCents;
+  // Each day's bar is centred on its point of the line, a little narrower than the day.
+  const barWidth = (100 / (last + 1)) * 0.6;
   const amounts = axisTicks(bottom, top);
   const sureEnd = Math.min(sureDays, last);
   const day = days[selected];
@@ -68,8 +69,8 @@ export function ForecastChart({ days, sureDays, ticks, labels }: {
           <Money cents={day.cents} className={cn("text-xl font-semibold", day.cents < 0 ? "text-loss" : "text-foreground")} />
         </p>
         <p className="flex items-baseline justify-between gap-3 text-xs">
-          <span className="text-loss/80">{labels.withoutWork}</span>
-          <Money cents={day.withoutWorkCents} className="text-loss/80" />
+          <span className="text-loss/80">{labels.spending}</span>
+          <Money cents={-day.spendingCents} className="text-loss/80" signed />
         </p>
         {day.events.length === 0 ? <p className="text-xs text-subtle">{labels.noEvents}</p> : (
           <ul className="mt-1 space-y-0.5 text-xs">
@@ -106,10 +107,16 @@ export function ForecastChart({ days, sureDays, ticks, labels }: {
           </div>
         ))}
         <svg aria-hidden="true" className="absolute inset-0 size-full overflow-visible" preserveAspectRatio="none" viewBox="0 0 100 100">
-          <polyline className="stroke-loss/80" fill="none" points={points(0, sureEnd, withoutWork)} strokeLinejoin="round" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
-          {sureEnd < last ? (
-            <polyline className="stroke-loss/40" fill="none" points={points(sureEnd, last, withoutWork)} strokeDasharray="4 4" strokeLinejoin="round" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
-          ) : null}
+          {days.map((entry, index) => entry.spendingCents <= 0 ? null : (
+            <rect
+              className={index === selected ? "fill-loss" : index <= sureEnd ? "fill-loss/55" : "fill-loss/30"}
+              height={y(0) - y(entry.spendingCents)}
+              key={entry.label}
+              width={barWidth}
+              x={Math.min(100 - barWidth, Math.max(0, x(index) - barWidth / 2))}
+              y={y(entry.spendingCents)}
+            />
+          ))}
           <polyline className="stroke-primary" fill="none" points={points(0, sureEnd, cash)} strokeLinejoin="round" strokeWidth={2} vectorEffect="non-scaling-stroke" />
           {sureEnd < last ? (
             <polyline className="stroke-primary/50" fill="none" points={points(sureEnd, last, cash)} strokeDasharray="4 4" strokeLinejoin="round" strokeWidth={2} vectorEffect="non-scaling-stroke" />
@@ -121,17 +128,12 @@ export function ForecastChart({ days, sureDays, ticks, labels }: {
           className="absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background bg-foreground"
           style={{ left: `${x(selected)}%`, top: `${y(day.cents)}%` }}
         />
-        <span
-          aria-hidden="true"
-          className="absolute size-2 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-background bg-loss"
-          style={{ left: `${x(selected)}%`, top: `${y(day.withoutWorkCents)}%` }}
-        />
       </div>
 
       <div aria-hidden="true" className="relative ml-9 h-2">
-        {days.map((entry, index) => entry.events.length === 0 ? null : (
+        {days.map((entry, index) => !entry.events.some((event) => event.cents > 0) ? null : (
           <span
-            className={cn("absolute top-0 h-2 w-0.5 -translate-x-1/2 rounded-full", entry.events.some((event) => event.cents < 0) ? "bg-foreground/50" : "bg-gain")}
+            className="absolute top-0 h-2 w-0.5 -translate-x-1/2 rounded-full bg-gain"
             key={entry.label}
             style={{ left: `${x(index)}%` }}
           />
@@ -144,7 +146,7 @@ export function ForecastChart({ days, sureDays, ticks, labels }: {
       </div>
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
         <span className="flex items-center gap-1.5"><span aria-hidden="true" className="h-0.5 w-4 rounded-full bg-primary" />{labels.forecast}</span>
-        <span className="flex items-center gap-1.5"><span aria-hidden="true" className="h-0.5 w-4 rounded-full bg-loss/80" />{labels.withoutWork}</span>
+        <span className="flex items-center gap-1.5"><span aria-hidden="true" className="h-2.5 w-1.5 rounded-sm bg-loss/55" />{labels.spending}</span>
       </div>
     </section>
   );
