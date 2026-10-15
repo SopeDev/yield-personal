@@ -147,6 +147,6 @@ Last updated: 2026-10-10
 - Savings: rate tiers by balance (a higher rate only up to an amount, like 15% on the first $25,000), if they turn out to matter.
 - Forecast: planned one-off expenses (like tires) shown on the line before they're spent.
 - Custom stats, next: a limit on an average stat ("$180 of $300 this week", the limit stored encrypted), and possibly how many times something was bought.
-- Encryption at rest, step 3 (tidy-up, after step 2 is live): drop the emptied plaintext columns and the `*_clear_plaintext` triggers, and make the required copies NOT NULL.
+- Encryption at rest, step 3 (optional tidy-up, skipped for now): drop the emptied plaintext columns and the `*_clear_plaintext` triggers, and make the required copies NOT NULL. The columns are empty, so leaving them costs nothing; dropping them can't be undone.
 
 - Flag figures based on too little history (typical daily spending and the income pace on a new account), in the stat's note or its explanation.
