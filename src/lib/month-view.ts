@@ -5,7 +5,7 @@ import { DAYS_PER_MONTH, incomePace, todaySoFar, TYPICAL_SPENDING_MONTHS, typica
 import { addDays, billEvents, cardStatementEvents, FORECAST_DAYS, forecastCash, monthOfKey, paydayEvents } from "@/lib/forecast";
 import { getCashWallets, getExchanges, getRecurringIncomes, getSavingsFunds, loadCashOnHand, loadLedgerRange } from "@/lib/ledger-data";
 import { getMainCurrency, getStatNames, getUserSettings } from "@/lib/queries";
-import { cardLayout, monthStatContext, type SavingsSnapshot, type StatRef, type SummaryCardId } from "@/lib/stats";
+import { cardLayout, monthStatContext, type OtherCash, type SavingsSnapshot, type StatRef, type SummaryCardId } from "@/lib/stats";
 import { currenciesIn, forCurrency, summarizeMonth, type MonthSummary } from "@/lib/month-summary";
 import { db } from "@/db/client";
 import { addMonths, dateKeyOf, monthDifference, type MonthKey } from "@/lib/months";
@@ -14,6 +14,8 @@ import { expectedPaydays, recurringIncomeRhythmOf } from "@/lib/recurring-income
 import { emergencyFundGoal, fundBalance } from "@/lib/savings";
 import { DEPOSIT_MATCH_DAYS, depositDays, matchDeposits, projectSavings, type GrowingFund } from "@/lib/savings-growth";
 import { installmentsOwed } from "@/lib/statements";
+import { convertCents, type ExchangeRates } from "@/lib/currency-conversion";
+import { loadExchangeRates } from "@/lib/exchange-rates";
 
 /** The year view and averages cover the last 12 months, ending with the given month. */
 export const YEAR_MONTHS = 12;
@@ -25,7 +27,7 @@ export const CARRY_UNPAID_MONTHS = 12;
  * The current month also carries unpaid statements and cash bills from earlier months; other months show only
  * their own. Recent purchases and incomes are loaded too, for typical daily spending and the pace of work.
  *
- * Currencies are never converted: the month's figures (and `purchases`, for typical spending) are the main
+ * Records are never converted: the month's figures (and `purchases`, for typical spending) are the main
  * currency's, `lists` holds the records of every currency to list them, and `others` totals each other currency.
  * Recurring income's paydays are listed in every currency; only the main currency's are expected in the figures.
  */
@@ -76,14 +78,33 @@ export async function loadMonthView(userId: string, month: MonthKey, currentMont
   };
 }
 
-/** Money on hand split into the main currency's wallet (the stat) and the other currencies' (noted beside it). */
-export function splitCash(balances: Awaited<ReturnType<typeof loadCashOnHand>>, mainCurrency: string) {
+/**
+ * Money on hand in the main currency: its own wallet plus the other currencies' wallets counted at today's rate
+ * (`otherCash` lists them; one with no rate known is only noted). Null when no wallet that counts in it is set.
+ */
+export function splitCash(balances: Awaited<ReturnType<typeof loadCashOnHand>>, mainCurrency: string, rates: ExchangeRates = new Map()) {
   const counted = balances.flatMap(({ wallet, cents }) => (cents === null ? [] : [{ currency: wallet.currency, cents }]));
+  const mainCents = counted.find((cash) => cash.currency === mainCurrency)?.cents ?? null;
+  const otherCash: OtherCash[] = counted.filter((cash) => cash.currency !== mainCurrency).map((cash) => {
+    const rate = rates.get(cash.currency);
+    return rate ? { ...cash, converted: { cents: convertCents(cash.cents, rate.rate), rate: rate.rate, date: rate.date } } : cash;
+  });
+  const convertedCents = otherCash.reduce((sum, cash) => sum + (cash.converted?.cents ?? 0), 0);
+  const anyConverted = otherCash.some((cash) => cash.converted);
   return {
-    cashOnHandCents: counted.find((cash) => cash.currency === mainCurrency)?.cents ?? null,
+    cashOnHandCents: mainCents === null && !anyConverted ? null : (mainCents ?? 0) + convertedCents,
     cashOnHandParts: balances.find(({ wallet }) => wallet.currency === mainCurrency)?.parts ?? null,
-    otherCash: counted.filter((cash) => cash.currency !== mainCurrency),
+    otherCash,
   };
+}
+
+/** Money on hand now (`splitCash`), with today's rates for the wallets in other currencies. */
+export async function loadCash(userId: string, wallets: Awaited<ReturnType<typeof getCashWallets>>, mainCurrency: string) {
+  const [balances, rates] = await Promise.all([
+    loadCashOnHand(userId, wallets),
+    loadExchangeRates(mainCurrency, wallets.map((wallet) => wallet.currency)),
+  ]);
+  return splitCash(balances, mainCurrency, rates);
 }
 
 /**
@@ -98,7 +119,7 @@ export async function loadCardSettings(userId: string, card: SummaryCardId, curr
   // Configurable stats name categories, items, and sources (a stat about one with no records lately still has its name).
   const showsConfigurable = stored !== undefined && [stored.headline, ...stored.grid].some((ref) => ref.includes(":"));
   const [cash, savings, statNames] = await Promise.all([
-    shows("cashOnHand") ? loadCashOnHand(userId, wallets).then((balances) => splitCash(balances, settings.currency)) : { cashOnHandCents: null, cashOnHandParts: null, otherCash: [] },
+    shows("cashOnHand") ? loadCash(userId, wallets, settings.currency) : { cashOnHandCents: null, cashOnHandParts: null, otherCash: [] },
     shows("savings") ? loadSavingsSnapshot(userId, currentMonth, settings.currency) : null,
     showsConfigurable ? getStatNames(userId) : null,
   ]);
@@ -153,13 +174,24 @@ export async function loadSavingsView(userId: string, currentMonth: MonthKey) {
   };
 }
 
-/** Savings in the main currency now, for the savings stat: each fund's balance and goal, as on the Savings page. */
+/**
+ * Savings now in the main currency, for the savings stat: each fund's balance and goal, as on the Savings page, with
+ * funds in other currencies counted at today's rate (one with no rate known is left out).
+ */
 export async function loadSavingsSnapshot(userId: string, currentMonth: MonthKey, mainCurrency: string): Promise<SavingsSnapshot> {
   const { funds, installmentsOwedCents } = await loadSavingsView(userId, currentMonth);
-  const main = funds.filter((fund) => fund.currency === mainCurrency);
-  const emergency = main.find((fund) => fund.kind === "EMERGENCY");
+  const rates = await loadExchangeRates(mainCurrency, funds.map((fund) => fund.currency));
+  const counted = funds.flatMap((fund) => {
+    if (fund.currency === mainCurrency) return [{ ...fund, original: null as { currency: string; cents: number } | null }];
+    const rate = rates.get(fund.currency);
+    if (!rate) return [];
+    // The emergency fund's goal is worked out in the main currency already; a goal fund's target is in its own.
+    const goalCents = fund.kind === "EMERGENCY" ? fund.goalCents : convertCents(fund.goalCents, rate.rate);
+    return [{ ...fund, balanceCents: convertCents(fund.balanceCents, rate.rate), goalCents, original: { currency: fund.currency, cents: fund.balanceCents } }];
+  });
+  const emergency = counted.find((fund) => fund.kind === "EMERGENCY");
   return {
-    funds: main.map(({ kind, name, balanceCents, goalCents }) => ({ kind, name, balanceCents, goalCents })),
+    funds: counted.map(({ kind, name, balanceCents, goalCents, original }) => ({ kind, name, balanceCents, goalCents, ...(original ? { original } : {}) })),
     emergency: emergency ? { coverMonths: emergency.coverMonths, emergencyCents: emergency.emergencyCents, installmentsOwedCents } : null,
   };
 }
@@ -181,7 +213,7 @@ export async function loadForecast(userId: string, today: string) {
     getRecurringIncomes(userId),
   ]);
   const currency = settings.currency;
-  const { cashOnHandCents } = splitCash(await loadCashOnHand(userId, wallets), currency);
+  const { cashOnHandCents, otherCash } = await loadCash(userId, wallets, currency);
   if (cashOnHandCents === null) return null;
 
   const data = forCurrency(allData, currency, currency);
@@ -243,22 +275,37 @@ export async function loadForecast(userId: string, today: string) {
     savings: funds.length === 0 ? null : savings.days,
     funds,
     startCents: cashOnHandCents,
+    // Other currencies counted at today's rate, in cash and in savings, to say so.
+    converted: conversionsUsed([
+      ...otherCash.flatMap((cash) => (cash.converted ? [{ currency: cash.currency, rate: cash.converted.rate, date: cash.converted.date }] : [])),
+      ...funds.flatMap((fund) => (fund.converted ? [fund.converted] : [])),
+    ]),
     paceDailyCents: pace.cents,
     cashDailyCents: cashDaily.cents,
     historyDays: pace.days,
   };
 }
 
+/** Each currency converted once, by code. */
+function conversionsUsed(conversions: { currency: string; rate: number; date: string }[]) {
+  return [...new Map(conversions.map((conversion) => [conversion.currency, conversion])).values()].sort((a, b) => a.currency.localeCompare(b.currency));
+}
+
 /**
- * The main currency's savings funds as the forecast grows them: each one's balance now (from all its movements), its
- * interest rates, and its planned deposit (with the days a deposit already made).
+ * The savings funds as the forecast grows them, in the main currency: each one's balance now (from all its
+ * movements), its interest rates, and its planned deposit (with the days a deposit already made). Funds in other
+ * currencies are counted at today's rate; one with no rate known is left out.
  */
-async function growingFunds(userId: string, currency: string, today: string): Promise<GrowingFund[]> {
-  const funds = (await getSavingsFunds(userId)).filter((fund) => fund.currency === currency);
+async function growingFunds(userId: string, currency: string, today: string): Promise<(GrowingFund & { converted?: { currency: string; rate: number; date: string } })[]> {
+  const all = await getSavingsFunds(userId);
+  const rates = await loadExchangeRates(currency, all.map((fund) => fund.currency));
+  const funds = all.filter((fund) => fund.currency === currency || rates.has(fund.currency));
   if (funds.length === 0) return [];
   const movements = await db.savingsMovement.findMany({ where: { userId, fundId: { in: funds.map((fund) => fund.id) } }, select: { fundId: true, amountCents: true, date: true } });
   return funds.map((fund) => {
     const own = movements.filter((movement) => movement.fundId === fund.id);
+    const rate = fund.currency === currency ? null : rates.get(fund.currency)!;
+    const inMain = (cents: number) => (rate ? convertCents(cents, rate.rate) : cents);
     const rhythm = fund.depositRhythm && fund.depositCents
       ? recurringIncomeRhythmOf({ kind: fund.depositRhythm, anchor: fund.depositAnchor ? dateKeyOf(fund.depositAnchor) : null, days: fund.depositDays })
       : null;
@@ -266,16 +313,17 @@ async function growingFunds(userId: string, currency: string, today: string): Pr
       id: fund.id,
       // The emergency fund's name is shown in the interface's language.
       name: fund.kind === "EMERGENCY" ? "" : (fund.name ?? ""),
-      balanceCents: own.reduce((sum, movement) => sum + movement.amountCents, 0),
+      balanceCents: inMain(own.reduce((sum, movement) => sum + movement.amountCents, 0)),
       rateBps: fund.interestRateBps,
       rateUntil: fund.interestUntil ? dateKeyOf(fund.interestUntil) : null,
       afterBps: fund.interestAfterBps,
-      deposit: rhythm && fund.depositCents ? { cents: fund.depositCents, rhythm } : null,
-      // Planned days from a little before today on that a deposit already made, so they aren't moved again.
+      deposit: rhythm && fund.depositCents ? { cents: inMain(fund.depositCents), rhythm } : null,
+      // Planned days from a little before today on that a deposit already made (matched in the fund's own currency), so they aren't moved again.
       doneDates: rhythm ? [...matchDeposits(
         depositDays(rhythm, addDays(today, -DEPOSIT_MATCH_DAYS.after), addDays(today, FORECAST_DAYS)),
         own.map((movement) => ({ date: dateKeyOf(movement.date), amountCents: movement.amountCents })),
       )].flatMap(([day, match]) => (match ? [day] : [])) : [],
+      ...(rate ? { converted: { currency: fund.currency, rate: rate.rate, date: rate.date } } : {}),
     };
   });
 }

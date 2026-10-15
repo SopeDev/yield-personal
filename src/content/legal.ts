@@ -49,6 +49,7 @@ const privacy: Record<Locale, LegalDocument> = {
         items: [
           "Vercel (hospedaje de la app) y Prisma (base de datos). Sus servidores pueden estar fuera de México, principalmente en Estados Unidos.",
           "Google, para iniciar sesión.",
+          "Frankfurter, para el tipo de cambio del día si tienes dinero en otras monedas. Solo le enviamos los códigos de las monedas (por ejemplo, USD y MXN), nunca tus cantidades ni nada sobre ti.",
           "El servicio de notificaciones de tu navegador (de Google, Apple o Mozilla), solo si activas los recordatorios.",
         ],
       },
@@ -111,6 +112,7 @@ const privacy: Record<Locale, LegalDocument> = {
         items: [
           "Vercel (hosting the app) and Prisma (the database). Their servers may be outside Mexico, mainly in the United States.",
           "Google, to sign in.",
+          "Frankfurter, for the day's exchange rates if you have money in other currencies. We only send it the currency codes (like USD and MXN), never your amounts or anything about you.",
           "Your browser's notification service (from Google, Apple or Mozilla), only if you turn on reminders.",
         ],
       },

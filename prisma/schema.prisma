@@ -38,7 +38,8 @@ model User {
   emailVerified        DateTime?             @map("email_verified") @db.Timestamptz(6)
   image                String?
   /// The currency headline figures (balance, needed per day, averages) are in (an ISO 4217 code such as "MXN").
-  /// Records in other currencies are totalled separately, never converted.
+  /// Records in other currencies are totalled separately, never converted; balances in them (cash, savings) count at
+  /// today's rate (`ExchangeRate`).
   currency             String                @default("MXN")
   /// Monthly balance goal in centavos: money to have left over or saved each month. Null when unset. Encrypted
   /// (src/lib/field-crypto.ts); the client reads it as `balanceGoalCents` (src/db/encryption.ts).
@@ -490,4 +491,17 @@ model EncryptionKeyCheck {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@map("encryption_key_checks")
+}
+
+/// The latest exchange rate from one currency to another (how many `quote` units one `base` unit buys), as published
+/// for `rateDate`, kept so a failed fetch falls back to it. Not anyone's data: shared by every account.
+model ExchangeRate {
+  base      String
+  quote     String
+  rate      Float
+  rateDate  DateTime @map("rate_date") @db.Date
+  fetchedAt DateTime @map("fetched_at") @db.Timestamptz(6)
+
+  @@id([base, quote])
+  @@map("exchange_rates")
 }
