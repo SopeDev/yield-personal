@@ -7,7 +7,7 @@ import { db } from "@/db/client";
 import { seal, sealItemName } from "@/db/encryption";
 import { isLocale, LOCALE_COOKIE, type Locale } from "@/i18n/config";
 import { dateFromKey } from "@/lib/months";
-import { planOnboarding, type OnboardingAnswers } from "@/lib/onboarding";
+import { planOnboarding, type OnboardingAnswers, type OnboardingPlan } from "@/lib/onboarding";
 import { recurringIncomeStart } from "@/lib/recurring-income";
 import { currentMonthKey, todayKey } from "@/lib/today";
 import { localeFromForm, requireActionUserId } from "./action-user";
@@ -27,13 +27,34 @@ export async function completeOnboarding(answers: OnboardingAnswers, locale: Loc
   const { plan } = result;
   const today = todayKey();
 
-  const saved = await db.$transaction(async (tx) => {
+  let saved: boolean;
+  try {
+    saved = await save(userId, plan, today);
+  } catch (error) {
+    if (error instanceof EstimateCategoryError) return { error: "estimates" };
+    throw error;
+  }
+
+  if (saved) (await cookies()).set(LOCALE_COOKIE, locale, { maxAge: LOCALE_COOKIE_MAX_AGE_SECONDS, sameSite: "lax", path: "/" });
+  revalidatePath(`/${locale}`, "layout");
+  redirect(`/${locale}/month`);
+}
+
+/** An estimate for a category that isn't one of the account's everyday ones: nothing is saved. */
+class EstimateCategoryError extends Error {}
+
+/** Everything the plan sets up, in one transaction; false when the account was already set up. */
+function save(userId: string, plan: OnboardingPlan, today: string) {
+  return db.$transaction(async (tx) => {
     const { count } = await tx.user.updateMany({
       where: { id: userId, onboardedAt: null },
       data: {
         onboardedAt: new Date(),
         currency: plan.currency,
         historyStartMonth: dateFromKey(`${currentMonthKey()}-01`),
+        // Figures from past records count from today, not the empty days before it this month.
+        trackingFrom: dateFromKey(today),
+        ...seal("User", { incomeEstimateCents: plan.incomeEstimateCents }),
         incomeRhythm: plan.rhythm.kind,
         incomeRhythmAnchor: plan.rhythm.kind === "WEEKLY" || plan.rhythm.kind === "BIWEEKLY" ? dateFromKey(plan.rhythm.anchor) : null,
         incomePayDays: plan.rhythm.kind === "MONTH_DAYS" ? plan.rhythm.days : [],
@@ -85,6 +106,18 @@ export async function completeOnboarding(answers: OnboardingAnswers, locale: Loc
       }
     }
 
+    // Estimates are only for the account's own everyday categories, the ones typical spending counts.
+    if (plan.spendingEstimates.length > 0) {
+      const everyday = await tx.category.findMany({
+        where: { userId, kind: "EVERYDAY", id: { in: plan.spendingEstimates.map((estimate) => estimate.categoryId) } },
+        select: { id: true },
+      });
+      if (everyday.length !== plan.spendingEstimates.length) throw new EstimateCategoryError();
+      for (const estimate of plan.spendingEstimates) {
+        await tx.category.update({ where: { id: estimate.categoryId }, data: seal("Category", { monthlyEstimateCents: estimate.monthlyCents }) });
+      }
+    }
+
     if (plan.salary) {
       const { rhythm } = plan.salary;
       const source = await tx.incomeSource.create({ data: { userId, ...seal("IncomeSource", { name: plan.salary.name }) }, select: { id: true } });
@@ -103,10 +136,6 @@ export async function completeOnboarding(answers: OnboardingAnswers, locale: Loc
     }
     return true;
   });
-
-  if (saved) (await cookies()).set(LOCALE_COOKIE, locale, { maxAge: LOCALE_COOKIE_MAX_AGE_SECONDS, sameSite: "lax", path: "/" });
-  revalidatePath(`/${locale}`, "layout");
-  redirect(`/${locale}/month`);
 }
 
 /** Hides the setup checklist on the month view for good. */

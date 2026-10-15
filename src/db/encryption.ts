@@ -8,12 +8,18 @@ import { normalizeItemName } from "@/lib/items";
  * name of the plaintext column it replaced) binds each value to it, so it never changes. `optional` fields may be null.
  */
 export const ENCRYPTED_FIELDS = {
-  User: { balanceGoalCents: { copy: "balanceGoalEnc", column: "balance_goal_enc", kind: "int", optional: true, context: "users.balance_goal_cents" } },
+  User: {
+    balanceGoalCents: { copy: "balanceGoalEnc", column: "balance_goal_enc", kind: "int", optional: true, context: "users.balance_goal_cents" },
+    incomeEstimateCents: { copy: "incomeEstimateEnc", column: "income_estimate_enc", kind: "int", optional: true, context: "users.income_estimate_cents" },
+  },
   PaymentMethod: {
     name: { copy: "nameEnc", column: "name_enc", kind: "text", optional: false, context: "payment_methods.name" },
     cashCountCents: { copy: "cashCountEnc", column: "cash_count_enc", kind: "int", optional: true, context: "payment_methods.cash_count_cents" },
   },
-  Category: { name: { copy: "nameEnc", column: "name_enc", kind: "text", optional: true, context: "categories.name" } },
+  Category: {
+    name: { copy: "nameEnc", column: "name_enc", kind: "text", optional: true, context: "categories.name" },
+    monthlyEstimateCents: { copy: "monthlyEstimateEnc", column: "monthly_estimate_enc", kind: "int", optional: true, context: "categories.monthly_estimate_cents" },
+  },
   Purchase: {
     amountCents: { copy: "amountEnc", column: "amount_enc", kind: "int", optional: false, context: "purchases.amount_cents" },
     note: { copy: "noteEnc", column: "note_enc", kind: "text", optional: true, context: "purchases.note" },
@@ -148,6 +154,7 @@ export function withEncryption(base: PrismaClient) {
     result: {
       user: {
         balanceGoalCents: { needs: { balanceGoalEnc: true }, compute: (row) => optionalInt(row.balanceGoalEnc, F.User.balanceGoalCents.context) },
+        incomeEstimateCents: { needs: { incomeEstimateEnc: true }, compute: (row) => optionalInt(row.incomeEstimateEnc, F.User.incomeEstimateCents.context) },
       },
       paymentMethod: {
         name: { needs: { nameEnc: true }, compute: (row) => requiredText(row.nameEnc, F.PaymentMethod.name.context) },
@@ -155,6 +162,7 @@ export function withEncryption(base: PrismaClient) {
       },
       category: {
         name: { needs: { nameEnc: true }, compute: (row) => optionalText(row.nameEnc, F.Category.name.context) },
+        monthlyEstimateCents: { needs: { monthlyEstimateEnc: true }, compute: (row) => optionalInt(row.monthlyEstimateEnc, F.Category.monthlyEstimateCents.context) },
       },
       purchase: {
         amountCents: { needs: { amountEnc: true }, compute: (row) => requiredInt(row.amountEnc, F.Purchase.amountCents.context) },

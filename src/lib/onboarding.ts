@@ -21,10 +21,14 @@ export type OnboardingAnswers = {
   currency: string;
   salary: { name: string; amount: string; schedule: SalarySchedule; days: string; anchor: string } | null;
   variableIncome: boolean;
+  /** Roughly how much varying income comes in a month; empty when not given. */
+  incomeEstimate: string;
   cash: string;
   cards: { name: string; closingDay: string; paymentDays: string }[];
   /** `card` is the index of one of `cards`, or null for cash. */
   bills: { name: string; amount: string; day: string; card: number | null; variable: boolean }[];
+  /** Roughly how much is spent a month on each everyday category; empty ones are left out. */
+  spendingEstimates: { categoryId: string; amount: string }[];
 };
 
 /** What the answers save: every amount in cents and every day checked. */
@@ -36,6 +40,8 @@ export type OnboardingPlan = {
   cashCents: number | null;
   cards: { name: string; closingDay: number; paymentDays: number; color: string }[];
   bills: { name: string; amountCents: number; dayOfMonth: number; card: number | null; isVariable: boolean }[];
+  incomeEstimateCents: number | null;
+  spendingEstimates: { categoryId: string; monthlyCents: number }[];
 };
 
 const day = (text: string, max = MAX_STATEMENT_DAY) => {
@@ -58,7 +64,7 @@ function payDays(text: string, count: number) {
  * The answers checked and turned into what gets saved, or the first step with a problem. The wizard checks each
  * step as it goes; this is the server's own check of the whole thing.
  */
-export function planOnboarding(answers: OnboardingAnswers): { plan: OnboardingPlan } | { error: "currency" | "salary" | "cash" | "cards" | "bills" } {
+export function planOnboarding(answers: OnboardingAnswers): { plan: OnboardingPlan } | { error: "currency" | "salary" | "cash" | "cards" | "bills" | "estimates" } {
   if (!isCurrency(answers.currency)) return { error: "currency" };
 
   let salary: OnboardingPlan["salary"] = null;
@@ -106,14 +112,26 @@ export function planOnboarding(answers: OnboardingAnswers): { plan: OnboardingPl
     bills.push({ name: billName, amountCents, dayOfMonth, card, isVariable: bill.variable });
   }
 
+  // Only varying income has an estimate: a salary's paydays are known.
+  const incomeText = answers.incomeEstimate.trim();
+  const incomeEstimateCents = !answers.variableIncome || incomeText === "" ? null : parseAmountToCents(incomeText);
+  if (answers.variableIncome && incomeText !== "" && incomeEstimateCents === null) return { error: "estimates" };
+  const spendingEstimates: OnboardingPlan["spendingEstimates"] = [];
+  for (const estimate of answers.spendingEstimates) {
+    if (estimate.amount.trim() === "") continue;
+    const monthlyCents = parseAmountToCents(estimate.amount);
+    if (!monthlyCents || !/^[\w-]+$/.test(estimate.categoryId) || spendingEstimates.some((other) => other.categoryId === estimate.categoryId)) return { error: "estimates" };
+    spendingEstimates.push({ categoryId: estimate.categoryId, monthlyCents });
+  }
+
   // Income that comes in as it's earned counts day by day, alongside any salary's paydays.
   const rhythm: OnboardingPlan["rhythm"] = salary && !answers.variableIncome ? salary.rhythm : { kind: "DAILY" };
-  return { plan: { currency: answers.currency, rhythm, salary, cashCents, cards, bills } };
+  return { plan: { currency: answers.currency, rhythm, salary, cashCents, cards, bills, incomeEstimateCents, spendingEstimates } };
 }
 
 /** Nothing set up: what skipping the whole wizard saves. */
 export function emptyAnswers(currency: string): OnboardingAnswers {
-  return { currency, salary: null, variableIncome: false, cash: "", cards: [], bills: [] };
+  return { currency, salary: null, variableIncome: false, incomeEstimate: "", cash: "", cards: [], bills: [], spendingEstimates: [] };
 }
 
 /** The setup checklist's steps, done or not, from what the account holds. */

@@ -14,7 +14,7 @@ import {
   type BillPreset, type OnboardingAnswers, type SalarySchedule,
 } from "@/lib/onboarding";
 
-const STEPS = ["welcome", "income", "cash", "cards", "bills", "done"] as const;
+const STEPS = ["welcome", "income", "cash", "cards", "bills", "spending", "done"] as const;
 type Step = (typeof STEPS)[number];
 
 type CardDraft = { key: number; name: string; closingDay: string; paymentDays: string };
@@ -27,9 +27,11 @@ type SalaryDraft = { name: string; amount: string; schedule: SalarySchedule; day
  * them all at once, so going back or skipping never leaves anything half saved. Without `save` it's the preview,
  * which goes through the same screens and saves nothing.
  */
-export function OnboardingWizard({ locale, labels: m, currency: initialCurrency, today, basePath, save }: {
+export function OnboardingWizard({ locale, labels: m, categories, currency: initialCurrency, today, basePath, save }: {
   locale: Locale;
   labels: Messages["onboarding"];
+  /** The everyday categories, to estimate monthly spending on. */
+  categories: { id: string; label: string }[];
   currency: string;
   /** Today as "YYYY-MM-DD", for a weekly salary's payday. */
   today: string;
@@ -42,6 +44,8 @@ export function OnboardingWizard({ locale, labels: m, currency: initialCurrency,
   const [salaryOn, setSalaryOn] = useState(false);
   const [salary, setSalary] = useState<SalaryDraft>({ name: m.income.salaryNameDefault, amount: "", schedule: "TWICE_MONTHLY", days: "15, 30", anchor: today });
   const [variableIncome, setVariableIncome] = useState(false);
+  const [incomeEstimate, setIncomeEstimate] = useState("");
+  const [spending, setSpending] = useState<Record<string, string>>({});
   const [cash, setCash] = useState("");
   const [cards, setCards] = useState<CardDraft[]>([]);
   const [bills, setBills] = useState<BillDraft[]>([]);
@@ -59,6 +63,7 @@ export function OnboardingWizard({ locale, labels: m, currency: initialCurrency,
     currency,
     salary: salaryOn ? salary : null,
     variableIncome,
+    incomeEstimate: variableIncome ? incomeEstimate : "",
     cash,
     cards: cards.map(({ name, closingDay, paymentDays }) => ({ name, closingDay, paymentDays })),
     bills: bills.map((bill) => ({
@@ -68,21 +73,23 @@ export function OnboardingWizard({ locale, labels: m, currency: initialCurrency,
       card: bill.card === null ? null : cards.findIndex((card) => card.key === bill.card),
       variable: bill.preset !== null && VARIABLE_BILLS.includes(bill.preset),
     })),
+    spendingEstimates: categories.map((category) => ({ categoryId: category.id, amount: spending[category.id] ?? "" })),
   });
 
   /** The step's own answers checked the way the server will, as the message to show, or null when they're fine. */
   const problem = (current: Step) => {
     const all = answers();
     const only: Partial<Record<Step, Partial<OnboardingAnswers>>> = {
-      income: { salary: all.salary },
+      income: { salary: all.salary, variableIncome: all.variableIncome, incomeEstimate: all.incomeEstimate },
       cash: { cash: all.cash },
       cards: { cards: all.cards },
       bills: { cards: all.cards, bills: all.bills },
+      spending: { spendingEstimates: all.spendingEstimates },
     };
     if (!only[current]) return null;
     const result = planOnboarding({ ...emptyAnswers(currency), ...only[current] });
     if (!("error" in result)) return null;
-    return { salary: m.income.invalid, cash: m.cash.invalid, cards: m.cards.invalid, bills: m.bills.invalid, currency: null }[result.error];
+    return { salary: m.income.invalid, cash: m.cash.invalid, cards: m.cards.invalid, bills: m.bills.invalid, estimates: m.spending.invalid, currency: null }[result.error];
   };
 
   const index = STEPS.indexOf(step);
@@ -100,11 +107,13 @@ export function OnboardingWizard({ locale, labels: m, currency: initialCurrency,
     if (step === "income") {
       setSalaryOn(false);
       setVariableIncome(false);
+      setIncomeEstimate("");
     } else if (step === "cash") setCash("");
     else if (step === "cards") {
       setCards([]);
       setBills((current) => current.map((bill) => ({ ...bill, card: null })));
     } else if (step === "bills") setBills([]);
+    else if (step === "spending") setSpending({});
     go(STEPS[index + 1]);
   };
   const finish = (toSave: OnboardingAnswers) => {
@@ -159,6 +168,7 @@ export function OnboardingWizard({ locale, labels: m, currency: initialCurrency,
     setBills((current) => (current.some((bill) => bill.preset === preset) ? current.filter((bill) => bill.preset !== preset) : [...current, added]));
   };
 
+  const spendingTotal = Object.values(spending).reduce((sum, amount) => sum + (parseAmountToCents(amount) ?? 0), 0);
   const summary = (() => {
     const all = answers();
     const cashCents = parseAmountToCents(all.cash) ?? (all.cash.trim() ? 0 : null);
@@ -168,6 +178,7 @@ export function OnboardingWizard({ locale, labels: m, currency: initialCurrency,
       cashCents === null ? null : format(m.done.cash, { amount: formatCents(cashCents, currency) }),
       all.cards.length > 0 ? format(m.done.cards, { count: all.cards.length }) : null,
       all.bills.length > 0 ? format(m.done.bills, { count: all.bills.length }) : null,
+      spendingTotal > 0 ? format(m.done.estimates, { amount: formatCents(spendingTotal, currency) }) : null,
     ].filter((line): line is string => line !== null);
     return lines;
   })();
@@ -227,6 +238,13 @@ export function OnboardingWizard({ locale, labels: m, currency: initialCurrency,
             </div>
           ) : null}
           {choice(variableIncome, () => setVariableIncome((on) => !on), m.income.variable, m.income.variableHint)}
+          {variableIncome ? (
+            <div className="rounded-xl border border-border p-4">
+              {field(m.income.estimate, (
+                <input className={inputClass} inputMode="decimal" onChange={(event) => setIncomeEstimate(event.target.value)} placeholder="0.00" value={incomeEstimate} />
+              ), m.income.estimateHint)}
+            </div>
+          ) : null}
         </Screen>
       ) : null}
 
@@ -312,6 +330,30 @@ export function OnboardingWizard({ locale, labels: m, currency: initialCurrency,
               setBills((current) => [...current, added]);
             }} />
           ) : null}
+        </Screen>
+      ) : null}
+
+      {step === "spending" ? (
+        <Screen body={m.spending.body} title={m.spending.title}>
+          <div className="divide-y divide-border rounded-xl border border-border">
+            {categories.map((category) => (
+              <label className="flex items-center gap-3 px-4 py-2" key={category.id}>
+                <span className="flex-1 font-medium">{category.label}</span>
+                <input
+                  aria-label={category.label}
+                  className={cn(inputClass, "w-36 text-right")}
+                  inputMode="decimal"
+                  onChange={(event) => setSpending((current) => ({ ...current, [category.id]: event.target.value }))}
+                  placeholder="0.00"
+                  value={spending[category.id] ?? ""}
+                />
+              </label>
+            ))}
+          </div>
+          {spendingTotal > 0 ? (
+            <p className="flex justify-between px-1 text-sm"><span className="text-muted-foreground">{m.spending.total}</span><span className="font-semibold">{formatCents(spendingTotal, currency)}</span></p>
+          ) : null}
+          <p className="text-sm text-muted-foreground">{m.spending.hint}</p>
         </Screen>
       ) : null}
 

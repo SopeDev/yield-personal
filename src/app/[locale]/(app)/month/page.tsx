@@ -7,7 +7,9 @@ import { EntryRow } from "@/components/entry-row";
 import { Money } from "@/components/money";
 import { MonthEntries, type EntryItem } from "@/components/month-entries";
 import { StatementRow } from "@/components/statement-row";
+import { EstimateCheckCard } from "@/components/estimate-check-card";
 import { SetupChecklistCard } from "@/components/setup-checklist";
+import { estimateCheck } from "@/lib/estimate-check";
 import { SummaryCard } from "@/components/summary-card";
 import { formatCentsIn } from "@/lib/money";
 import { MonthNav } from "@/components/month-nav";
@@ -84,6 +86,14 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
   ].sort((a, b) => b.date.getTime() - a.date.getTime());
   const today = todayKey();
   const summary = summaryCardFor("month", { view, today, ...cardSettings });
+  // A new account's first weeks: its starting estimates beside what its records come to.
+  const estimates = month === currentMonth ? estimateCheck({
+    estimates: summary.context.estimates, purchases: view.purchases, today, historyStart: summary.context.historyFrom, incomePerDayCents: summary.context.pace.realCents,
+  }) : null;
+  const categoryName = (categoryId: string) => {
+    const category = spending.byCategory.find((entry) => entry.category.id === categoryId)?.category;
+    return category ? categoryLabel(category, messages.categories) : "–";
+  };
 
   function purchaseRow(entry: MonthSpendingEntry) {
     const { purchase } = entry;
@@ -358,6 +368,7 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
       />
 
       {setupChecklist && !itemFilter ? <SetupChecklistCard checklist={setupChecklist} labels={messages.setup} locale={locale} /> : null}
+      {estimates && !itemFilter ? <EstimateCheckCard categoryLabel={categoryName} check={estimates} currency={view.currency} labels={messages.estimates} /> : null}
 
       {itemFilter ? (
         <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/40 bg-primary/10 px-4 py-3 text-sm">

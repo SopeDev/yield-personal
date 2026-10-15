@@ -247,7 +247,12 @@
     "recurringPaymentsHint": "Bills that repeat",
     "cardsHint": "Each card’s statements and upcoming installments",
     "sourcesHint": "Where income comes from, and net by group",
-    "recurringIncomeHint": "Income on a schedule, like a salary"
+    "recurringIncomeHint": "Income on a schedule, like a salary",
+    "estimates": "Starting estimates",
+    "spendingEstimates": "Everyday spending a month",
+    "incomeEstimate": "Varying income a month",
+    "estimatesHint": "Rough amounts that stand in for your averages until you have a month of records, fading out as they come in. Leave any blank to drop it.",
+    "estimatesDone": "You have a month of records, so your averages no longer use these."
   },
   "errors": {
     "exchangeCurrencies": "Choose two different currencies.",
@@ -459,14 +464,30 @@
     "add": "Add",
     "everydaySpending": "Spending",
     "averageLabel": "{what} / {period}",
-    "periods": {"day": "day", "week": "week", "month": "month"},
-    "perOptions": {"day": "Day", "week": "Week", "month": "Month"},
-    "current": {"day": "Today", "week": "This week", "month": "This month"},
+    "periods": {
+      "day": "day",
+      "week": "week",
+      "month": "month"
+    },
+    "perOptions": {
+      "day": "Day",
+      "week": "Week",
+      "month": "Month"
+    },
+    "current": {
+      "day": "Today",
+      "week": "This week",
+      "month": "This month"
+    },
     "aboutAverage": "What you usually spend per day, week or month.",
     "aboutAverageOf": "What you usually spend on {what} per {period}, from your recent spending, with what you've spent so far in the current one below it (yellow once it's past the usual).",
     "spentSince": "{what} since {date}",
     "overDays": "Days",
-    "daysPerPeriod": {"day": "Days in a day", "week": "Days in a week", "month": "Days in a month (average)"},
+    "daysPerPeriod": {
+      "day": "Days in a day",
+      "week": "Days in a week",
+      "month": "Days in a month (average)"
+    },
     "everydayNote": "Everyday spending is purchases in your everyday categories, as in a typical day.",
     "fullAmountsNote": "Purchases count in full on the day you made them. Only finished days count toward the usual, from the last few full months.",
     "netIncome": "Net income",
@@ -475,15 +496,40 @@
     "aboutSpendingOn": "What you spent on {what} this month: purchases, installments due this month, and recurring bills.",
     "spendingOnNote": "Counted as in the month's spending: card purchases included, and installments in the months they're due.",
     "inFrame": "{what} · {frame}",
-    "frames": {"day": "today", "week": "this week", "month": "this month"},
+    "frames": {
+      "day": "today",
+      "week": "this week",
+      "month": "this month"
+    },
     "aboutIncomeOf": "Income received.",
-    "aboutIncomeOfFrame": {"day": "{what} received today.", "week": "{what} received this week, from Monday on.", "month": "{what} received this month."},
+    "aboutIncomeOfFrame": {
+      "day": "{what} received today.",
+      "week": "{what} received this week, from Monday on.",
+      "month": "{what} received this month."
+    },
     "currentMonthOnly": "Today and this week only apply to the current month.",
     "incomeSince": "Income since {date}",
     "deductedPurchases": "Deducted purchases",
     "aboutAverageIncome": "What {what} usually comes to per {period}, from your recent income, with what's come in so far in the current one below it (green once it reaches the usual).",
     "historyNote": "Only finished days count toward the usual, from the last few full months (or since \"Count history from\").",
-    "builders": {"averageSpending": {"title": "Average spending", "hint": "What you usually spend on something per day, week, or month."}, "spending": {"title": "Spending", "hint": "This month's spending on everything, a category, or an item."}, "income": {"title": "Income", "hint": "Income today, this week, or this month, from all income, a group, or a source."}, "averageIncome": {"title": "Average income", "hint": "What you usually earn per day worked, day, week, or month."}},
+    "builders": {
+      "averageSpending": {
+        "title": "Average spending",
+        "hint": "What you usually spend on something per day, week, or month."
+      },
+      "spending": {
+        "title": "Spending",
+        "hint": "This month's spending on everything, a category, or an item."
+      },
+      "income": {
+        "title": "Income",
+        "hint": "Income today, this week, or this month, from all income, a group, or a source."
+      },
+      "averageIncome": {
+        "title": "Average income",
+        "hint": "What you usually earn per day worked, day, week, or month."
+      }
+    },
     "from": "From",
     "allIncome": "All income",
     "groupsGroup": "Groups",
@@ -598,7 +644,12 @@
     "workedTodayNote": "Today has income, so it's a day worked rather than a day off; anything more you log today still lowers what's left to cover.",
     "incomeThroughYesterday": "Income through yesterday",
     "daysFinished": "Days finished",
-    "everydayThroughYesterday": "Everyday spending through yesterday"
+    "everydayThroughYesterday": "Everyday spending through yesterday",
+    "estimateNote": "While you have under a month of records, {percent}% of it is still your estimate of {amount} a month (your records alone: {real} a day).",
+    "paceEstimateNote": "While you have under a month of records, {percent}% of the pace is still your estimate of {amount} a month (your records alone: {real} a day).",
+    "fromRecords": "Your records ({percent}%)",
+    "fromEstimate": "Your estimate ({percent}%, {amount} a month)",
+    "recordsPerDay": "From your records, per day"
   },
   "notifications": {
     "title": "Notifications",
@@ -684,7 +735,9 @@
       "days": "Days of the month",
       "daysHint": "Like 15, 30",
       "anchor": "A recent or upcoming payday",
-      "invalid": "Check the name, the amount and the pay days."
+      "invalid": "Check the name, the amount and the pay days.",
+      "estimate": "Roughly how much does it bring in a month?",
+      "estimateHint": "Optional. Until you've logged a few weeks of income, this stands in for it."
     },
     "cash": {
       "title": "How much money do you have right now?",
@@ -729,6 +782,13 @@
       "invalid": "Each bill needs a name, an amount and a day (1–31), and names can't repeat.",
       "remove": "Remove"
     },
+    "spending": {
+      "title": "Your everyday spending",
+      "body": "Roughly how much do you spend a month on each? A guess is fine. Until you've logged a few weeks, these stand in for your real averages, so your first numbers aren't empty; they fade out as your records come in.",
+      "total": "About a month",
+      "hint": "Optional: leave any blank.",
+      "invalid": "Enter amounts like 4,000, or leave them blank."
+    },
     "done": {
       "title": "You're set",
       "body": "Log what you spend and earn as it happens with the + button. For the first couple of weeks the numbers are rough; they get sharper as your history grows.",
@@ -738,7 +798,8 @@
       "cash": "Money on hand: {amount}",
       "cards": "Cards: {count}",
       "bills": "Fixed bills: {count}",
-      "nothing": "Nothing set up yet. That's fine: you can do it all from Settings."
+      "nothing": "Nothing set up yet. That's fine: you can do it all from Settings.",
+      "estimates": "Everyday spending: about {amount} a month"
     }
   },
   "setup": {
@@ -748,5 +809,12 @@
     "cards": "Add your credit cards, if you use any",
     "expense": "Log your first expense",
     "dismiss": "Hide"
+  },
+  "estimates": {
+    "title": "Your estimates so far",
+    "body": "How your first {days} days compare with what you guessed, a month at a time.",
+    "income": "Varying income",
+    "line": "You estimated {estimate} a month",
+    "pace": "on pace for {amount}"
   }
 }

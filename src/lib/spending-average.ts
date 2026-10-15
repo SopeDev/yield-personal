@@ -1,7 +1,7 @@
 import { isEveryday } from "./categories";
 import { historyWindow } from "./daily-balance";
 import type { LedgerPurchase } from "./ledger";
-import { dateKeyOf, type MonthKey } from "./months";
+import { dateKeyOf } from "./months";
 
 export const SPENDING_PERIODS = ["day", "week", "month"] as const;
 export type SpendingPeriod = (typeof SPENDING_PERIODS)[number];
@@ -53,7 +53,7 @@ export function periodStart(today: string, period: SpendingPeriod) {
 export function averageSpending({ purchases, today, historyStart = null, period, scope }: {
   purchases: Pick<LedgerPurchase, "date" | "amountCents" | "item">[];
   today: string;
-  historyStart?: MonthKey | null;
+  historyStart?: string | null;
   period: SpendingPeriod;
   scope: SpendingScope;
 }) {

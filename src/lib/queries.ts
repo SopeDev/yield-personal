@@ -145,17 +145,21 @@ export async function getSetupChecklist(userId: string): Promise<SetupChecklist 
 }
 
 /**
- * Settings that shape month figures: the balance goal (cents), the first month history counts from, the income
- * rhythm (with its stored parts for editing), and the customized summary cards.
+ * Settings that shape month figures: the balance goal (cents), the first month history counts from (and `historyFrom`,
+ * the day it does for a new account), the income rhythm (with its stored parts for editing), the customized summary
+ * cards, and the setup wizard's estimates, which stand in for averages while there's little history.
  */
 export async function getUserSettings(userId: string) {
-  const user = await db.user.findUnique({
-    where: { id: userId },
-    select: {
-      balanceGoalCents: true, historyStartMonth: true, incomeRhythm: true, incomeRhythmAnchor: true, incomePayDays: true, summaryCards: true,
-      currency: true,
-    },
-  });
+  const [user, estimated] = await Promise.all([
+    db.user.findUnique({
+      where: { id: userId },
+      select: {
+        balanceGoalCents: true, historyStartMonth: true, incomeRhythm: true, incomeRhythmAnchor: true, incomePayDays: true, summaryCards: true,
+        currency: true, trackingFrom: true, incomeEstimateCents: true,
+      },
+    }),
+    db.category.findMany({ where: { userId, monthlyEstimateEnc: { not: null } }, select: { id: true, monthlyEstimateCents: true } }),
+  ]);
   const rhythmParts = {
     kind: user?.incomeRhythm ?? "DAILY",
     anchor: user?.incomeRhythmAnchor ? dateKeyOf(user.incomeRhythmAnchor) : null,
@@ -164,6 +168,11 @@ export async function getUserSettings(userId: string) {
   return {
     balanceGoalCents: user?.balanceGoalCents ?? null,
     historyStartMonth: user?.historyStartMonth ? monthKeyOf(user.historyStartMonth) : null,
+    historyFrom: user?.trackingFrom ? dateKeyOf(user.trackingFrom) : null,
+    estimates: {
+      spending: estimated.flatMap((category) => (category.monthlyEstimateCents ? [{ categoryId: category.id, monthlyCents: category.monthlyEstimateCents }] : [])),
+      incomeMonthlyCents: user?.incomeEstimateCents ?? 0,
+    },
     incomeRhythm: incomeRhythmOf(rhythmParts),
     rhythmParts,
     summaryCards: parseSummaryCards(user?.summaryCards),

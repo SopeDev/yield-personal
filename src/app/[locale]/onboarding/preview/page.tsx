@@ -1,10 +1,11 @@
 import { notFound } from "next/navigation";
 import { OnboardingWizard } from "@/components/onboarding-wizard";
-import { isLocale } from "@/i18n/config";
+import { isLocale, type Locale } from "@/i18n/config";
 import { getDictionary } from "@/i18n/dictionaries";
 import { requireUserId } from "@/lib/auth-user";
 import { getOwnerEmail } from "@/lib/env";
-import { getShellUser } from "@/lib/queries";
+import { getActiveCategories, getShellUser } from "@/lib/queries";
+import { categoryLabel, isEveryday } from "@/lib/categories";
 import { todayKey } from "@/lib/today";
 
 /**
@@ -14,9 +15,16 @@ import { todayKey } from "@/lib/today";
 export default async function OnboardingPreviewPage({ params }: PageProps<"/[locale]/onboarding/preview">) {
   const { locale } = await params;
   if (!isLocale(locale)) return null;
-  const { currency, email } = await getShellUser(await requireUserId(locale));
+  const userId = await requireUserId(locale);
+  const [{ currency, email }, categories] = await Promise.all([getShellUser(userId), getActiveCategories(userId)]);
   const owner = getOwnerEmail();
   if (!owner || email?.toLowerCase() !== owner) notFound();
 
-  return <OnboardingWizard basePath="onboarding/preview" currency={currency} labels={getDictionary(locale).onboarding} locale={locale} today={todayKey()} />;
+  return <OnboardingWizard basePath="onboarding/preview" currency={currency} categories={everyday(categories, locale)} labels={getDictionary(locale).onboarding} locale={locale} today={todayKey()} />;
+}
+
+/** The everyday categories, the ones typical spending counts, to estimate. */
+function everyday(categories: Awaited<ReturnType<typeof getActiveCategories>>, locale: Locale) {
+  const labels = getDictionary(locale).categories;
+  return categories.filter(isEveryday).map((category) => ({ id: category.id, label: categoryLabel(category, labels) }));
 }

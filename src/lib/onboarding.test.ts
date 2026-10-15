@@ -10,7 +10,9 @@ const plan = (changes: Partial<OnboardingAnswers>) => {
 };
 
 test("skipping everything saves only the currency, counting income day by day", () => {
-  assert.deepEqual(plan({}), { currency: "MXN", rhythm: { kind: "DAILY" }, salary: null, cashCents: null, cards: [], bills: [] });
+  assert.deepEqual(plan({}), {
+    currency: "MXN", rhythm: { kind: "DAILY" }, salary: null, cashCents: null, cards: [], bills: [], incomeEstimateCents: null, spendingEstimates: [],
+  });
   assert.deepEqual(planOnboarding(answers({ currency: "GBP" })), { error: "currency" });
 });
 
@@ -48,4 +50,33 @@ test("cash on hand, cards with their colors, and bills paid in cash or with one 
   assert.deepEqual(planOnboarding(answers({ bills: [{ ...bill, day: "32" }] })), { error: "bills" });
   assert.deepEqual(planOnboarding(answers({ cards: [{ name: "Nu", closingDay: "5", paymentDays: "0" }] })), { error: "cards" });
   assert.deepEqual(planOnboarding(answers({ cash: "-5" })), { error: "cash" });
+});
+
+test("rough monthly estimates: income only when it varies, spending for the categories given", () => {
+  const result = plan({
+    variableIncome: true, incomeEstimate: "25,000",
+    spendingEstimates: [{ categoryId: "food", amount: "10000" }, { categoryId: "car", amount: "" }],
+  });
+  assert.equal(result.incomeEstimateCents, 2500000);
+  assert.deepEqual(result.spendingEstimates, [{ categoryId: "food", monthlyCents: 1000000 }]);
+  assert.equal(plan({ variableIncome: false, incomeEstimate: "25,000" }).incomeEstimateCents, null);
+  assert.deepEqual(planOnboarding(answers({ spendingEstimates: [{ categoryId: "food", amount: "lots" }] })), { error: "estimates" });
+  assert.deepEqual(planOnboarding(answers({ variableIncome: true, incomeEstimate: "0" })), { error: "estimates" });
+});
+
+test("estimates are set beside the pace of the records from a week of them until about six weeks", async () => {
+  const { estimateCheck } = await import("./estimate-check");
+  const food = { id: "food", key: "food", name: null, sortOrder: 0, kind: "EVERYDAY" as const };
+  const item = { id: "tacos", name: "Tacos", category: food };
+  // Joined Oct 20; by Oct 30, ten days of 400 a day on food.
+  const purchases = Array.from({ length: 10 }, (_, index) => ({ date: new Date(`2026-10-${20 + index}T00:00:00Z`), amountCents: 40000, item }));
+  const estimates = { spending: [{ categoryId: "food", monthlyCents: 1000000 }], incomeMonthlyCents: 3000000 };
+  const check = estimateCheck({ estimates, purchases, today: "2026-10-30", historyStart: "2026-10-20", incomePerDayCents: 80000 });
+  assert.deepEqual(check, {
+    days: 10,
+    spending: [{ categoryId: "food", estimatedCents: 1000000, paceCents: Math.round(40000 * 30.4) }],
+    income: { estimatedCents: 3000000, paceCents: Math.round(80000 * 30.4) },
+  });
+  assert.equal(estimateCheck({ estimates, purchases, today: "2026-10-24", historyStart: "2026-10-20", incomePerDayCents: 0 }), null);
+  assert.equal(estimateCheck({ estimates: { spending: [], incomeMonthlyCents: 0 }, purchases, today: "2026-10-30", historyStart: "2026-10-20", incomePerDayCents: 0 }), null);
 });

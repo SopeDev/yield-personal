@@ -415,3 +415,16 @@ test("a configurable stat's settings make it, and read back from it; old stats k
     grid: ["incomeOf:month:all:net", "averageIncome:workday:all:gross", "averageIncome:workday:all:net", "incomeOf:month:group.g1:gross", "income"],
   });
 });
+
+test("a new account's estimates stand in for typical spending and pace, and the averages' working shows the blend adding up", () => {
+  // Joined Oct 5 with estimates of 9,120 a month on food and 30,400 of income; Oct 10 has five finished days.
+  const settings: StatSettings = { ...noSettings, historyStartMonth: "2026-10", historyFrom: "2026-10-05", estimates: { spending: [{ categoryId: "food", monthlyCents: 912000 }], incomeMonthlyCents: 3040000 } };
+  const ctx = context([], { settings });
+  assert.equal(ctx.typicalDay.days, 5);
+  assert.ok(ctx.typicalDay.estimateShare > 0.8);
+  assert.equal(ctx.pace.cents, Math.round(100000 * (25 / 30)));
+  for (const ref of ["averageSpending:week:category.food", "averageSpending:month:all", "projectedBalance", "neededPerDay"] as StatRef[]) assertWorkingAddsUp(ref, ctx);
+  const working = explainStat("averageSpending:week:category.food", ctx, en, "en");
+  assert.deepEqual(working.blocks[1].map((line) => line.label.replace(/\$[\d,.]+/, "$")), ["Your records (17%)", "Your estimate (83%, $ a month)", "Food / day"]);
+  assert.ok(explainStat("projectedBalance", ctx, en, "en").notes.some((note) => note.includes("83% of the pace is still your estimate")));
+});

@@ -1,6 +1,6 @@
 import { historyWindow } from "./daily-balance";
 import type { LedgerIncome, LedgerPurchase } from "./ledger";
-import { dateKeyOf, type MonthKey } from "./months";
+import { dateKeyOf } from "./months";
 import { PERIOD_DAYS, periodStart } from "./spending-average";
 
 /** Today, this week (Monday on), or this month. */
@@ -68,7 +68,7 @@ export function incomeBetween({ incomes, purchases, scope, basis, deductCategory
  * looks back on (the last full months, from "Count history from" on), and what's come in so far in the one under
  * way (today, for a day or a day worked).
  */
-export function averageIncome(records: IncomeRecords & { today: string; historyStart?: MonthKey | null; per: IncomePer }) {
+export function averageIncome(records: IncomeRecords & { today: string; historyStart?: string | null; per: IncomePer }) {
   const { today, historyStart = null, per } = records;
   const { fromKey, toKey, days } = historyWindow(today, historyStart);
   const window = days < 1 ? { grossCents: 0, deductionsCents: 0, cents: 0, workdays: 0 } : incomeBetween(records, fromKey, toKey);
