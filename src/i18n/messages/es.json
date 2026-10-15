@@ -709,10 +709,9 @@
     "error": "Algo no se guardó. Revisa tus respuestas e intenta de nuevo.",
     "welcome": {
       "title": "¿A dónde se va tu dinero?",
-      "body": "Llega la quincena, se va la quincena, y no sabes bien en qué. Yield te dice cómo va tu mes antes de que se acabe: si te alcanza para la renta, cuánto puedes gastar hoy y qué tan cerca estás de ese viaje que llevas meses posponiendo. Unas preguntas rápidas y listo; todo se puede cambiar después.",
-      "language": "Idioma",
+      "body": "Unas preguntas rápidas y Yield te dice cómo va tu mes antes de que se acabe. Primero: ¿en qué moneda manejas tu dinero?",
       "currency": "Moneda principal",
-      "currencyHint": "La moneda en la que ves tus cifras."
+      "currencyHint": "Puedes registrar en otras monedas también; esta es la de tus cifras principales."
     },
     "income": {
       "title": "¿Cómo te llega el dinero?",

@@ -22,7 +22,8 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  // The app (and the installed PWA, which starts at "/") opens on the month view in the remembered language.
+  // The app (and the installed PWA, which starts at "/") opens on the month view in the remembered language, or the
+  // phone's.
   // Done here rather than in a page so it's answered by the routing layer without running a function.
   async redirects() {
     return [
@@ -32,6 +33,8 @@ const nextConfig: NextConfig = {
         destination: `/${locale}/month`,
         permanent: false,
       })),
+      // Without a remembered language, the phone's own: Spanish if it lists Spanish first.
+      { source: "/", has: [{ type: "header" as const, key: "accept-language", value: "es.*" }], destination: "/es/month", permanent: false },
       { source: "/", destination: `/${defaultLocale}/month`, permanent: false },
     ];
   },

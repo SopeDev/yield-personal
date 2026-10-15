@@ -709,10 +709,9 @@
     "error": "Something didn't save. Check your answers and try again.",
     "welcome": {
       "title": "Where does your money go?",
-      "body": "Payday comes, payday goes, and you're never quite sure where it went. Yield tells you how your month is going before it's over: whether rent's covered, how much you can spend today, and how close you are to that trip you keep putting off. A few quick questions and you're in; everything can be changed later.",
-      "language": "Language",
+      "body": "A few quick questions and Yield tells you how your month is going before it's over. First: what currency do you use?",
       "currency": "Main currency",
-      "currencyHint": "The currency your figures are shown in."
+      "currencyHint": "You can log in other currencies too; this is the one your main figures use."
     },
     "income": {
       "title": "How does money come in?",
