@@ -120,7 +120,14 @@
     "resultsOne": "1 movimiento",
     "spent": "gastado",
     "noMatches": "Ningún movimiento coincide.",
-    "itemTotal": "{item} · {amount} este mes"
+    "itemTotal": "{item} · {amount} este mes",
+    "savingsTitle": "Ahorros del mes",
+    "depositOn": "Depósito · {date}",
+    "depositedOn": "Depositado el {date}",
+    "deposited": "Hecho",
+    "markDeposited": "Marcar como depositado",
+    "depositAmount": "Cantidad depositada",
+    "recordDeposit": "Registrar depósito"
   },
   "income": {
     "deductions": "Deducciones",
@@ -710,7 +717,8 @@
     "interest": "intereses",
     "toSavings": "A ahorros: {fund}",
     "howSavings": "La línea azul suma tus ahorros a tu dinero: lo que hay hoy en cada fondo, los depósitos que planeaste y los intereses de cada fondo, calculados día a día a su tasa y cambiando a la siguiente cuando termina una promocional. Los depósitos planeados aparecen en azul encima de la barra de ese día: salen de tu dinero, pero no son gasto.",
-    "savings": "Ahorros"
+    "savings": "Ahorros",
+    "plusSavings": "+ {amount} ahorros"
   },
   "onboarding": {
     "preview": "Vista previa: nada de lo que escribas aquí se guarda.",

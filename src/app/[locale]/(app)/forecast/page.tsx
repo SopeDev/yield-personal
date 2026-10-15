@@ -60,6 +60,12 @@ export default async function ForecastPage({ params }: PageProps<"/[locale]/fore
   const ticks = days.flatMap((day, index) => (day.date.endsWith("-01") ? [{ index, label: monthName(day.date) }] : []));
   // The cash left at the end of each month the forecast reaches.
   const monthEnds = days.filter((day) => Number(day.date.slice(8)) === daysInMonth(monthOfKey(day.date)));
+  // Savings on a day, shown small under its cash (savings aren't cash to spend, so they're never added to it).
+  const savingsOn = (date: string) => forecast.savings?.find((entry) => entry.date === date)?.savingsCents ?? null;
+  const savingsLine = (date: string) => {
+    const cents = savingsOn(date);
+    return cents === null ? null : <p className="text-xs text-sky-400">{format(m.plusSavings, { amount: formatCents(cents, currency) })}</p>;
+  };
   const upcoming = days.filter((day) => day.events.length > 0);
 
   return (
@@ -78,6 +84,7 @@ export default async function ForecastPage({ params }: PageProps<"/[locale]/fore
           <div className="px-4 py-4">
             <p className="text-xs text-muted-foreground">{format(m.inDays, { days: FORECAST_SURE_DAYS })}</p>
             <Money cents={inMonth.cents} className={cn("text-lg font-semibold", inMonth.cents < 0 ? "text-loss" : "text-gain")} />
+            {savingsLine(inMonth.date)}
             <p className="text-xs text-muted-foreground">{shortDate(inMonth.date, locale)}</p>
           </div>
         </div>
@@ -94,7 +101,10 @@ export default async function ForecastPage({ params }: PageProps<"/[locale]/fore
             {monthEnds.slice(0, 3).map((day) => (
               <div className="px-2 py-3" key={day.date}>
                 <dt className="text-xs text-muted-foreground">{format(m.endOf, { month: monthName(day.date) })}</dt>
-                <dd><Money cents={day.cents} className={cn("text-sm font-medium", day.cents < 0 ? "text-loss" : "text-foreground")} /></dd>
+                <dd>
+                  <Money cents={day.cents} className={cn("text-sm font-medium", day.cents < 0 ? "text-loss" : "text-foreground")} />
+                  {savingsLine(day.date)}
+                </dd>
               </div>
             ))}
           </dl>

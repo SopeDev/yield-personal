@@ -5,10 +5,13 @@ import { z } from "zod";
 import { db } from "@/db/client";
 import { seal } from "@/db/encryption";
 import { isCurrency, parseAmountToCents } from "@/lib/money";
-import { dateFromKey, isDateKey } from "@/lib/months";
+import { dateFromKey, dateKeyOf, isDateKey } from "@/lib/months";
 import { parseSchedule } from "@/lib/onboarding";
 import { getMainCurrency } from "@/lib/queries";
-import { parseRatePercent } from "@/lib/savings-growth";
+import { recurringIncomeRhythmOf } from "@/lib/recurring-income";
+import { addDays } from "@/lib/forecast";
+import { DEPOSIT_MATCH_DAYS, depositDays, matchDeposits, parseRatePercent } from "@/lib/savings-growth";
+import { todayKey } from "@/lib/today";
 import { localeFromForm, requireActionUserId } from "./action-user";
 import type { FormState } from "./form-state";
 
@@ -162,4 +165,45 @@ export async function setFundGrowth(_state: FormState, formData: FormData): Prom
   });
   revalidatePath(`/${localeFromForm(formData)}`, "layout");
   return { savedAt: Date.now() };
+}
+
+/**
+ * Records a planned deposit as made: its fund's planned amount (or `amount`), dated its planned day (or `date`, from 3
+ * days before it to 10 after, the days a deposit counts for it); made ahead of its day, it's dated today.
+ */
+export async function confirmPlannedDeposit(_state: FormState, formData: FormData): Promise<FormState> {
+  const userId = await requireActionUserId();
+  const fundId = readText(formData, "fundId");
+  const planned = readText(formData, "planned");
+  if (!isUuid(fundId) || !isDateKey(planned)) return { error: "generic" };
+  const fund = await db.savingsFund.findFirst({
+    where: { id: fundId, userId, archivedAt: null },
+    select: { depositCents: true, depositRhythm: true, depositAnchor: true, depositDays: true, movements: { select: { date: true, amountCents: true } } },
+  });
+  const rhythm = fund?.depositRhythm ? recurringIncomeRhythmOf({ kind: fund.depositRhythm, anchor: fund.depositAnchor ? dateKeyOf(fund.depositAnchor) : null, days: fund.depositDays }) : null;
+  if (!fund?.depositCents || !rhythm) return { error: "generic" };
+  // A day already made (a second tap, or a screen from before it was) records nothing more.
+  const month = planned.slice(0, 7);
+  const days = depositDays(rhythm, `${month}-01`, `${month}-31`);
+  const made = matchDeposits(days, fund.movements.map((movement) => ({ date: dateKeyOf(movement.date), amountCents: movement.amountCents })));
+  if (!days.includes(planned)) return { error: "generic" };
+  if (made.get(planned)) return { savedAt: Date.now() };
+  const amountText = readText(formData, "amount");
+  const amountCents = amountText === "" ? fund.depositCents : parseAmountToCents(amountText);
+  const today = todayKey();
+  const date = readText(formData, "date") || (planned <= today ? planned : today);
+  const fieldErrors: FormState["fieldErrors"] = {};
+  if (!amountCents) fieldErrors.amount = "amount";
+  // Only a day the deposit counts for (see matchDeposits) makes it.
+  if (!isDateKey(date) || date < addDays(planned, -DEPOSIT_MATCH_DAYS.before) || date > addDays(planned, DEPOSIT_MATCH_DAYS.after)) fieldErrors.date = "date";
+  if (Object.keys(fieldErrors).length > 0) return { fieldErrors };
+
+  await db.savingsMovement.create({ data: { userId, fundId, date: dateFromKey(date), ...seal("SavingsMovement", { amountCents: amountCents!, note: null }) } });
+  revalidatePath(`/${localeFromForm(formData)}`, "layout");
+  return { savedAt: Date.now() };
+}
+
+/** The one-tap check on a planned deposit's row: made as planned. */
+export async function quickConfirmPlannedDeposit(formData: FormData) {
+  await confirmPlannedDeposit({}, formData);
 }

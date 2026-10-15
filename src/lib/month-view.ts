@@ -12,7 +12,7 @@ import { addMonths, dateKeyOf, monthDifference, type MonthKey } from "@/lib/mont
 import { occurrencesForMonth, unpaidCashOccurrences } from "@/lib/recurring";
 import { expectedPaydays, recurringIncomeRhythmOf } from "@/lib/recurring-income";
 import { emergencyFundGoal, fundBalance } from "@/lib/savings";
-import { projectSavings, type GrowingFund } from "@/lib/savings-growth";
+import { DEPOSIT_MATCH_DAYS, depositDays, matchDeposits, projectSavings, type GrowingFund } from "@/lib/savings-growth";
 import { installmentsOwed } from "@/lib/statements";
 
 /** The year view and averages cover the last 12 months, ending with the given month. */
@@ -251,7 +251,7 @@ export async function loadForecast(userId: string, today: string) {
 
 /**
  * The main currency's savings funds as the forecast grows them: each one's balance now (from all its movements), its
- * interest rates, and its planned deposit (today's taken as done once money has gone into the fund today).
+ * interest rates, and its planned deposit (with the days a deposit already made).
  */
 async function growingFunds(userId: string, currency: string, today: string): Promise<GrowingFund[]> {
   const funds = (await getSavingsFunds(userId)).filter((fund) => fund.currency === currency);
@@ -271,7 +271,40 @@ async function growingFunds(userId: string, currency: string, today: string): Pr
       rateUntil: fund.interestUntil ? dateKeyOf(fund.interestUntil) : null,
       afterBps: fund.interestAfterBps,
       deposit: rhythm && fund.depositCents ? { cents: fund.depositCents, rhythm } : null,
-      depositedToday: own.some((movement) => movement.amountCents > 0 && dateKeyOf(movement.date) === today),
+      // Planned days from a little before today on that a deposit already made, so they aren't moved again.
+      doneDates: rhythm ? [...matchDeposits(
+        depositDays(rhythm, addDays(today, -DEPOSIT_MATCH_DAYS.after), addDays(today, FORECAST_DAYS)),
+        own.map((movement) => ({ date: dateKeyOf(movement.date), amountCents: movement.amountCents })),
+      )].flatMap(([day, match]) => (match ? [day] : [])) : [],
     };
   });
+}
+
+/** A planned deposit's day in a month, and the deposit that made it, if one has. */
+export type PlannedDepositRow = { fundId: string; fundName: string; currency: string; date: string; plannedCents: number; made: { date: string; amountCents: number } | null };
+
+/**
+ * The month's planned deposits into savings, by day, each with the deposit that made it (`matchDeposits`). Only the
+ * current month and later ones: a plan says nothing about months before it.
+ */
+export async function loadPlannedDeposits(userId: string, month: MonthKey, currentMonth: MonthKey): Promise<PlannedDepositRow[]> {
+  if (month < currentMonth) return [];
+  const funds = (await getSavingsFunds(userId)).filter((fund) => fund.depositRhythm && fund.depositCents);
+  if (funds.length === 0) return [];
+  const movements = await db.savingsMovement.findMany({ where: { userId, fundId: { in: funds.map((fund) => fund.id) } }, select: { fundId: true, amountCents: true, date: true } });
+  const from = `${month}-01`;
+  const to = addDays(addMonths(month, 1) + "-01", -1);
+  return funds.flatMap((fund) => {
+    const rhythm = recurringIncomeRhythmOf({ kind: fund.depositRhythm!, anchor: fund.depositAnchor ? dateKeyOf(fund.depositAnchor) : null, days: fund.depositDays });
+    if (!rhythm) return [];
+    const own = movements.filter((movement) => movement.fundId === fund.id).map((movement) => ({ date: dateKeyOf(movement.date), amountCents: movement.amountCents }));
+    return [...matchDeposits(depositDays(rhythm, from, to), own)].map(([date, made]) => ({
+      fundId: fund.id,
+      fundName: fund.kind === "EMERGENCY" ? "" : (fund.name ?? ""),
+      currency: fund.currency,
+      date,
+      plannedCents: fund.depositCents!,
+      made,
+    }));
+  }).sort((a, b) => a.date.localeCompare(b.date));
 }
