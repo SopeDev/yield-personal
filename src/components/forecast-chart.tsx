@@ -29,7 +29,7 @@ export function ForecastChart({ days, sureDays, ticks, labels }: {
   sureDays: number;
   /** Month starts to label under the line. */
   ticks: { index: number; label: string }[];
-  labels: { title: string; estimated: string; overdue: string; forecast: string; spending: string; savings: string; withSavings: string };
+  labels: { title: string; estimated: string; overdue: string; forecast: string; spending: string; regularDay: string; savings: string; withSavings: string };
 }) {
   const [selected, setSelected] = useState(0);
   const plot = useRef<HTMLDivElement>(null);
@@ -71,7 +71,7 @@ export function ForecastChart({ days, sureDays, ticks, labels }: {
 
   return (
     <section aria-label={labels.title} className="space-y-3">
-      {/* The day's cash, its savings, and what happens that day, if anything: the bars show the rest. */}
+      {/* The day's cash, its savings, what it spends (a regular day's, or the total with that day's bills), and what happens that day. */}
       <div aria-live="polite" className="min-h-14">
         <p className="flex items-baseline justify-between gap-3">
           <span className="text-sm text-muted-foreground">{day.label}</span>
@@ -84,6 +84,12 @@ export function ForecastChart({ days, sureDays, ticks, labels }: {
               <Money cents={day.savings.savingsCents} whole />
               {day.savings.interestCents >= 100 ? <> · <Money cents={day.savings.interestCents} signed whole /></> : null}
             </span>
+          </p>
+        ) : null}
+        {day.spendingCents > 0 ? (
+          <p className="flex items-baseline justify-between gap-3 text-xs text-loss/80">
+            <span>{day.events.some((event) => event.cents < 0 && !event.savings) ? labels.spending : labels.regularDay}</span>
+            <Money cents={-day.spendingCents} signed whole />
           </p>
         ) : null}
         {day.events.length === 0 ? null : (
