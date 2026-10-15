@@ -139,6 +139,7 @@ Last updated: 2026-10-10
 - Planned deposits confirmed in one tap from the month view ("Savings this month"), matched to deposits made a little early or late, so the forecast stops projecting them; forecast cards show savings under cash. Checked against seeded data: an early deposit making its day, one-tap and edited confirmations, no double recording, too-early dates refused, and the forecast dropping made days.
 - Forecast decluttered: whole units throughout, no savings under the cards, a two-line readout (cash; savings and interest) plus the day's events, and the subtitle moved into the explanation.
 - Live exchange rates: cash on hand, savings, and the forecast count money in other currencies at today's rate (Frankfurter, the European Central Bank's reference rates), stored so a failed fetch falls back to the last rate; records stay in their own currencies. The privacy notice names Frankfurter.
+- Clearer stat labels: To pay is Money out (Salidas), Outstanding is Still unpaid (Falta pagar), Daily income is Month's daily income, and usual averages read "· avg.", with the explanations that mention them in step.
 
 ## Next
 
@@ -147,5 +148,4 @@ Last updated: 2026-10-10
 - Custom stats, next: a limit on an average stat ("$180 of $300 this week", the limit stored encrypted), and possibly how many times something was bought.
 - Encryption at rest, step 3 (tidy-up, after step 2 is live): drop the emptied plaintext columns and the `*_clear_plaintext` triggers, and make the required copies NOT NULL.
 
-- Rename the stat labels new users find ambiguous (Spending / To pay / Outstanding, Daily income vs. Daily avg. gross), keeping the explanations in step.
 - Flag figures based on too little history (typical daily spending and the income pace on a new account), in the stat's note or its explanation.

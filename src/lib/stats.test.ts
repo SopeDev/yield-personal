@@ -55,7 +55,7 @@ test("the month card shows balance with goal progress, then its stats in order",
   // Balance: 1,000 income − 600 paid in cash; 100 short of the 500 goal.
   assert.deepEqual(balance.value, { cents: 40000, tone: "gain", note: { text: "Goal $500.00 · $100.00 to go", tone: "muted" } });
   // Expected income stays hidden without recurring income.
-  assert.deepEqual(labels(monthCard.grid, ctx), ["Income", "Outstanding", "Spending", "To pay", "Needed per day", "Daily income", "Projected balance"]);
+  assert.deepEqual(labels(monthCard.grid, ctx), ["Income", "Still unpaid", "Spending", "Money out", "Needed per day", "Month's daily income", "Projected balance"]);
 });
 
 test("figures that have no value this month read as none", () => {
@@ -71,7 +71,7 @@ test("figures that have no value this month read as none", () => {
 test("the income card names a single deducted category and hides a group's pair when it holds all income", () => {
   const onlyRideshare = context([income("u1", "2026-10-01", 100000, uber)]);
   const card = defaultCardLayout("income", onlyRideshare);
-  assert.deepEqual(labels(card.grid, onlyRideshare), ["Car spending", "Net income", "Income / day worked", "Net income / day worked"]);
+  assert.deepEqual(labels(card.grid, onlyRideshare), ["Car spending", "Net income", "Income / day worked · avg.", "Net income / day worked · avg."]);
   assert.deepEqual(resolveStats(["deductions"], onlyRideshare, en)[0].value, { cents: -40000, tone: "muted" });
 
   const mixed = context([income("u1", "2026-10-01", 100000, uber), income("s1", "2026-10-02", 300000, salary)]);
@@ -82,7 +82,7 @@ test("the income card names a single deducted category and hides a group's pair 
 test("deductions are hidden without income groups deducting a category, and unknown stats are skipped", () => {
   const ctx = context([]);
   const noDeductions = { ...ctx, income: { ...ctx.income, deductCategoryIds: [] } };
-  assert.deepEqual(labels(["deductions", "averageIncome:workday:all:gross"], noDeductions), ["Income / day worked"]);
+  assert.deepEqual(labels(["deductions", "averageIncome:workday:all:gross"], noDeductions), ["Income / day worked · avg."]);
   // Without deductions the income card leaves out net figures, which would repeat the gross ones.
   assert.deepEqual(defaultCardLayout("income", noDeductions).grid, ["averageIncome:workday:all:gross"]);
   assert.deepEqual(labels(["toString", "nope"] as unknown as StatRef[], ctx), []);
@@ -272,7 +272,7 @@ test("the balance's working shows income less what was paid out, then how far it
   assert.deepEqual(working.blocks, [
     [
       { op: undefined, label: "Income", figure: { cents: 100000 } },
-      { op: "−", label: "To pay", figure: { cents: 20000 } },
+      { op: "−", label: "Money out", figure: { cents: 20000 } },
       { op: "=", label: "Balance", figure: { cents: 80000 } },
     ],
     [
@@ -282,10 +282,10 @@ test("the balance's working shows income less what was paid out, then how far it
     ],
   ]);
   assert.deepEqual(working.notes, ["Moving money into savings isn't spending, so it never lowers the balance."]);
-  // To pay leaves savings out.
+  // Money out leaves savings out.
   assert.deepEqual(explainStat("toPay", ctx, en, "en").blocks[0].map((line) => [line.op, line.label, line.figure]), [
     [undefined, "Cash purchases", { cents: 20000 }],
-    ["=", "To pay", { cents: 20000 }],
+    ["=", "Money out", { cents: 20000 }],
   ]);
 });
 
@@ -296,7 +296,7 @@ test("needed per day works from what's still to cover over the days left, plus e
   const working = explainStat("neededPerDay", ctx, en, "en");
   assert.deepEqual(working.blocks[0].map((line) => [line.op, line.label, line.figure]), [
     [undefined, "Goal", { cents: 700000 }],
-    ["+", "To pay", { cents: 60000 }],
+    ["+", "Money out", { cents: 60000 }],
     ["−", "Income", { cents: 400000 }],
     ["−", "Expected income", { cents: 300000 }],
     ["=", "Still to cover", { cents: 60000 }],
@@ -337,7 +337,7 @@ test("daily income counts finished days, so income logged today waits until tomo
   assert.deepEqual(resolveStats(["dailyIncome"], context(incomes.slice(0, 1)), en)[0].value, daily.value);
   // Its working says so.
   const lines = explainStat("dailyIncome", context(incomes), en, "en").blocks[0].map((line) => line.label);
-  assert.deepEqual(lines, ["Income through yesterday", "Days finished", "Daily income"]);
+  assert.deepEqual(lines, ["Income through yesterday", "Days finished", "Month's daily income"]);
 });
 
 test("moving money into savings changes none of the month's figures or forecasts", () => {
@@ -387,9 +387,9 @@ test("an average spending stat is named by its settings, reads the usual against
   // History from Jul 1 through yesterday (Oct 9): 101 days; this week runs from Monday Oct 5.
   const ctx = context([], { today: "2026-10-10" });
   const [stat] = resolveStats(["averageSpending:week:category.car"], ctx, en);
-  assert.equal(stat.label, "Car / week");
+  assert.equal(stat.label, "Car / week · avg.");
   assert.deepEqual(stat.value, { cents: Math.round(40000 / 101) * 7, note: { text: "This week: $0.00", tone: "muted" } });
-  assert.equal(resolveStats(["averageSpending:month:item.pho"], ctx, es)[0].label, "pho / mes");
+  assert.equal(resolveStats(["averageSpending:month:item.pho"], ctx, es)[0].label, "pho / mes · prom.");
   // Today's spending past a usual day turns the note yellow.
   const today = context([], { today: "2026-10-04" });
   assert.equal(resolveStats(["averageSpending:day:all"], today, en)[0].value?.note?.tone, "warning");
@@ -410,7 +410,7 @@ test("income stats read today, this week, or the month, gross or net of a group'
   assert.equal(resolveStats(["incomeOf:week:all:gross"], september, en)[0].value, null);
   // History Jul 1 – Oct 6: Uber came in on two days of 98, for 1,800 gross and 1,400 net of the gas.
   const perWorkday = value("averageIncome:workday:group.rideshare:net");
-  assert.equal(perWorkday.label, "Rideshare net / day worked");
+  assert.equal(perWorkday.label, "Rideshare net / day worked · avg.");
   assert.deepEqual(perWorkday.value, { cents: 70000, tone: undefined, note: { text: "Today: $0.00", tone: "muted" } });
   assert.equal(value("averageIncome:week:source.uber:gross").value?.cents, Math.round(180000 / 98) * 7);
 });
@@ -443,6 +443,6 @@ test("a new account's estimates stand in for typical spending and pace, and the 
   assert.equal(ctx.pace.cents, Math.round(100000 * (25 / 30)));
   for (const ref of ["averageSpending:week:category.food", "averageSpending:month:all", "projectedBalance", "neededPerDay"] as StatRef[]) assertWorkingAddsUp(ref, ctx);
   const working = explainStat("averageSpending:week:category.food", ctx, en, "en");
-  assert.deepEqual(working.blocks[1].map((line) => line.label.replace(/\$[\d,.]+/, "$")), ["Your records (17%)", "Your estimate (83%, $ a month)", "Food / day"]);
+  assert.deepEqual(working.blocks[1].map((line) => line.label.replace(/\$[\d,.]+/, "$")), ["Your records (17%)", "Your estimate (83%, $ a month)", "Food / day · avg."]);
   assert.ok(explainStat("projectedBalance", ctx, en, "en").notes.some((note) => note.includes("83% of the pace is still your estimate")));
 });

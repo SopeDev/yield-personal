@@ -20,7 +20,7 @@ const year = Array.from({ length: 12 }, (_, index) => `2026-${String(index + 1).
 const months = year.map((key) => ({
   "2026-07": month(key, { income: 3000000, toPay: 2500000, spending: 2000000 }),
   "2026-08": month(key, { income: 2000000, toPay: 2600000, spending: 2100000 }),
-  // 4,000 moved into savings, kept rather than spent, so it is no part of To pay.
+  // 4,000 moved into savings, kept rather than spent, so it is no part of Money out.
   "2026-09": month(key, { income: 3000000, toPay: 2550000, spending: 2200000, saved: 400000 }),
   "2026-10": month(key, { income: 1500000, toPay: 2800000, spending: 2700000 }),
   // Scheduled bills in a month that hasn't started.
@@ -60,7 +60,7 @@ test("the year card leads with the balance and how often the goal was reached, a
   assert.deepEqual(card.headline.explanation.blocks[0].map((line) => [line.op, line.label]), [
     [undefined, "July 2026"], ["+", "August 2026"], ["+", "September 2026"], ["+", "October 2026"], ["=", "Balance"],
   ]);
-  assert.deepEqual(card.grid.map((stat) => stat.label), ["Income", "To pay", "Spending", "Saved", "Avg. balance", "Best month"]);
+  assert.deepEqual(card.grid.map((stat) => stat.label), ["Income", "Money out", "Spending", "Saved", "Avg. balance", "Best month"]);
   assert.deepEqual(card.grid[5].value, { cents: 500000, tone: "gain", note: { text: "July 2026", tone: "muted" } });
   assert.deepEqual(card.grid[4].explanation.blocks[0].map((line) => line.figure), [{ cents: -950000 }, { months: 4 }, { cents: -237500 }]);
 
