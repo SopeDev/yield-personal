@@ -20,13 +20,18 @@ function readCard(formData: FormData): SummaryCardId | null {
 
 /**
  * Saves a card's whole layout: its headline and its grid stats in order (`stat`, repeated), plus `add` appended to
- * the end. The editor posts the layout each button leads to, so moving and removing need no other action.
+ * the end, or an average spending stat built from `averagePeriod` and `averageScope`. The editor posts the layout
+ * each button leads to, so moving and removing need no other action.
  */
 export async function saveSummaryCard(formData: FormData) {
   const userId = await requireActionUserId();
   const card = readCard(formData);
   const headline = String(formData.get("headline") ?? "");
-  const added = String(formData.get("add") ?? "");
+  // An average spending stat comes as its settings: what it's about and per how long.
+  const averagePeriod = formData.get("averagePeriod");
+  const added = averagePeriod !== null
+    ? `averageSpending:${String(averagePeriod)}:${String(formData.get("averageScope") ?? "")}`
+    : String(formData.get("add") ?? "");
   const grid = [...formData.getAll("stat").map(String), ...(added ? [added] : [])];
   if (!card || !isStatRef(headline) || grid.length > MAX_GRID_STATS || !grid.every(isStatRef)) return;
   // A stat appears once per card.

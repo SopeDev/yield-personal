@@ -11,7 +11,9 @@ import { format, getDictionary } from "@/i18n/dictionaries";
 import { requireUserId } from "@/lib/auth-user";
 import { getCashWallets, loadCashOnHand } from "@/lib/ledger-data";
 import { loadMonthView, loadSavingsSnapshot, splitCash } from "@/lib/month-view";
-import { getIncomeGroupsForManagement, getUserSettings } from "@/lib/queries";
+import { getActiveCategories, getActiveItems, getIncomeGroupsForManagement, getSpendingNames, getUserSettings } from "@/lib/queries";
+import { categoryLabel } from "@/lib/categories";
+import { SPENDING_PERIODS } from "@/lib/spending-average";
 import {
   availableStats, cardLayout, isSummaryCardId, MAX_GRID_STATS, monthStatContext, statDescription, statLabel, statShown, type StatRef, type SummaryCardId, type SummaryCardLayout,
 } from "@/lib/stats";
@@ -32,12 +34,15 @@ export default async function SummaryCardEditorPage({ params }: PageProps<"/[loc
       const [balances, savings] = await Promise.all([loadCashOnHand(userId, wallets), loadSavingsSnapshot(userId, currentMonth, settings.currency)]);
       return { settings, ...splitCash(balances, settings.currency), savings };
     });
-  const [view, { settings, cashOnHandCents, cashOnHandParts, otherCash, savings }, groups] = await Promise.all([
+  const [view, { settings, cashOnHandCents, cashOnHandParts, otherCash, savings }, groups, spendingNames, categories, items] = await Promise.all([
     loadMonthView(userId, currentMonth, currentMonth),
     settingsWithCash,
     getIncomeGroupsForManagement(userId),
+    getSpendingNames(userId),
+    getActiveCategories(userId),
+    getActiveItems(userId),
   ]);
-  const context = monthStatContext({ view, today, settings, cashOnHandCents, cashOnHandParts, otherCash, savings, incomeGroups: groups });
+  const context = monthStatContext({ view, today, settings, cashOnHandCents, cashOnHandParts, otherCash, savings, incomeGroups: groups, spendingNames });
   const layout = cardLayout(card, settings.summaryCards, context);
   const customized = settings.summaryCards[card] !== undefined;
   const choices = availableStats(context, groups.filter((group) => !group.archivedAt));
@@ -114,10 +119,51 @@ export default async function SummaryCardEditorPage({ params }: PageProps<"/[loc
       </Section>
 
       {/* Listed with what each stat is, so one can be chosen before adding it. */}
-      {addable.length > 0 && layout.grid.length < MAX_GRID_STATS ? (
+      {layout.grid.length < MAX_GRID_STATS ? (
         <Section title={messages.summary.addStat}>
           <Card>
             <ul className="divide-y divide-border">
+              {/* A stat built from its settings: tapping it opens them, and adding saves it with them. */}
+              <li>
+                <details className="group">
+                  <summary className="flex cursor-pointer list-none items-center gap-2 py-2 pl-4 pr-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium">{messages.summary.averageSpending}</p>
+                      <p className="text-xs text-muted-foreground">{messages.summary.customHint}</p>
+                    </div>
+                    <span className="flex size-11 items-center justify-center rounded-full text-primary transition group-open:rotate-45">
+                      <Plus aria-hidden="true" className="size-5" />
+                    </span>
+                  </summary>
+                  <form action={saveSummaryCard} className="space-y-3 px-4 pb-4">
+                    <input name="locale" type="hidden" value={locale} />
+                    <input name="card" type="hidden" value={card} />
+                    <input name="headline" type="hidden" value={layout.headline} />
+                    {layout.grid.map((ref) => <input key={ref} name="stat" type="hidden" value={ref} />)}
+                    <label className="block space-y-1">
+                      <span className="text-sm text-muted-foreground">{messages.summary.on}</span>
+                      <select className={inputClass} defaultValue="all" name="averageScope">
+                        <option value="all">{messages.summary.everything}</option>
+                        <optgroup label={messages.summary.categoriesGroup}>
+                          {categories.map((category) => <option key={category.id} value={`category.${category.id}`}>{categoryLabel(category, messages.categories)}</option>)}
+                        </optgroup>
+                        {items.length > 0 ? (
+                          <optgroup label={messages.summary.itemsGroup}>
+                            {items.map((item) => <option key={item.id} value={`item.${item.id}`}>{item.name}</option>)}
+                          </optgroup>
+                        ) : null}
+                      </select>
+                    </label>
+                    <label className="block space-y-1">
+                      <span className="text-sm text-muted-foreground">{messages.summary.per}</span>
+                      <select className={inputClass} defaultValue="week" name="averagePeriod">
+                        {SPENDING_PERIODS.map((period) => <option key={period} value={period}>{messages.summary.perOptions[period]}</option>)}
+                      </select>
+                    </label>
+                    <button className="min-h-12 w-full rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground" type="submit">{messages.summary.add}</button>
+                  </form>
+                </details>
+              </li>
               {addable.map((ref) => (
                 <li className="flex items-center gap-2 py-2 pl-4 pr-2" key={ref}>
                   <div className="min-w-0 flex-1">

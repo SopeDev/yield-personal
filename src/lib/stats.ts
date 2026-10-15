@@ -10,6 +10,7 @@ import { DEFAULT_CURRENCY, formatCents, type Currency } from "./money";
 import type { MonthSummary } from "./month-summary";
 import { dateFromKey, type MonthKey } from "./months";
 import { expectedIncomeLeft, expectedPaydays, type RecurringIncomeDefinition } from "./recurring-income";
+import { averageSpending, PERIOD_DAYS, parseSpendingParam, type SpendingPeriod, type SpendingScope } from "./spending-average";
 
 /**
  * The stat library: every summary figure as a label, a calculation, how it reads (tone and a note below the
@@ -23,7 +24,7 @@ export type StatNote = { text: string; tone: StatTone };
 export type StatValue = ({ cents: number; days?: never } | { days: number; cents?: never }) & { tone?: StatTone; note?: StatNote } | null;
 
 /** How a line of a stat's working joins the lines above it, or "=" for what they come to. */
-export type StatOp = "+" | "−" | "÷" | "=";
+export type StatOp = "+" | "−" | "÷" | "×" | "=";
 /** A figure in a stat's working: an amount, a number of days, or a number of paydays. */
 export type StatFigure = { cents: number } | { days: number } | { paydays: number } | { months: number };
 export type StatLine = { op?: StatOp; label: string; figure: StatFigure };
@@ -49,8 +50,11 @@ export type SavingsSnapshot = {
   emergency: { coverMonths: number; emergencyCents: number; installmentsOwedCents: number } | null;
 };
 
+/** Names of the categories and items average spending stats can be about, including archived ones. */
+export type SpendingNames = { categories: { id: string; key: string | null; name: string | null }[]; items: { id: string; name: string }[] };
+
 /** A month's figures from which every stat is calculated, plus money on hand and savings, which are the same in every month. */
-export function monthStatContext({ view, today, settings, cashOnHandCents = null, cashOnHandParts = null, otherCash = [], savings = null, incomeGroups = [] }: {
+export function monthStatContext({ view, today, settings, cashOnHandCents = null, cashOnHandParts = null, otherCash = [], savings = null, incomeGroups = [], spendingNames = null }: {
   view: Pick<MonthSummary, "month" | "entries" | "occurrences" | "incomes" | "income" | "spending" | "cashFlow" | "savingsNetCents" | "balanceCents"> & {
     /** Recent purchases and incomes (back to the history window), for figures from past spending and work. */
     purchases: LedgerPurchase[];
@@ -73,6 +77,8 @@ export function monthStatContext({ view, today, settings, cashOnHandCents = null
   savings?: SavingsSnapshot | null;
   /** Income groups to name in group stats even in a month without their income, as the card editor lists them. */
   incomeGroups?: { id: string; name: string }[];
+  /** For naming average spending stats; without them a name comes from the purchases, if any. */
+  spendingNames?: SpendingNames | null;
 }) {
   const { month, entries, incomes, income, cashFlow, balanceCents } = view;
   const goalCents = settings.balanceGoalCents;
@@ -106,6 +112,8 @@ export function monthStatContext({ view, today, settings, cashOnHandCents = null
     otherCash,
     savings,
     incomeGroups,
+    spendingNames,
+    historyStartMonth: settings.historyStartMonth,
     goalCents,
     rhythm,
     dayNet,
@@ -245,6 +253,26 @@ function deductedCategories({ spending }: StatContext, categoryIds: string[]) {
 function deductionsLabel(context: StatContext, messages: Messages) {
   const categories = deductedCategories(context, context.income.deductCategoryIds);
   return categories.length === 1 ? format(messages.income.categorySpending, { category: categoryLabel(categories[0].category, messages.categories) }) : messages.income.deductions;
+}
+
+/** What an average spending stat is about, by name: everyday spending, a category, or an item. */
+function scopeName(context: StatContext, messages: Messages, scope: SpendingScope) {
+  if (scope.kind === "all") return messages.summary.everydaySpending;
+  if (scope.kind === "category") {
+    const category = context.spendingNames?.categories.find((entry) => entry.id === scope.id)
+      ?? context.purchases.find((purchase) => purchase.item.category.id === scope.id)?.item.category;
+    return category ? categoryLabel(category, messages.categories) : "–";
+  }
+  return context.spendingNames?.items.find((entry) => entry.id === scope.id)?.name
+    ?? context.purchases.find((purchase) => purchase.item.id === scope.id)?.item.name ?? "–";
+}
+
+const periodName = (period: SpendingPeriod, messages: Messages) => messages.summary.periods[period];
+
+function spendingOn(context: StatContext, param: string) {
+  const parsed = parseSpendingParam(param);
+  if (!parsed) return null;
+  return { ...parsed, figures: averageSpending({ purchases: context.purchases, today: context.today, historyStart: context.historyStartMonth, ...parsed }) };
 }
 
 const STATS = {
@@ -758,10 +786,61 @@ const STATS = {
       )]);
     },
   },
+  /**
+   * What's usually spent per day, week or month on everyday spending, a category, or an item, with what's been spent
+   * so far in the one under way below it (yellow once past the usual). The parameter is "period:scope", like
+   * "week:item.<id>".
+   */
+  averageSpending: {
+    label: (context, messages, param) => {
+      const parsed = parseSpendingParam(param);
+      if (!parsed) return "";
+      return format(messages.summary.averageLabel, { what: scopeName(context, messages, parsed.scope), period: periodName(parsed.period, messages) });
+    },
+    shown: (_, param) => parseSpendingParam(param) !== null,
+    value: (context, messages, param) => {
+      const found = spendingOn(context, param);
+      if (!found) return null;
+      const { averageCents, soFarCents } = found.figures;
+      const soFar = formatCents(soFarCents, context.currency);
+      return {
+        cents: averageCents,
+        note: { text: `${messages.summary.current[found.period]}: ${soFar}`, tone: soFarCents > averageCents ? "warning" : "muted" },
+      };
+    },
+    description: (context, messages, param) => {
+      const parsed = parseSpendingParam(param);
+      if (!parsed) return messages.summary.aboutAverage;
+      return format(messages.summary.aboutAverageOf, { what: scopeName(context, messages, parsed.scope), period: periodName(parsed.period, messages) });
+    },
+    explain: (context, messages, param, { label, locale }) => {
+      const found = spendingOn(context, param);
+      if (!found) return why();
+      const { fromKey, days, totalCents, perDayCents, averageCents, soFarCents } = found.figures;
+      const what = scopeName(context, messages, found.scope);
+      const perDay = format(messages.summary.averageLabel, { what, period: periodName("day", messages) });
+      return explained(
+        [
+          block(
+            amount(format(messages.summary.spentSince, { what, date: formatShortDate(dateFromKey(fromKey), locale) }), totalCents),
+            dayCount(messages.summary.overDays, days, "÷"),
+            amount(perDay, perDayCents, "="),
+          ),
+          found.period === "day" ? [] : block(
+            amount(perDay, perDayCents),
+            dayCount(messages.summary.daysPerPeriod[found.period], PERIOD_DAYS[found.period], "×"),
+            amount(label, averageCents, "="),
+          ),
+          block(amount(messages.summary.current[found.period], soFarCents)),
+        ].filter((lines) => lines.length > 0),
+        [found.scope.kind === "all" ? messages.summary.everydayNote : null, messages.summary.fullAmountsNote],
+      );
+    },
+  },
 } satisfies Record<string, StatDefinition>;
 
 export type StatId = keyof typeof STATS;
-type ParamStatId = "groupGross" | "groupNet";
+type ParamStatId = "groupGross" | "groupNet" | "averageSpending";
 /** A stat on a card: its id, or "id:param" for a stat about one thing, like "groupNet:<group id>". */
 export type StatRef = Exclude<StatId, ParamStatId> | `${ParamStatId}:${string}`;
 
@@ -800,13 +879,14 @@ export function isSummaryCardId(value: string): value is SummaryCardId {
   return (SUMMARY_CARD_IDS as readonly string[]).includes(value);
 }
 
-const PARAM_STATS: readonly string[] = ["groupGross", "groupNet"] satisfies ParamStatId[];
+const PARAM_STATS: readonly string[] = ["groupGross", "groupNet", "averageSpending"] satisfies ParamStatId[];
 
 /** Whether a string names a stat: a plain id, or a parameterized id with its parameter. */
 export function isStatRef(value: string): value is StatRef {
   const colon = value.indexOf(":");
   const id = colon === -1 ? value : value.slice(0, colon);
   if (!Object.hasOwn(STATS, id)) return false;
+  if (id === "averageSpending") return parseSpendingParam(value.slice(colon + 1)) !== null && colon > 0;
   return PARAM_STATS.includes(id) ? colon > 0 && value.length > colon + 1 : colon === -1;
 }
 
@@ -858,6 +938,8 @@ export function cardLayout(card: SummaryCardId, cards: SummaryCards, context: St
 export function availableStats(context: StatContext, groups: { id: string }[]): StatRef[] {
   return (Object.keys(STATS) as StatId[]).flatMap((id): StatRef[] => {
     if (id === "groupGross" || id === "groupNet") return groups.map((group) => `${id}:${group.id}` as const);
+    // Built from its settings in the card editor rather than listed.
+    if (id === "averageSpending") return [];
     if ((id === "neededPerPayday" || id === "incomePerPayday") && !notDaily(context)) return [];
     if (id === "daysOff" && notDaily(context)) return [];
     return [id];
