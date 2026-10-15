@@ -1,4 +1,4 @@
-import { Banknote, CreditCard, Globe, HandCoins, List, Repeat, Tags, Target } from "lucide-react";
+import { Banknote, CreditCard, FileText, Globe, HandCoins, List, Repeat, ShieldCheck, Tags, Target, Trash2 } from "lucide-react";
 import { signOut } from "@/auth";
 import { Card, Section } from "@/components/section";
 import { LinkRow } from "@/components/settings-layout";
@@ -55,6 +55,15 @@ export default async function SettingsPage({ params }: PageProps<"/[locale]/sett
         </Card>
       </Section>
 
+      <Section title={messages.legal.legalTitle}>
+        <Card>
+          <ul className="divide-y divide-border">
+            <LinkRow href={`/${locale}/privacy`} icon={ShieldCheck} title={messages.legal.privacy} />
+            <LinkRow href={`/${locale}/terms`} icon={FileText} title={messages.legal.terms} />
+            <LinkRow hint={messages.account.hint} href={href("account")} icon={Trash2} title={messages.account.title} />
+          </ul>
+        </Card>
+      </Section>
       <form action={signOutAction}>
         <button className="flex min-h-12 w-full items-center justify-center rounded-xl border border-border font-medium text-muted-foreground transition hover:text-foreground" type="submit">
           {messages.auth.signOut}

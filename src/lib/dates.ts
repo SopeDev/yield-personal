@@ -30,6 +30,11 @@ export function groupByDay<T>(items: T[], dateOf: (item: T) => Date) {
   return [...groups.values()];
 }
 
+/** Full date like "October 15, 2026" / "15 de octubre de 2026". */
+export function formatLongDate(date: Date, locale: Locale) {
+  return new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(date);
+}
+
 /** Short date like "Nov 15" / "15 nov". */
 export function formatShortDate(date: Date, locale: Locale) {
   return new Intl.DateTimeFormat(locale, { day: "numeric", month: "short", timeZone: "UTC" }).format(date);

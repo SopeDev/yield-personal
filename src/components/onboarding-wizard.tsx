@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Check, Plus, X } from "lucide-react";
 import { useRef, useState, useTransition, type ReactNode } from "react";
 import { inputClass } from "@/components/input-class";
-import { locales, type Locale } from "@/i18n/config";
+import type { Locale } from "@/i18n/config";
 import { format, type Messages } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
 import { CURRENCIES, formatCents, parseAmountToCents } from "@/lib/money";
@@ -29,14 +29,12 @@ type SalaryDraft = { name: string; amount: string; schedule: SalarySchedule; day
  * them all at once, so going back or skipping never leaves anything half saved. Without `save` it's the preview,
  * which goes through the same screens and saves nothing.
  */
-export function OnboardingWizard({ locale, labels: m, currency: initialCurrency, today, basePath, save }: {
+export function OnboardingWizard({ locale, labels: m, currency: initialCurrency, today, save }: {
   locale: Locale;
   labels: Messages["onboarding"];
   currency: string;
   /** Today as "YYYY-MM-DD", for a weekly salary's payday. */
   today: string;
-  /** The wizard's path after the locale ("onboarding" or "onboarding/preview"), for switching language. */
-  basePath: string;
   save?: (answers: OnboardingAnswers, locale: Locale) => Promise<{ error: string } | undefined>;
 }) {
   const [step, setStep] = useState<Step>("welcome");
@@ -203,25 +201,22 @@ export function OnboardingWizard({ locale, labels: m, currency: initialCurrency,
 
       {step === "welcome" ? (
         <Screen body={m.welcome.body} title={m.welcome.title}>
-          {field(m.welcome.language, (
-            <div className="flex gap-2">
-              {locales.map((option) => (
-                <Link
-                  aria-current={option === locale ? "page" : undefined}
-                  className={cn("flex min-h-11 flex-1 items-center justify-center rounded-xl border text-sm font-semibold", option === locale ? "border-primary bg-primary/10" : "border-border bg-surface text-muted-foreground")}
-                  href={`/${option}/${basePath}`}
-                  key={option}
-                >
-                  {new Intl.DisplayNames(option, { type: "language" }).of(option)}
-                </Link>
-              ))}
-            </div>
-          ))}
-          {field(m.welcome.currency, (
-            <select className={inputClass} onChange={(event) => setCurrency(event.target.value)} value={currency}>
-              {CURRENCIES.map((option) => <option key={option} value={option}>{option} · {new Intl.DisplayNames(locale, { type: "currency" }).of(option)}</option>)}
-            </select>
-          ), m.welcome.currencyHint)}
+          <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label={m.welcome.currency}>
+            {CURRENCIES.map((option) => (
+              <button
+                aria-checked={option === currency}
+                className={cn("flex min-h-16 flex-col items-center justify-center rounded-xl border px-2 transition", option === currency ? "border-primary bg-primary/10" : "border-border bg-surface")}
+                key={option}
+                onClick={() => setCurrency(option)}
+                role="radio"
+                type="button"
+              >
+                <span className="font-semibold">{option}</span>
+                <span className="text-xs text-muted-foreground">{new Intl.DisplayNames(locale, { type: "currency" }).of(option)}</span>
+              </button>
+            ))}
+          </div>
+          <p className="text-sm text-subtle">{m.welcome.currencyHint}</p>
         </Screen>
       ) : null}
 

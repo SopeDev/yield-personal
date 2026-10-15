@@ -3,6 +3,9 @@ import { isCurrency, parseAmountToCents, type Currency } from "./money";
 import { CARD_COLORS, MAX_STATEMENT_DAY } from "./payment-methods";
 import { MAX_PAYMENT_DAYS } from "./statements";
 
+/** The main currency the wizard starts on for each language; changeable on its first screen. */
+export const LOCALE_CURRENCY = { en: "USD", es: "MXN" } as const satisfies Record<string, Currency>;
+
 /** Common fixed bills offered to tap in the wizard, named in the user's language; the variable ones start as estimates. */
 export const BILL_PRESETS = ["rent", "electricity", "water", "gas", "internet", "phone", "streaming", "gym", "insurance", "school"] as const;
 export type BillPreset = (typeof BILL_PRESETS)[number];

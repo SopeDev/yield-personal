@@ -132,6 +132,8 @@ Last updated: 2026-10-10
 - Onboarding, part A: a setup wizard new accounts open on (income for salaries, varying income or both; money on hand; cards; fixed bills), saved all at once; an owner-only preview that saves nothing; and a setup checklist on the month view. Checked against seeded data: a new account's full save, bad answers saving nothing, a repeated save creating nothing more, and existing accounts marked as set up.
 - Onboarding, part B: starting estimates (everyday spending per category, varying income) from the wizard, blended into typical spending and the income pace while there's under a month of records and fading out; shown as such in explanations; "you estimated X, on pace for Y" for a new account's first weeks; editable in Planning. New accounts count history from their setup day. Checked against seeded data: a new account's blended figures and forecast, an estimate on a non-everyday category refused, and editing estimates.
 - Onboarding: categories are picked in the wizard (suggestions or their own, each with its optional estimate) instead of every account getting Food and Car; accounts start with only Fixed and Extras. Checked against seeded data: picked categories in order with their estimates, and Food when skipped.
+- Language before sign-in: a language switch on the sign-in screen and the phone's language as the default; the wizard's first screen is only the main currency (pesos for Spanish, dollars for English).
+- Privacy notice and terms of use (plain-language, bilingual, linked from sign-in and Settings) and self-serve account deletion. Checked against seeded data: deleting a full account leaves no record in any table, and a wrong confirmation word deletes nothing.
 
 ## Next
 
