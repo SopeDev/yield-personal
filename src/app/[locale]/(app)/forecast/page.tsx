@@ -81,7 +81,7 @@ export default async function ForecastPage({ params }: PageProps<"/[locale]/fore
         <div className="px-4 pb-3 pt-4">
           <ForecastChart
             days={chartDays}
-            labels={{ title: m.title, estimated: m.estimated, overdue: m.overdue, forecast: m.line, spending: m.spending, savings: m.savings, withSavings: m.withSavings }}
+            labels={{ title: m.title, estimated: m.estimated, overdue: m.overdue, forecast: m.line, spending: m.spending, regularDay: m.regularDay, savings: m.savings, withSavings: m.withSavings }}
             sureDays={FORECAST_SURE_DAYS}
             ticks={ticks}
           />
