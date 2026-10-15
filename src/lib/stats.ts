@@ -2,7 +2,9 @@ import type { Locale } from "../i18n/config";
 import { format, type Messages } from "../i18n/dictionaries";
 import type { CashOnHandParts } from "./cash-on-hand";
 import { categoryLabel } from "./categories";
-import { dailyNet, daysLeftIn, daysOff, incomePace, neededPerDay, projectedBalance, todaySoFar, typicalDailySpending } from "./daily-balance";
+import {
+  blendWithEstimate, dailyNet, daysLeftIn, daysOff, DAYS_PER_MONTH, incomePace, neededPerDay, projectedBalance, todaySoFar, typicalDailySpending, type CategoryEstimate,
+} from "./daily-balance";
 import { formatShortDate } from "./dates";
 import { incomePerPayday, neededPerPayday, type IncomeRhythm } from "./income-rhythm";
 import type { LedgerIncome, LedgerIncomeGroup, LedgerPurchase } from "./ledger";
@@ -44,7 +46,17 @@ export type StatExplanation = { blocks: StatLine[][]; notes: string[] };
 export type OtherCurrencyTotals = { currency: string; incomeCents: number; spendingCents: number; toPayCents: number; outstandingCents: number };
 
 /** Settings that shape month figures; the income rhythm defaults to daily. */
-export type StatSettings = { balanceGoalCents: number | null; historyStartMonth: MonthKey | null; incomeRhythm?: IncomeRhythm; currency?: Currency };
+export type StatSettings = {
+  balanceGoalCents: number | null;
+  historyStartMonth: MonthKey | null;
+  /** The day a new account started keeping records, counted from instead of its history start's first day. */
+  historyFrom?: string | null;
+  incomeRhythm?: IncomeRhythm;
+  currency?: Currency;
+  /** The setup wizard's estimates, standing in for typical spending and the pace of income while there's little history. */
+  estimates?: Estimates;
+};
+export type Estimates = { spending: CategoryEstimate[]; incomeMonthlyCents: number };
 
 /**
  * Savings in the main currency right now, fund by fund (funds in other currencies aren't converted into it): each
@@ -98,20 +110,22 @@ export function monthStatContext({ view, today, settings, cashOnHandCents = null
   const dayNet = dailyNet({ month, today, entries, incomes });
   // Daily income compares with needed per day, so like the forecasts it counts finished days: a day under way would pull it down.
   const dayPace = dailyNet({ month, today, entries, incomes, finishedOnly: true });
-  const typicalDay = typicalDailySpending({ purchases: view.purchases, today, historyStart: settings.historyStartMonth });
+  const historyStart = settings.historyFrom ?? settings.historyStartMonth;
+  const estimates = settings.estimates ?? { spending: [], incomeMonthlyCents: 0 };
+  const typicalDay = typicalDailySpending({ purchases: view.purchases, today, historyStart, estimates: estimates.spending });
   // Recurring income still expected this month counts as coming; it is no part of the pace of other income.
   const recurringIncomes = view.recurringIncomes ?? [];
   const paydays = expectedPaydays(recurringIncomes, incomes, month);
   const expected = expectedIncomeLeft(paydays);
   const recurringSourceIds = new Set(recurringIncomes.map((recurring) => recurring.source.id));
   const paceIncomes = (view.recentIncomes ?? incomes).filter((item) => !item.recurringIncomeId && !recurringSourceIds.has(item.source.id));
-  const pace = incomePace({ incomes: paceIncomes, today, historyStart: settings.historyStartMonth });
+  const pace = incomePace({ incomes: paceIncomes, today, historyStart, estimateMonthlyCents: estimates.incomeMonthlyCents });
   const needed = neededPerDay({
     month, today, toPayCents: cashFlow.toPayCents, incomeCents: income.totalCents + expected.cents, goalCents, typicalDailyCents: typicalDay.cents,
   });
   // The categories income groups deduct are the costs of working, spent only on days worked.
   const workCategoryIds = income.deductCategoryIds;
-  const livingDay = typicalDailySpending({ purchases: view.purchases, today, historyStart: settings.historyStartMonth, excludeCategoryIds: workCategoryIds });
+  const livingDay = typicalDailySpending({ purchases: view.purchases, today, historyStart, excludeCategoryIds: workCategoryIds, estimates: estimates.spending });
   // What today has already brought in (the pace's kind of income) and spent; forecasts add only the rest of an average day.
   const todayRecords = todaySoFar({ purchases: view.purchases, incomes: paceIncomes, today });
   return {
@@ -126,7 +140,8 @@ export function monthStatContext({ view, today, settings, cashOnHandCents = null
     incomeGroups,
     statNames,
     incomeGroupDefs: view.incomeGroupDefs ?? [],
-    historyStartMonth: settings.historyStartMonth,
+    historyFrom: historyStart,
+    estimates,
     goalCents,
     rhythm,
     dayNet,
@@ -139,7 +154,7 @@ export function monthStatContext({ view, today, settings, cashOnHandCents = null
       month, today, rhythm, toPayCents: cashFlow.toPayCents, incomeCents: income.totalCents, goalCents, typicalDailyCents: typicalDay.cents,
     }),
     daysOff: daysOff({
-      month, today, historyStart: settings.historyStartMonth, purchases: view.purchases, incomes: paceIncomes,
+      month, today, historyStart, purchases: view.purchases, incomes: paceIncomes,
       workCategoryIds, livingDailyCents: livingDay.cents,
       toPayCents: cashFlow.toPayCents, incomeCents: income.totalCents + expected.cents, goalCents,
     }),
@@ -227,7 +242,15 @@ function otherCurrenciesNote(others: OtherCurrencyTotals[], field: Exclude<keyof
   return note ? format(messages.explain.otherCurrencies, { amounts: note.text }) : null;
 }
 
-const everydayNote = ({ typicalDay }: StatContext, messages: Messages) => format(messages.explain.everydayNote, { days: typicalDay.days });
+const everydayNote = ({ typicalDay, currency }: StatContext, messages: Messages) => [
+  format(messages.explain.everydayNote, { days: typicalDay.days }),
+  typicalDay.estimateShare > 0 ? format(messages.explain.estimateNote, {
+    percent: Math.round(typicalDay.estimateShare * 100), amount: formatCents(typicalDay.estimateMonthlyCents, currency), real: formatCents(typicalDay.realCents, currency),
+  }) : null,
+].filter(Boolean).join(" ");
+const paceEstimateNote = ({ pace, currency }: StatContext, messages: Messages) => (pace.estimateShare > 0 ? format(messages.explain.paceEstimateNote, {
+  percent: Math.round(pace.estimateShare * 100), amount: formatCents(pace.estimateMonthlyCents, currency), real: formatCents(pace.realCents, currency),
+}) : null);
 
 /**
  * What income still has to cover this month: its total to pay less its income (and, `withExpected`, recurring income
@@ -286,7 +309,34 @@ const periodName = (period: SpendingPeriod, messages: Messages) => messages.summ
 function spendingOn(context: StatContext, param: string) {
   const parsed = parseSpendingParam(param);
   if (!parsed) return null;
-  return { ...parsed, figures: averageSpending({ purchases: context.purchases, today: context.today, historyStart: context.historyStartMonth, ...parsed }) };
+  const figures = averageSpending({ purchases: context.purchases, today: context.today, historyStart: context.historyFrom, ...parsed });
+  const { scope } = parsed;
+  const estimateCents = scope.kind === "item" ? 0 : sum(context.estimates.spending.filter((estimate) => scope.kind === "all" || estimate.categoryId === scope.id).map((estimate) => estimate.monthlyCents));
+  return { ...parsed, ...withEstimate(figures, PERIOD_DAYS[parsed.period], estimateCents) };
+}
+
+/**
+ * An average's figures with a monthly estimate blended into its day while there's little history (`blendWithEstimate`):
+ * the per-day figure and the average from it, and the blend to explain them.
+ */
+function withEstimate<F extends { totalCents: number; days: number; perDayCents: number; averageCents: number }>(figures: F, periodDays: number, estimateMonthlyCents: number) {
+  const blend = blendWithEstimate(figures.days < 1 ? 0 : figures.totalCents / figures.days, figures.days, estimateMonthlyCents);
+  if (blend.estimateShare === 0) return { figures, blend: null };
+  return { figures: { ...figures, perDayCents: blend.cents, averageCents: Math.round(blend.cents * periodDays) }, blend };
+}
+
+/** How a day partly made of the estimate adds up: what the records make it and what the estimate does, each in its share. */
+function blendBlock(blend: NonNullable<ReturnType<typeof withEstimate>["blend"]>, label: string, messages: Messages, currency: string) {
+  const estimateShare = Math.round(blend.estimateShare * 100);
+  return block(
+    amount(format(messages.explain.fromRecords, { percent: 100 - estimateShare }), Math.round(blend.realCents * (1 - blend.estimateShare))),
+    amount(
+      format(messages.explain.fromEstimate, { percent: estimateShare, amount: formatCents(blend.estimateMonthlyCents, currency) }),
+      Math.round((blend.estimateMonthlyCents / DAYS_PER_MONTH) * blend.estimateShare),
+      "+",
+    ),
+    amount(label, blend.cents, "="),
+  );
 }
 
 /** The categories whose spending comes off an income scope's net: every group's, the group's, or none for one source. */
@@ -343,7 +393,7 @@ function averageIncomeFigures(context: StatContext, param: string) {
     figures: averageIncome({
       incomes: context.recentIncomes ?? context.incomes, purchases: context.purchases, scope, basis,
       deductCategoryIds: basis === "net" ? deductIdsFor(context, scope) : [],
-      today: context.today, historyStart: context.historyStartMonth, per,
+      today: context.today, historyStart: context.historyFrom, per,
     }),
   };
 }
@@ -591,6 +641,7 @@ const STATS = {
         [
           hasToday && messages.explain.restOfTodayNote,
           format(messages.explain.paceNote, { days: pace.days }),
+          paceEstimateNote(context, messages),
           everydayNote(context, messages),
           goalCents !== null && messages.explain.goalSavings,
         ],
@@ -808,13 +859,15 @@ const STATS = {
       const { fromKey, days, totalCents, perDayCents, averageCents, soFarCents } = found.figures;
       const what = scopeName(context, messages, found.scope);
       const perDay = format(messages.summary.averageLabel, { what, period: periodName("day", messages) });
+      const { blend } = found;
       return explained(
         [
           block(
             amount(format(messages.summary.spentSince, { what, date: formatShortDate(dateFromKey(fromKey), locale) }), totalCents),
             dayCount(messages.summary.overDays, days, "÷"),
-            amount(perDay, perDayCents, "="),
+            amount(blend ? messages.explain.recordsPerDay : perDay, blend ? blend.realCents : perDayCents, "="),
           ),
+          blend ? blendBlock(blend, perDay, messages, context.currency) : [],
           found.period === "day" ? [] : block(
             amount(perDay, perDayCents),
             dayCount(messages.summary.daysPerPeriod[found.period], PERIOD_DAYS[found.period], "×"),

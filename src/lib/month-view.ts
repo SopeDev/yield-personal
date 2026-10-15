@@ -1,7 +1,7 @@
 import "server-only";
 
 import { averageMonthlySpending } from "@/lib/averages";
-import { incomePace, todaySoFar, TYPICAL_SPENDING_MONTHS, typicalDailySpending } from "@/lib/daily-balance";
+import { DAYS_PER_MONTH, incomePace, todaySoFar, TYPICAL_SPENDING_MONTHS, typicalDailySpending } from "@/lib/daily-balance";
 import { addDays, billEvents, cardStatementEvents, FORECAST_DAYS, forecastCash, monthOfKey, paydayEvents } from "@/lib/forecast";
 import { getCashWallets, getExchanges, getRecurringIncomes, getSavingsFunds, loadCashOnHand, loadLedgerRange } from "@/lib/ledger-data";
 import { getMainCurrency, getStatNames, getUserSettings } from "@/lib/queries";
@@ -183,14 +183,20 @@ export async function loadForecast(userId: string, today: string) {
   if (cashOnHandCents === null) return null;
 
   const data = forCurrency(allData, currency, currency);
-  const historyStart = settings.historyStartMonth;
+  const historyStart = settings.historyFrom ?? settings.historyStartMonth;
   const recurringIncomes = allRecurringIncomes.filter((recurring) => (recurring.currency ?? currency) === currency);
   const recurringSourceIds = new Set(recurringIncomes.map((recurring) => recurring.source.id));
   // Recurring income arrives on its paydays, so the pace leaves it out, as the month's projection does.
   const paceIncomes = data.incomes.filter((income) => !income.recurringIncomeId && !recurringSourceIds.has(income.source.id));
-  const pace = incomePace({ incomes: paceIncomes, today, historyStart });
+  const pace = incomePace({ incomes: paceIncomes, today, historyStart, estimateMonthlyCents: settings.estimates.incomeMonthlyCents });
   const cashPurchases = data.purchases.filter((purchase) => purchase.paymentMethod.kind === "CASH");
-  const cashDaily = typicalDailySpending({ purchases: cashPurchases, today, historyStart });
+  // Estimates don't say what's paid in cash and what by card, so while they count, all of the estimate is spent in
+  // cash and every payment method's records count only in the share the records have (together they come to the
+  // blended typical day).
+  const { estimateShare, estimateMonthlyCents } = typicalDailySpending({ purchases: data.purchases, today, historyStart, estimates: settings.estimates.spending });
+  const recordsShare = (cents: number) => Math.round(cents * (1 - estimateShare));
+  const cashTypical = typicalDailySpending({ purchases: cashPurchases, today, historyStart });
+  const cashDaily = { ...cashTypical, cents: recordsShare(cashTypical.realCents) + Math.round((estimateMonthlyCents / DAYS_PER_MONTH) * estimateShare) };
   const todays = todaySoFar({ purchases: cashPurchases, incomes: paceIncomes, today });
 
   const months = Array.from({ length: monthDifference(currentMonth, endMonth) + 1 }, (_, index) => addMonths(currentMonth, index));
@@ -208,7 +214,7 @@ export async function loadForecast(userId: string, today: string) {
         end,
         card: {
           id: card.id, name: card.name, closingDay: card.closingDay!, paymentDays: card.paymentDays!, archived: card.archivedAt !== null,
-          dailyCents: typicalDailySpending({ purchases: onCard, today, historyStart }).cents,
+          dailyCents: recordsShare(typicalDailySpending({ purchases: onCard, today, historyStart }).realCents),
           todaySpentCents: todaySoFar({ purchases: onCard, incomes: [], today }).spentCents,
         },
         statements: data.statements,

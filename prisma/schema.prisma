@@ -54,6 +54,18 @@ model User {
   /// Customized summary cards by card id ("month", "income"), each `{ headline, grid }` of stat references
   /// (`src/lib/stats.ts`). A card left out keeps its default layout.
   summaryCards         Json?                 @map("summary_cards")
+  /// When the user finished or skipped the setup wizard; until then the app opens on it. Accounts from before the
+  /// wizard were marked as onboarded when it was added.
+  onboardedAt          DateTime?             @map("onboarded_at") @db.Timestamptz(6)
+  /// When the user dismissed the setup checklist on the month view (shown after the wizard until each step is done).
+  setupDismissedAt     DateTime?             @map("setup_dismissed_at") @db.Timestamptz(6)
+  /// The day a new account started keeping records (set by the setup wizard): figures from past spending and work
+  /// count from it rather than from the start of its month, which holds no records before it. Cleared when "Count
+  /// history from" is set by hand.
+  trackingFrom         DateTime?             @map("tracking_from") @db.Date
+  /// Roughly how much varying income comes in a month, from the setup wizard: it stands in for the pace of income
+  /// while there's little history, fading out over the first month. Encrypted; read as `incomeEstimateCents`.
+  incomeEstimateEnc    String?               @map("income_estimate_enc")
   createdAt            DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
   accounts             Account[]
@@ -170,6 +182,9 @@ model Category {
   nameEnc          String?                @map("name_enc")
   sortOrder        Int                    @default(0) @map("sort_order")
   kind             CategoryKind           @default(EVERYDAY)
+  /// Roughly how much is spent on it a month, from the setup wizard: it stands in for typical spending while there's
+  /// little history, fading out over the first month. Encrypted; read as `monthlyEstimateCents`.
+  monthlyEstimateEnc String?              @map("monthly_estimate_enc")
   archivedAt       DateTime?              @map("archived_at") @db.Timestamptz(6)
   createdAt        DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
   user             User                   @relation(fields: [userId], references: [id], onDelete: Cascade)

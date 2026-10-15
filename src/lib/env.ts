@@ -12,3 +12,8 @@ export function getDatabaseUrl() {
 export function getAppTimeZone() {
   return process.env.APP_TIME_ZONE || DEFAULT_TIME_ZONE;
 }
+
+/** The app owner's email, who can open the setup wizard's preview (`/onboarding/preview`); none when unset. */
+export function getOwnerEmail() {
+  return process.env.OWNER_EMAIL?.trim().toLowerCase() || null;
+}

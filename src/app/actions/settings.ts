@@ -338,14 +338,15 @@ export async function setHistoryStart(_state: FormState, formData: FormData): Pr
   const userId = await requireActionUserId();
   const month = readText(formData, "month");
   if (!isMonthKey(month)) return { fieldErrors: { month: "month" } };
-  await db.user.update({ where: { id: userId }, data: { historyStartMonth: dateFromKey(`${month}-01`) } });
+  // A month set by hand replaces the day a new account started on.
+  await db.user.update({ where: { id: userId }, data: { historyStartMonth: dateFromKey(`${month}-01`), trackingFrom: null } });
   revalidatePath(`/${localeFromForm(formData)}`, "layout");
   return { savedAt: Date.now() };
 }
 
 export async function clearHistoryStart(formData: FormData) {
   const userId = await requireActionUserId();
-  await db.user.update({ where: { id: userId }, data: { historyStartMonth: null } });
+  await db.user.update({ where: { id: userId }, data: { historyStartMonth: null, trackingFrom: null } });
   revalidatePath(`/${localeFromForm(formData)}`, "layout");
 }
 
@@ -356,4 +357,30 @@ export async function setCurrency(formData: FormData) {
   if (!isCurrency(currency)) return;
   await db.user.update({ where: { id: userId }, data: { currency } });
   revalidatePath(`/${localeFromForm(formData)}`, "layout");
+}
+
+/**
+ * Sets the starting estimates: roughly how much is spent a month on each everyday category (`estimate:<id>`), and how
+ * much varying income comes in (`incomeEstimate`). A blank one is removed.
+ */
+export async function setEstimates(_state: FormState, formData: FormData): Promise<FormState> {
+  const userId = await requireActionUserId();
+  const everyday = await db.category.findMany({ where: { userId, kind: "EVERYDAY", archivedAt: null }, select: { id: true } });
+  const amount = (name: string) => {
+    const text = readText(formData, name);
+    return text === "" ? null : parseAmountToCents(text) ?? undefined;
+  };
+  const estimates = everyday.map((category) => ({ id: category.id, cents: amount(`estimate:${category.id}`) }));
+  const incomeCents = amount("incomeEstimate");
+  const fieldErrors: FormState["fieldErrors"] = {};
+  if (estimates.some((estimate) => estimate.cents === undefined)) fieldErrors.estimates = "amount";
+  if (incomeCents === undefined) fieldErrors.incomeEstimate = "amount";
+  if (Object.keys(fieldErrors).length > 0) return { fieldErrors };
+
+  await db.$transaction([
+    ...estimates.map((estimate) => db.category.update({ where: { id: estimate.id }, data: seal("Category", { monthlyEstimateCents: estimate.cents ?? null }) })),
+    db.user.update({ where: { id: userId }, data: seal("User", { incomeEstimateCents: incomeCents ?? null }) }),
+  ]);
+  revalidatePath(`/${localeFromForm(formData)}`, "layout");
+  return { savedAt: Date.now() };
 }

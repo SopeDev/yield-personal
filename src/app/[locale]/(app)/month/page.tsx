@@ -7,6 +7,9 @@ import { EntryRow } from "@/components/entry-row";
 import { Money } from "@/components/money";
 import { MonthEntries, type EntryItem } from "@/components/month-entries";
 import { StatementRow } from "@/components/statement-row";
+import { EstimateCheckCard } from "@/components/estimate-check-card";
+import { SetupChecklistCard } from "@/components/setup-checklist";
+import { estimateCheck } from "@/lib/estimate-check";
 import { SummaryCard } from "@/components/summary-card";
 import { formatCentsIn } from "@/lib/money";
 import { MonthNav } from "@/components/month-nav";
@@ -20,7 +23,7 @@ import { format, getDictionary } from "@/i18n/dictionaries";
 import { requireUserId } from "@/lib/auth-user";
 import { occurrencePaymentStatus, occurrenceRowStatus } from "@/lib/cash-flow";
 import { categoryLabel } from "@/lib/categories";
-import { daysBetween, formatDayHeading, formatShortDate, groupByDay } from "@/lib/dates";
+import { daysBetween, formatDayHeading, formatMonth, formatShortDate, groupByDay } from "@/lib/dates";
 import { searchText } from "@/lib/entry-filter";
 import { dateFromKey, dateKeyOf } from "@/lib/months";
 import type { LedgerIncome, LedgerPaymentMethod, MonthSpendingEntry } from "@/lib/ledger";
@@ -28,7 +31,7 @@ import { paymentMethodLabel } from "@/lib/payment-methods";
 import type { RecurringOccurrence } from "@/lib/recurring";
 import type { ExpectedPayday } from "@/lib/recurring-income";
 import { loadCardSettings, loadMonthView, summaryCardFor } from "@/lib/month-view";
-import { getActivePaymentMethods } from "@/lib/queries";
+import { getActivePaymentMethods, getSetupChecklist } from "@/lib/queries";
 import { monthFromSearchParam } from "@/lib/search-params";
 import { currentMonthKey, todayKey } from "@/lib/today";
 import { cn } from "@/lib/cn";
@@ -49,10 +52,12 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
   // Opening a cell of the year view filters the month's entries and recurring payments to one item.
   const itemFilter = typeof query.item === "string" ? query.item : null;
   const messages = getDictionary(locale);
-  const [view, methods, cardSettings] = await Promise.all([
+  const [view, methods, cardSettings, setupChecklist] = await Promise.all([
     loadMonthView(userId, month, currentMonth),
     getActivePaymentMethods(userId),
     loadCardSettings(userId, "month", currentMonth),
+    // What's left to set up after the wizard, on the current month only.
+    month === currentMonth ? getSetupChecklist(userId) : null,
   ]);
 
   // Listed in every currency; the summary card and By category are the main currency's.
@@ -81,6 +86,14 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
   ].sort((a, b) => b.date.getTime() - a.date.getTime());
   const today = todayKey();
   const summary = summaryCardFor("month", { view, today, ...cardSettings });
+  // A new account's first weeks: its starting estimates beside what its records come to.
+  const estimates = month === currentMonth ? estimateCheck({
+    estimates: summary.context.estimates, purchases: view.purchases, today, historyStart: summary.context.historyFrom, incomePerDayCents: summary.context.pace.realCents,
+  }) : null;
+  const categoryName = (categoryId: string) => {
+    const category = spending.byCategory.find((entry) => entry.category.id === categoryId)?.category;
+    return category ? categoryLabel(category, messages.categories) : "–";
+  };
 
   function purchaseRow(entry: MonthSpendingEntry) {
     const { purchase } = entry;
@@ -346,10 +359,16 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
 
   return (
     <div className="space-y-7">
-      <div className="space-y-3">
-        <OverviewToggle labels={messages.nav} locale={locale} month={month} view="month" />
-        <MonthNav labels={messages.common} locale={locale} month={month} path={`/${locale}/month`} />
-      </div>
+      <MonthNav
+        labels={messages.common}
+        locale={locale}
+        month={month}
+        path={`/${locale}/month`}
+        title={<OverviewToggle labels={messages.nav} locale={locale} month={month} title={formatMonth(month, locale)} view="month" />}
+      />
+
+      {setupChecklist && !itemFilter ? <SetupChecklistCard checklist={setupChecklist} labels={messages.setup} locale={locale} /> : null}
+      {estimates && !itemFilter ? <EstimateCheckCard categoryLabel={categoryName} check={estimates} currency={view.currency} labels={messages.estimates} /> : null}
 
       {itemFilter ? (
         <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/40 bg-primary/10 px-4 py-3 text-sm">

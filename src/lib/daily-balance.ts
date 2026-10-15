@@ -50,27 +50,53 @@ export const TYPICAL_SPENDING_MONTHS = 3;
  * those days. Months before `historyStart` are skipped, since they may hold only partial records.
  * `excludeCategoryIds` leaves out categories that aren't spent every day, like the costs of working.
  */
-export function typicalDailySpending({ purchases, today, historyStart = null, excludeCategoryIds = [] }: {
+export function typicalDailySpending({ purchases, today, historyStart = null, excludeCategoryIds = [], estimates = [] }: {
   purchases: Pick<LedgerPurchase, "date" | "amountCents" | "installmentCount" | "item">[];
   today: string;
-  historyStart?: MonthKey | null;
+  /** The first month, or day, counted. */
+  historyStart?: string | null;
   excludeCategoryIds?: string[];
+  /** Monthly estimates per category, blended in while there's little history (`blendWithEstimate`). */
+  estimates?: CategoryEstimate[];
 }) {
   const { fromKey, toKey, days } = historyWindow(today, historyStart);
-  if (days < 1) return { days: 0, cents: 0 };
+  const estimateMonthlyCents = estimates.filter((estimate) => !excludeCategoryIds.includes(estimate.categoryId)).reduce((sum, estimate) => sum + estimate.monthlyCents, 0);
+  if (days < 1) return { days: 0, ...blendWithEstimate(0, 0, estimateMonthlyCents) };
   const spentCents = everydaySpending(purchases, { fromKey, toKey, include: (categoryId) => !excludeCategoryIds.includes(categoryId) });
-  return { days, cents: Math.round(spentCents / days) };
+  return { days, ...blendWithEstimate(spentCents / days, days, estimateMonthlyCents) };
+}
+
+/** A category's estimated monthly spending, from the setup wizard. */
+export type CategoryEstimate = { categoryId: string; monthlyCents: number };
+
+/** Days of history after which estimates no longer count. */
+export const ESTIMATE_DAYS = 30;
+/** Days in an average month. */
+export const DAYS_PER_MONTH = 30.4;
+
+/**
+ * A per-day figure from `days` of records, with a monthly estimate standing in for what's missing: all estimate with
+ * no history, fading out evenly until real records alone count after `ESTIMATE_DAYS`. `estimateShare` is how much of
+ * the figure is still the estimate (0 when there's none), and `realCents` the figure from records alone.
+ */
+export function blendWithEstimate(realPerDay: number, days: number, estimateMonthlyCents: number) {
+  const realCents = Math.round(realPerDay);
+  if (estimateMonthlyCents <= 0 || days >= ESTIMATE_DAYS) return { cents: realCents, realCents, estimateShare: 0, estimateMonthlyCents: 0 };
+  const estimateShare = 1 - Math.max(0, days) / ESTIMATE_DAYS;
+  const cents = Math.round(realPerDay * (1 - estimateShare) + (estimateMonthlyCents / DAYS_PER_MONTH) * estimateShare);
+  return { cents, realCents, estimateShare, estimateMonthlyCents };
 }
 
 /**
  * The days figures from past spending and work look back over: the last full months through yesterday, from
- * `historyStart` on. Only finished days count, so a day under way (gas bought in the morning, income logged at night)
- * never skews the averages; on the first day of the history there is no finished day yet, so it counts today.
+ * `historyStart` on (a month, or for a new account the day it started keeping records). Only finished days count, so
+ * a day under way (gas bought in the morning, income logged at night) never skews the averages; on the first day of
+ * the history there is no finished day yet, so it counts today.
  */
-export function historyWindow(today: string, historyStart: MonthKey | null) {
-  const lookback = addMonths(today.slice(0, 7) as MonthKey, -TYPICAL_SPENDING_MONTHS);
-  const from = historyStart && historyStart > lookback ? historyStart : lookback;
-  const fromKey = `${from}-01`;
+export function historyWindow(today: string, historyStart: string | null) {
+  const lookback = `${addMonths(today.slice(0, 7) as MonthKey, -TYPICAL_SPENDING_MONTHS)}-01`;
+  const start = historyStart && historyStart.length === 7 ? `${historyStart}-01` : historyStart;
+  const fromKey = start && start > lookback ? start : lookback;
   const yesterday = new Date(Date.parse(`${today}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
   const toKey = yesterday >= fromKey ? yesterday : today;
   return { fromKey, toKey, days: Math.round((Date.parse(`${toKey}T00:00:00Z`) - Date.parse(`${fromKey}T00:00:00Z`)) / 86_400_000) + 1 };
@@ -123,17 +149,19 @@ export function daysLeftIn(month: MonthKey, today: string) {
  * through yesterday, from `historyStart` on), divided by all those days, so days off count. Recurring income is left
  * out by the caller, since its paydays are expected instead.
  */
-export function incomePace({ incomes, today, historyStart = null }: {
+export function incomePace({ incomes, today, historyStart = null, estimateMonthlyCents = 0 }: {
   incomes: Pick<LedgerIncome, "date" | "amountCents">[];
   today: string;
-  historyStart?: MonthKey | null;
+  historyStart?: string | null;
+  /** Estimated monthly income, blended in while there's little history (`blendWithEstimate`). */
+  estimateMonthlyCents?: number;
 }) {
   const { fromKey, toKey, days } = historyWindow(today, historyStart);
-  if (days < 1) return { days: 0, cents: 0 };
+  if (days < 1) return { days: 0, ...blendWithEstimate(0, 0, estimateMonthlyCents) };
   const cents = incomes
     .filter((income) => dateKeyOf(income.date) >= fromKey && dateKeyOf(income.date) <= toKey)
     .reduce((sum, income) => sum + income.amountCents, 0);
-  return { days, cents: Math.round(cents / days) };
+  return { days, ...blendWithEstimate(cents / days, days, estimateMonthlyCents) };
 }
 
 /**
@@ -200,7 +228,7 @@ export function projectedBalance({ month, today, balanceCents, expectedCents, pa
 export function daysOff({ month, today, historyStart = null, purchases, incomes, workCategoryIds, livingDailyCents, toPayCents, incomeCents, goalCents = null }: {
   month: MonthKey;
   today: string;
-  historyStart?: MonthKey | null;
+  historyStart?: string | null;
   /** Purchases and incomes reaching back over the history window; earlier and later ones are ignored. */
   purchases: Pick<LedgerPurchase, "date" | "amountCents" | "installmentCount" | "item">[];
   incomes: Pick<LedgerIncome, "date" | "amountCents">[];
