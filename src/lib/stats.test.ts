@@ -7,7 +7,8 @@ import { summarizeMonth, type LedgerData } from "./month-summary";
 import { dateFromKey } from "./months";
 import type { RecurringIncomeDefinition } from "./recurring-income";
 import {
-  availableStats, cardLayout, defaultCardLayout, explainStat, isStatRef, monthStatContext, parseSummaryCards, resolveStats, statDescription, statLabel, statShown,
+  availableStats, buildStatRef, cardLayout, defaultCardLayout, explainStat, isStatRef, monthStatContext, parseSummaryCards, resolveStats, statBuilderValues, statDescription,
+  statLabel, statShown,
   type StatFigure, type StatRef, type StatSettings,
 } from "./stats";
 
@@ -40,7 +41,9 @@ function context(incomes: LedgerIncome[], { today = "2026-10-10", settings = noS
     savingsMovements: [],
   };
   const summary = summarizeMonth(data, "2026-10");
-  return monthStatContext({ view: { ...summary, purchases: data.purchases, recurringIncomes }, today, settings, cashOnHandCents });
+  return monthStatContext({
+    view: { ...summary, purchases: data.purchases, recentIncomes: data.incomes, incomeGroupDefs: data.incomeGroups, recurringIncomes }, today, settings, cashOnHandCents,
+  });
 }
 
 const labels = (refs: StatRef[], ctx: ReturnType<typeof context>) => resolveStats(refs, ctx, en).map((stat) => stat.label);
@@ -68,7 +71,7 @@ test("figures that have no value this month read as none", () => {
 test("the income card names a single deducted category and hides a group's pair when it holds all income", () => {
   const onlyRideshare = context([income("u1", "2026-10-01", 100000, uber)]);
   const card = defaultCardLayout("income", onlyRideshare);
-  assert.deepEqual(labels(card.grid, onlyRideshare), ["Car spending", "Net", "Daily avg. gross", "Daily avg. net"]);
+  assert.deepEqual(labels(card.grid, onlyRideshare), ["Car spending", "Net income", "Income / day worked", "Net income / day worked"]);
   assert.deepEqual(resolveStats(["deductions"], onlyRideshare, en)[0].value, { cents: -40000, tone: "muted" });
 
   const mixed = context([income("u1", "2026-10-01", 100000, uber), income("s1", "2026-10-02", 300000, salary)]);
@@ -79,7 +82,9 @@ test("the income card names a single deducted category and hides a group's pair 
 test("deductions are hidden without income groups deducting a category, and unknown stats are skipped", () => {
   const ctx = context([]);
   const noDeductions = { ...ctx, income: { ...ctx.income, deductCategoryIds: [] } };
-  assert.deepEqual(labels(["deductions", "netIncome", "incomeDayGross"], noDeductions), ["Daily avg. gross"]);
+  assert.deepEqual(labels(["deductions", "averageIncome:workday:all:gross"], noDeductions), ["Income / day worked"]);
+  // Without deductions the income card leaves out net figures, which would repeat the gross ones.
+  assert.deepEqual(defaultCardLayout("income", noDeductions).grid, ["averageIncome:workday:all:gross"]);
   assert.deepEqual(labels(["toString", "nope"] as unknown as StatRef[], ctx), []);
 });
 
@@ -105,7 +110,7 @@ test("with paydays, the month card swaps the daily pair for needed and income pe
   // The per-payday stats stay hidden, and aren't offered, with a daily rhythm.
   const daily = context([]);
   assert.deepEqual(labels(["neededPerPayday", "incomePerPayday"], daily), []);
-  assert.equal(availableStats(daily, []).includes("neededPerPayday"), false);
+  assert.equal(availableStats(daily).includes("neededPerPayday"), false);
 });
 
 test("a customized card replaces the default, and stored cards keep only known stats", () => {
@@ -115,7 +120,8 @@ test("a customized card replaces the default, and stored cards keep only known s
     income: { headline: "nope", grid: [] },
     other: { headline: "balance", grid: [] },
   });
-  assert.deepEqual(stored, { month: { headline: "cashOnHand", grid: ["spending", "groupNet:rideshare"] } });
+  // A group's net, from before configurable stats, is kept as the income stat with the same settings.
+  assert.deepEqual(stored, { month: { headline: "cashOnHand", grid: ["spending", "incomeOf:month:group.rideshare:net"] } });
   assert.deepEqual(cardLayout("month", stored, ctx), stored.month);
   assert.deepEqual(cardLayout("income", stored, ctx), defaultCardLayout("income", ctx));
   assert.deepEqual(parseSummaryCards(null), {});
@@ -124,12 +130,12 @@ test("a customized card replaces the default, and stored cards keep only known s
 });
 
 test("the editor names group stats from the group list even in a month without their income", () => {
-  const settings = noSettings;
   const data = context([]);
-  const ctx = monthStatContext({ view: data, today: "2026-10-10", settings, incomeGroups: [{ id: "rideshare", name: "Rideshare" }] });
-  assert.equal(statLabel("groupNet:rideshare", ctx, en), "Rideshare net");
-  assert.equal(statShown("groupNet:rideshare", ctx), false);
-  assert.deepEqual(availableStats(ctx, [{ id: "rideshare" }]).filter((ref) => ref.startsWith("group")), ["groupGross:rideshare", "groupNet:rideshare"]);
+  const ctx = monthStatContext({ view: data, today: "2026-10-10", settings: noSettings, incomeGroups: [{ id: "rideshare", name: "Rideshare" }] });
+  assert.equal(statLabel("incomeOf:month:group.rideshare:net", ctx, en), "Rideshare net");
+  assert.deepEqual(resolveStats(["incomeOf:month:group.rideshare:net"], ctx, en)[0].value, { cents: -40000, tone: "loss" });
+  // Configurable stats are built in the editor, never listed.
+  assert.equal(availableStats(ctx).some((ref) => ref.includes(":")), false);
 });
 
 test("other currencies are noted beside the main currency's figures, never added to them", () => {
@@ -144,7 +150,7 @@ test("other currencies are noted beside the main currency's figures, never added
     cashOnHandCents: 500000, otherCash: [{ currency: "USD", cents: 12000 }],
   });
   const [incomeStat, spendingStat, outstandingStat, cashStat] = resolveStats(["income", "spending", "outstanding", "cashOnHand"], ctx, en).map((stat) => stat.value);
-  assert.deepEqual(incomeStat, { cents: 150000, note: { text: "+ US$300.00", tone: "muted" } });
+  assert.deepEqual(incomeStat, { cents: 150000, note: { text: "+ US$300.00 · 1 day with income", tone: "muted" } });
   assert.deepEqual(spendingStat, { cents: 40000, note: { text: "+ US$25.00", tone: "muted" } });
   // Nothing outstanding in dollars, so no note.
   assert.equal(outstandingStat?.note, undefined);
@@ -163,7 +169,7 @@ test("days off left lead with the goal's and note breaking even, and only with d
   assert.equal(resolveStats(["daysOff"], context([]), en)[0].value, null);
   const paydays = context(incomes, { settings: { ...noSettings, incomeRhythm: { kind: "MONTH_DAYS", days: [1, 15] } } });
   assert.deepEqual(labels(["daysOff"], paydays), []);
-  assert.equal(availableStats(paydays, []).includes("daysOff"), false);
+  assert.equal(availableStats(paydays).includes("daysOff"), false);
 });
 
 test("the projected balance adds expected recurring income and the recent pace of other income, less typical spending", () => {
@@ -220,9 +226,13 @@ test("each stat's working comes to the value it shows", () => {
     context(incomes, { settings: { ...noSettings, incomeRhythm: { kind: "WEEKLY", anchor: "2026-10-02" } } }),
   ].map((ctx) => ({ ...ctx, cashOnHandCents: parts.cents, cashOnHandParts: parts }));
   for (const ctx of contexts) {
-    const averages: StatRef[] = ["averageSpending:day:all", "averageSpending:week:category.car", "averageSpending:month:item.pho"];
-    const refs = [...availableStats(ctx, [{ id: "rideshare" }]), ...averages].filter((ref) => statShown(ref, ctx));
-    assert.ok(refs.length >= 18);
+    const configurable: StatRef[] = [
+      "averageSpending:day:all", "averageSpending:week:category.car", "averageSpending:month:item.pho", "spendingOn:category.car", "spendingOn:item.pho",
+      "incomeOf:month:all:net", "incomeOf:month:group.rideshare:gross", "incomeOf:week:group.rideshare:net", "incomeOf:day:source.uber:gross",
+      "averageIncome:workday:all:net", "averageIncome:day:source.uber:gross", "averageIncome:week:group.rideshare:net", "averageIncome:month:all:gross",
+    ];
+    const refs = [...availableStats(ctx), ...configurable].filter((ref) => statShown(ref, ctx));
+    assert.ok(refs.length >= 25);
     for (const ref of refs) {
       assertWorkingAddsUp(ref, ctx);
       assert.notEqual(statDescription(ref, ctx, en), "");
@@ -367,5 +377,41 @@ test("an average spending stat is named by its settings, reads the usual against
   assert.equal(resolveStats(["averageSpending:day:all"], today, en)[0].value?.note?.tone, "warning");
   for (const ref of ["averageSpending:week:category.car", "averageSpending:day:all"]) assert.ok(isStatRef(ref));
   for (const ref of ["averageSpending", "averageSpending:", "averageSpending:year:all", "averageSpending:week:shop.x"]) assert.equal(isStatRef(ref), false);
-  assert.deepEqual(availableStats(ctx, []).filter((ref) => ref.startsWith("averageSpending")), []);
+});
+
+test("income stats read today, this week, or the month, gross or net of a group's deductions; their averages look back over the history", () => {
+  // Wed Oct 7: Uber on Thu Oct 1 and Mon Oct 5 (this week), gas (car, deducted by Rideshare) on Oct 2, a salary on Oct 6.
+  const incomes = [income("u1", "2026-10-01", 100000, uber), income("u2", "2026-10-05", 80000, uber), income("s1", "2026-10-06", 300000, salary)];
+  const ctx = context(incomes, { today: "2026-10-07" });
+  const value = (ref: StatRef) => resolveStats([ref], ctx, en)[0];
+  assert.deepEqual([value("incomeOf:month:group.rideshare:net").label, value("incomeOf:month:group.rideshare:net").value?.cents], ["Rideshare net", 180000 - 40000]);
+  assert.deepEqual([value("incomeOf:week:all:gross").label, value("incomeOf:week:all:gross").value?.cents], ["Income · this week", 380000]);
+  assert.equal(value("incomeOf:day:source.uber:gross").value?.cents, 0);
+  // Today and this week have no value in another month.
+  const september = { ...ctx, month: "2026-09" as const };
+  assert.equal(resolveStats(["incomeOf:week:all:gross"], september, en)[0].value, null);
+  // History Jul 1 – Oct 6: Uber came in on two days of 98, for 1,800 gross and 1,400 net of the gas.
+  const perWorkday = value("averageIncome:workday:group.rideshare:net");
+  assert.equal(perWorkday.label, "Rideshare net / day worked");
+  assert.deepEqual(perWorkday.value, { cents: 70000, tone: undefined, note: { text: "Today: $0.00", tone: "muted" } });
+  assert.equal(value("averageIncome:week:source.uber:gross").value?.cents, Math.round(180000 / 98) * 7);
+});
+
+test("a configurable stat's settings make it, and read back from it; old stats keep their settings", () => {
+  for (const ref of ["averageSpending:week:item.coffee", "spendingOn:category.car", "incomeOf:week:group.rideshare:net", "averageIncome:workday:all:gross", "income", "spending"] as StatRef[]) {
+    const values = statBuilderValues(ref);
+    assert.ok(values, ref);
+    assert.equal(buildStatRef(values), ref);
+  }
+  assert.equal(statBuilderValues("balance"), null);
+  // Everything this month is the plain stat; one source has no net, so it's gross.
+  assert.equal(buildStatRef({ builder: "spending", scope: "all" }), "spending");
+  assert.equal(buildStatRef({ builder: "income", frame: "month", source: "all", basis: "gross" }), "income");
+  assert.equal(buildStatRef({ builder: "averageIncome", per: "day", source: "source.uber", basis: "net" }), "averageIncome:day:source.uber:gross");
+  assert.equal(buildStatRef({ builder: "income", frame: "year", source: "all", basis: "gross" }), null);
+  const stored = parseSummaryCards({ income: { headline: "totalIncome", grid: ["netIncome", "incomeDayGross", "incomeDayNet", "groupGross:g1", "income"] } });
+  assert.deepEqual(stored.income, {
+    headline: "income",
+    grid: ["incomeOf:month:all:net", "averageIncome:workday:all:gross", "averageIncome:workday:all:net", "incomeOf:month:group.g1:gross", "income"],
+  });
 });

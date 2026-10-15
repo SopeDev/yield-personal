@@ -17,13 +17,19 @@ export function parseSpendingParam(param: string): { period: SpendingPeriod; sco
   if (colon === -1) return null;
   const period = param.slice(0, colon);
   const scope = param.slice(colon + 1);
-  if (!(SPENDING_PERIODS as readonly string[]).includes(period)) return null;
-  if (scope === "all") return { period: period as SpendingPeriod, scope: { kind: "all" } };
-  const dot = scope.indexOf(".");
-  const kind = scope.slice(0, dot);
-  const id = scope.slice(dot + 1);
+  const parsed = parseSpendingScope(scope);
+  if (!(SPENDING_PERIODS as readonly string[]).includes(period) || !parsed) return null;
+  return { period: period as SpendingPeriod, scope: parsed };
+}
+
+/** "all", "category.<id>" or "item.<id>", or null. */
+export function parseSpendingScope(text: string): SpendingScope | null {
+  if (text === "all") return { kind: "all" };
+  const dot = text.indexOf(".");
+  const kind = text.slice(0, dot);
+  const id = text.slice(dot + 1);
   if (dot === -1 || (kind !== "category" && kind !== "item") || !/^[\w-]+$/.test(id)) return null;
-  return { period: period as SpendingPeriod, scope: { kind, id } };
+  return { kind, id };
 }
 
 export function spendingParam(period: SpendingPeriod, scope: SpendingScope) {
