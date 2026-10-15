@@ -703,7 +703,6 @@
     "nothingUpcoming": "No hay pagos, estados de cuenta ni ingresos recurrentes en los próximos tres meses.",
     "estimated": "estimado",
     "overdue": "vencido",
-    "noEvents": "Un día promedio",
     "howTitle": "Cómo se calcula",
     "how": "Parte de tu dinero disponible y suma cada día tu ritmo reciente de ingresos ({pace} al día) menos tu gasto diario típico en efectivo ({spending} al día), de tus últimos {days} días. Los pagos en efectivo caen en su fecha límite y los ingresos recurrentes en su día de pago.",
     "howCards": "Lo que gastas con tarjeta sale de tu dinero cuando vence su estado de cuenta: lo que ya tiene (compras, mensualidades, pagos con tarjeta) más el gasto diario típico de la tarjeta por los días que faltan de su ciclo.",
@@ -714,11 +713,9 @@
     "needsCash": "El pronóstico parte de tu dinero disponible. Cuéntalo en Ajustes para ver hacia dónde va.",
     "countCash": "Contar tu dinero",
     "withSavings": "Dinero + ahorros",
-    "interest": "intereses",
     "toSavings": "A ahorros: {fund}",
     "howSavings": "La línea azul suma tus ahorros a tu dinero: lo que hay hoy en cada fondo, los depósitos que planeaste y los intereses de cada fondo, calculados día a día a su tasa y cambiando a la siguiente cuando termina una promocional. Los depósitos planeados aparecen en azul encima de la barra de ese día: salen de tu dinero, pero no son gasto.",
-    "savings": "Ahorros",
-    "plusSavings": "+ {amount} ahorros"
+    "savings": "Ahorros"
   },
   "onboarding": {
     "preview": "Vista previa: nada de lo que escribas aquí se guarda.",

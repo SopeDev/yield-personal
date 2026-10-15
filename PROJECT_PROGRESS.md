@@ -137,6 +137,7 @@ Last updated: 2026-10-10
 - Savings that grow in the forecast: each fund's interest rate (with a promotional rate's end and the rate after) and planned deposits; a cash-plus-savings line above cash, deposits leaving cash on their days, interest compounding daily; earnings shown on the Savings screen. Checked against seeded data: deposits on their days, cash lower by them, spending unchanged, interest over 90 days, and clearing restores the forecast.
 - Forecast savings, tidied: the readout shows the savings amount, the 90-day summary line is gone, and planned deposits stack in blue on that day's spending bar instead of a mark under the chart.
 - Planned deposits confirmed in one tap from the month view ("Savings this month"), matched to deposits made a little early or late, so the forecast stops projecting them; forecast cards show savings under cash. Checked against seeded data: an early deposit making its day, one-tap and edited confirmations, no double recording, too-early dates refused, and the forecast dropping made days.
+- Forecast decluttered: whole units throughout, no savings under the cards, a two-line readout (cash; savings and interest) plus the day's events, and the subtitle moved into the explanation.
 
 ## Next
 
