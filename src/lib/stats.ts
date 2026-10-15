@@ -63,10 +63,14 @@ export type Estimates = { spending: CategoryEstimate[]; incomeMonthlyCents: numb
  * fund's balance and goal, the emergency fund's goal being months of average spending plus installments owed.
  */
 export type SavingsSnapshot = {
-  funds: { kind: "EMERGENCY" | "GOAL"; name: string | null; balanceCents: number; goalCents: number }[];
+  /** Amounts in the main currency; a fund in another currency keeps its own balance as `original`. */
+  funds: { kind: "EMERGENCY" | "GOAL"; name: string | null; balanceCents: number; goalCents: number; original?: { currency: string; cents: number } }[];
   /** How the emergency fund's goal adds up, when there is one. */
   emergency: { coverMonths: number; emergencyCents: number; installmentsOwedCents: number } | null;
 };
+
+/** Money on hand in a wallet of another currency, and what it comes to in the main one when there's a rate for it. */
+export type OtherCash = { currency: string; cents: number; converted?: { cents: number; rate: number; date: string } };
 
 /** Names of what configurable stats can be about (categories, items, income sources), archived ones included. */
 export type StatNames = {
@@ -91,12 +95,12 @@ export function monthStatContext({ view, today, settings, cashOnHandCents = null
   /** Today as "YYYY-MM-DD". */
   today: string;
   settings: StatSettings;
-  /** Money on hand now in the main currency's wallet (`loadCashOnHand`), or null when it isn't set or loaded. */
+  /** Money on hand now in the main currency (`splitCash`: its wallet plus other currencies converted), or null when it isn't set or loaded. */
   cashOnHandCents?: number | null;
   /** How the main currency's money on hand got from its count to now, to explain it. */
   cashOnHandParts?: CashOnHandParts | null;
-  /** Money on hand in wallets of other currencies, noted beside it. */
-  otherCash?: { currency: string; cents: number }[];
+  /** Money on hand in wallets of other currencies: counted in it when converted, else noted beside it. */
+  otherCash?: OtherCash[];
   /** Savings now (`loadSavingsSnapshot`), or null when not loaded. */
   savings?: SavingsSnapshot | null;
   /** Income groups to name in group stats even in a month without their income, as the card editor lists them. */
@@ -196,6 +200,17 @@ function withNote(value: Exclude<StatValue, null>, note: StatNote | undefined): 
 /** "+ US$120.00" for each other currency with an amount of this kind this month, or none. */
 function othersNote(others: OtherCurrencyTotals[], field: Exclude<keyof OtherCurrencyTotals, "currency">): StatNote | undefined {
   const parts = others.filter((other) => other[field] !== 0).map((other) => `+ ${formatCents(other[field], other.currency, true)}`);
+  return parts.length > 0 ? { text: parts.join(" · "), tone: "muted" } : undefined;
+}
+
+/** "incl. US$120.00" for wallets counted in at today's rate, and "+ US$120.00" for those with no rate known. */
+function otherCashNote(otherCash: OtherCash[], messages: Messages): StatNote | undefined {
+  const money = (cash: OtherCash) => formatCents(cash.cents, cash.currency, true);
+  const converted = otherCash.filter((cash) => cash.converted).map(money);
+  const parts = [
+    converted.length > 0 ? format(messages.month.includesOther, { amounts: converted.join(" · ") }) : null,
+    ...otherCash.filter((cash) => !cash.converted).map((cash) => `+ ${money(cash)}`),
+  ].filter((part) => part !== null);
   return parts.length > 0 ? { text: parts.join(" · "), tone: "muted" } : undefined;
 }
 
@@ -763,17 +778,30 @@ const STATS = {
   /** Money on hand right now (cash, debit, and app balances outside savings), whatever the month; none until set in Settings. */
   cashOnHand: {
     label: (_, messages) => messages.month.cashOnHand,
-    // Wallets in other currencies are noted, never added: currencies aren't converted.
-    value: ({ cashOnHandCents, otherCash }) => (cashOnHandCents === null ? null : withNote(
+    // Wallets in other currencies count at today's rate; one with no rate known is only noted.
+    value: ({ cashOnHandCents, otherCash }, messages) => (cashOnHandCents === null ? null : withNote(
       { cents: cashOnHandCents, tone: signTone(cashOnHandCents) },
-      otherCash.length > 0 ? { text: otherCash.map((cash) => `+ ${formatCents(cash.cents, cash.currency, true)}`).join(" · "), tone: "muted" } : undefined,
+      otherCashNote(otherCash, messages),
     )),
     description: (_, messages) => messages.explain.aboutCashOnHand,
-    explain: ({ cashOnHandCents, cashOnHandParts: parts, otherCash }, messages, _, { label, locale }) => {
+    explain: ({ cashOnHandCents, cashOnHandParts: parts, otherCash, currency }, messages, _, { label, locale }) => {
       if (cashOnHandCents === null) return why(messages.explain.cashNotCounted);
-      const otherWallets = otherCash.length > 0
-        && format(messages.explain.otherCurrencies, { amounts: otherCash.map((cash) => `+ ${formatCents(cash.cents, cash.currency, true)}`).join(" · ") });
-      if (!parts) return why(messages.explain.cashCards, otherWallets);
+      const unconverted = otherCash.filter((cash) => !cash.converted);
+      const converted = otherCash.filter((cash) => cash.converted);
+      const otherWallets = unconverted.length > 0
+        && format(messages.explain.noRateYet, { amounts: unconverted.map((cash) => formatCents(cash.cents, cash.currency, true)).join(", ") });
+      const ratesNote = converted.length > 0 && format(messages.explain.convertedAt, { date: formatShortDate(dateFromKey(converted[0].converted!.date), locale) });
+      const mainCents = cashOnHandCents - sum(converted.map((cash) => cash.converted!.cents));
+      const inMain = format(messages.explain.inCurrency, { currency });
+      // Each other currency's wallet, at its rate, added to the main currency's.
+      const conversions = converted.length === 0 ? [] : [block(
+        parts ? amount(inMain, mainCents) : null,
+        ...converted.map((cash) => amount(format(messages.explain.atRate, {
+          amount: formatCents(cash.cents, cash.currency, true), rate: formatCents(Math.round(cash.converted!.rate * 100), currency),
+        }), cash.converted!.cents, "+")),
+        amount(label, cashOnHandCents, "="),
+      )];
+      if (!parts) return explained(conversions, [messages.explain.cashCards, ratesNote, otherWallets]);
       return explained(
         [block(
           amount(format(messages.explain.countedOn, { date: formatShortDate(dateFromKey(parts.countedOn), locale) }), parts.countedCents),
@@ -782,9 +810,9 @@ const STATS = {
           unlessZero(messages.explain.billsPaidSince, parts.billsCents, "−"),
           bySign(parts.savingsCents, "−", messages.explain.movedToSavingsSince, messages.explain.takenFromSavingsSince),
           bySign(parts.transfersCents, "+", messages.explain.exchangedIn, messages.explain.exchangedOut),
-          amount(label, parts.cents, "="),
-        )],
-        [messages.explain.cashCards, otherWallets],
+          amount(converted.length > 0 ? inMain : label, parts.cents, "="),
+        ), ...conversions],
+        [messages.explain.cashCards, ratesNote, otherWallets],
       );
     },
   },
@@ -804,7 +832,10 @@ const STATS = {
     description: (_, messages) => messages.explain.aboutSavings,
     explain: ({ savings }, messages, _, { label }) => {
       if (!savings || savings.funds.length === 0) return why(messages.explain.noSavings);
-      const fundName = (fund: SavingsSnapshot["funds"][number]) => (fund.kind === "EMERGENCY" ? messages.savings.emergencyFund : (fund.name ?? ""));
+      const fundName = (fund: SavingsSnapshot["funds"][number]) => {
+        const name = fund.kind === "EMERGENCY" ? messages.savings.emergencyFund : (fund.name ?? "");
+        return fund.original ? `${name} (${formatCents(fund.original.cents, fund.original.currency, true)})` : name;
+      };
       const balanceCents = sum(savings.funds.map((fund) => fund.balanceCents));
       const goalCents = sum(savings.funds.map((fund) => fund.goalCents));
       const { emergency } = savings;
@@ -822,7 +853,7 @@ const STATS = {
             balanceCents >= goalCents ? amount(messages.explain.overGoal, balanceCents - goalCents, "=") : amount(messages.savings.pending, goalCents - balanceCents, "="),
           ),
         ].filter((lines) => lines.length > 0),
-        [messages.explain.savingsKept],
+        [messages.explain.savingsKept, savings.funds.some((fund) => fund.original) && messages.explain.savingsConverted],
       );
     },
   },

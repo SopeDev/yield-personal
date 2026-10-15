@@ -157,6 +157,24 @@ test("other currencies are noted beside the main currency's figures, never added
   assert.deepEqual(cashStat, { cents: 500000, tone: "gain", note: { text: "+ US$120.00", tone: "muted" } });
 });
 
+test("cash in other currencies counts at its rate, and its working adds it to the main currency's wallet", () => {
+  const parts = { countedCents: 346300, countedOn: "2026-10-07", incomeCents: 0, purchasesCents: 0, billsCents: 0, savingsCents: 0, transfersCents: 0, cents: 346300 };
+  // US$120 at 18.1736 is $2,180.83; euros with no rate known are only noted.
+  const otherCash = [
+    { currency: "USD", cents: 12000, converted: { cents: 218083, rate: 18.1736, date: "2026-10-14" } },
+    { currency: "EUR", cents: 5000 },
+  ];
+  const ctx = { ...context([]), cashOnHandCents: 346300 + 218083, cashOnHandParts: parts, otherCash };
+  const [cash] = resolveStats(["cashOnHand"], ctx, en);
+  assert.deepEqual(cash.value, { cents: 564383, tone: "gain", note: { text: "incl. US$120.00 · + €50.00", tone: "muted" } });
+  assertWorkingAddsUp("cashOnHand", ctx);
+  const explanation = explainStat("cashOnHand", ctx, en, "en");
+  assert.deepEqual(explanation.blocks[1].map((line) => [line.op, line.label]), [[undefined, "In MXN"], ["+", "US$120.00 at $18.17"], ["=", "Cash on hand"]]);
+  assert.ok(explanation.notes.some((note) => note.includes("Oct 14")));
+  // Only a converted wallet, with no main-currency wallet counted, still adds up.
+  assertWorkingAddsUp("cashOnHand", { ...context([]), cashOnHandCents: 218083, otherCash: otherCash.slice(0, 1) });
+});
+
 test("days off left lead with the goal's and note breaking even, and only with daily income", () => {
   // Two days worked: 2,000 gross less 400 gas, so 800 net a day; 22 days left from Oct 10.
   const incomes = [income("u1", "2026-10-01", 100000, uber), income("u2", "2026-10-03", 100000, uber)];

@@ -10,8 +10,8 @@ import { isLocale, type Locale } from "@/i18n/config";
 import { format, getDictionary, type Messages } from "@/i18n/dictionaries";
 import { requireUserId } from "@/lib/auth-user";
 import { categoryLabel } from "@/lib/categories";
-import { getCashWallets, loadCashOnHand } from "@/lib/ledger-data";
-import { loadMonthView, loadSavingsSnapshot, splitCash } from "@/lib/month-view";
+import { getCashWallets } from "@/lib/ledger-data";
+import { loadCash, loadMonthView, loadSavingsSnapshot } from "@/lib/month-view";
 import { getActiveCategories, getActiveIncomeSources, getActiveItems, getIncomeGroupsForManagement, getStatNames, getUserSettings } from "@/lib/queries";
 import {
   availableStats, cardLayout, INCOME_FRAMES, INCOME_PERS, isSummaryCardId, MAX_GRID_STATS, monthStatContext, SPENDING_PERIODS, STAT_BUILDERS, statBuilderValues,
@@ -42,8 +42,8 @@ export default async function SummaryCardEditorPage({ params }: PageProps<"/[loc
 
   const settingsWithCash = Promise.all([getUserSettings(userId), getCashWallets(userId)])
     .then(async ([settings, wallets]) => {
-      const [balances, savings] = await Promise.all([loadCashOnHand(userId, wallets), loadSavingsSnapshot(userId, currentMonth, settings.currency)]);
-      return { settings, ...splitCash(balances, settings.currency), savings };
+      const [cash, savings] = await Promise.all([loadCash(userId, wallets, settings.currency), loadSavingsSnapshot(userId, currentMonth, settings.currency)]);
+      return { settings, ...cash, savings };
     });
   const [view, { settings, cashOnHandCents, cashOnHandParts, otherCash, savings }, groups, statNames, categories, items, sources] = await Promise.all([
     loadMonthView(userId, currentMonth, currentMonth),

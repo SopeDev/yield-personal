@@ -48,6 +48,7 @@
     "close": "Cerrar"
   },
   "month": {
+    "includesOther": "incluye {amounts}",
     "confirmDeleteExchange": "¿Eliminar este cambio de moneda?",
     "charges": "Se carga {date}",
     "charged": "Cargado {date}",
@@ -182,7 +183,7 @@
     "archiveWallet": "Archivar cartera",
     "confirmArchiveWallet": "¿Archivar esta cartera? Sus registros la conservan; solo dejará de ofrecerse para nuevos.",
     "currency": "Moneda principal",
-    "currencyHint": "El balance, lo necesario por día y los promedios están en esta moneda. Los montos en otras monedas (como una cartera en dólares) se muestran aparte, sin convertirlos.",
+    "currencyHint": "Todas las cifras están en esta moneda. Los registros en otras monedas (como gastos en dólares) se muestran aparte; el dinero disponible y los ahorros en ellas cuentan al tipo de cambio de hoy.",
     "incomeGroups": "Grupos de ingreso",
     "incomeGroupsHint": "Agrupa fuentes para ver su ingreso neto, como Plataformas (Uber, Didi) después de los gastos del carro.",
     "groupsEmpty": "Todavía no hay grupos de ingreso.",
@@ -561,6 +562,10 @@
     "changeSettings": "Cambiar ajustes"
   },
   "explain": {
+    "inCurrency": "En {currency}",
+    "atRate": "{amount} a {rate}",
+    "convertedAt": "Las otras monedas cuentan al tipo de cambio de referencia del {date} (Banco Central Europeo), y cambian con él.",
+    "savingsConverted": "Los fondos en otras monedas cuentan al tipo de cambio de referencia de hoy (Banco Central Europeo).",
     "howCalculated": "Cómo se calcula",
     "aboutBalance": "Lo que te deja el mes: sus ingresos menos todo lo que sale este mes (Total a pagar).",
     "aboutTotalIncome": "Todo lo que recibiste este mes, y en cuántos días.",
@@ -623,6 +628,7 @@
     "takenFromSavingsSince": "Sacado de ahorros desde entonces",
     "exchangedIn": "Cambiado a esta moneda",
     "exchangedOut": "Cambiado de esta moneda",
+    "noRateYet": "Aún no hay tipo de cambio para {amounts}, así que no se suma.",
     "otherCurrencies": "Los montos en otras monedas nunca se convierten ni se suman: {amounts}.",
     "noIncome": "Aún no hay ingresos registrados este mes.",
     "noGoal": "Define una meta de balance mensual en Ajustes para ver qué tan cerca vas.",
@@ -693,6 +699,7 @@
     "overdueDays": "vencido hace {count} días"
   },
   "forecast": {
+    "howConverted": "El dinero en otras monedas cuenta al tipo de cambio de hoy: {rates}.",
     "title": "Pronóstico",
     "subtitle": "Tu dinero disponible en los próximos {days} días, si ingresos y gastos siguen a su ritmo reciente.",
     "cashNow": "Disponible hoy",

@@ -48,6 +48,7 @@
     "close": "Close"
   },
   "month": {
+    "includesOther": "incl. {amounts}",
     "confirmDeleteExchange": "Delete this exchange?",
     "charges": "Charges {date}",
     "charged": "Charged {date}",
@@ -182,7 +183,7 @@
     "archiveWallet": "Archive wallet",
     "confirmArchiveWallet": "Archive this wallet? Its records keep it; it just won't be offered for new ones.",
     "currency": "Main currency",
-    "currencyHint": "Balance, needed per day, and averages are in this currency. Amounts in other currencies (like a dollar wallet) are shown on their own, never converted.",
+    "currencyHint": "Every figure is in this currency. Records in other currencies (like spending in dollars) are shown on their own; money on hand and savings in them count at today's exchange rate.",
     "incomeGroups": "Income groups",
     "incomeGroupsHint": "Group sources to see their net income, like Rideshare (Uber, Didi) after Car spending.",
     "groupsEmpty": "No income groups yet.",
@@ -561,6 +562,10 @@
     "changeSettings": "Change settings"
   },
   "explain": {
+    "inCurrency": "In {currency}",
+    "atRate": "{amount} at {rate}",
+    "convertedAt": "Other currencies count at the reference rate of {date} (European Central Bank), and change with it.",
+    "savingsConverted": "Funds in other currencies count at today's reference rate (European Central Bank).",
     "howCalculated": "How it's calculated",
     "aboutBalance": "What the month leaves you: its income minus everything paid out this month (To pay).",
     "aboutTotalIncome": "Everything received this month, and on how many days.",
@@ -623,6 +628,7 @@
     "takenFromSavingsSince": "Taken out of savings since",
     "exchangedIn": "Exchanged into this currency",
     "exchangedOut": "Exchanged out of this currency",
+    "noRateYet": "There's no exchange rate yet for {amounts}, so it isn't added in.",
     "otherCurrencies": "Amounts in other currencies are never converted or added in: {amounts}.",
     "noIncome": "No income recorded this month yet.",
     "noGoal": "Set a monthly balance goal in Settings to see how close you are to it.",
@@ -693,6 +699,7 @@
     "overdueDays": "{count} days overdue"
   },
   "forecast": {
+    "howConverted": "Money in other currencies counts at today's rate: {rates}.",
     "title": "Forecast",
     "subtitle": "Your cash on hand for the next {days} days, if income and spending keep their recent pace.",
     "cashNow": "Cash now",

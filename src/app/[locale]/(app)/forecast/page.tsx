@@ -8,7 +8,7 @@ import { requireUserId } from "@/lib/auth-user";
 import { cn } from "@/lib/cn";
 import { formatShortDate } from "@/lib/dates";
 import { FORECAST_DAYS, FORECAST_SURE_DAYS, monthOfKey } from "@/lib/forecast";
-import { formatWholeUnits } from "@/lib/money";
+import { currencySymbol, formatCents, formatWholeUnits } from "@/lib/money";
 import { dateFromKey, daysInMonth } from "@/lib/months";
 import { loadForecast } from "@/lib/month-view";
 import { todayKey } from "@/lib/today";
@@ -141,6 +141,11 @@ export default async function ForecastPage({ params }: PageProps<"/[locale]/fore
           <p>{m.howCards}</p>
           <p>{m.spendingNote}</p>
           {forecast.savings ? <p>{m.howSavings}</p> : null}
+          {forecast.converted.length > 0 ? (
+            <p>{format(m.howConverted, {
+              rates: forecast.converted.map((conversion) => `${currencySymbol(conversion.currency, true)}1 = ${formatCents(Math.round(conversion.rate * 100), currency)}`).join(" · "),
+            })}</p>
+          ) : null}
           <p>{format(m.howFaded, { days: FORECAST_SURE_DAYS })}</p>
         </Card>
       </Section>
