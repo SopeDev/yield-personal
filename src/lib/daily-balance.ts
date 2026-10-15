@@ -67,7 +67,7 @@ export function typicalDailySpending({ purchases, today, historyStart = null, ex
  * `historyStart` on. Only finished days count, so a day under way (gas bought in the morning, income logged at night)
  * never skews the averages; on the first day of the history there is no finished day yet, so it counts today.
  */
-function historyWindow(today: string, historyStart: MonthKey | null) {
+export function historyWindow(today: string, historyStart: MonthKey | null) {
   const lookback = addMonths(today.slice(0, 7) as MonthKey, -TYPICAL_SPENDING_MONTHS);
   const from = historyStart && historyStart > lookback ? historyStart : lookback;
   const fromKey = `${from}-01`;

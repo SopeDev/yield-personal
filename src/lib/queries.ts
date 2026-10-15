@@ -48,6 +48,15 @@ export async function getItemsWithUsage(userId: string) {
   return items.sort(byName);
 }
 
+/** Every category and item by name, archived ones included, for naming average spending stats. */
+export async function getSpendingNames(userId: string) {
+  const [categories, items] = await Promise.all([
+    db.category.findMany({ where: { userId }, select: { id: true, key: true, name: true } }),
+    db.expenseItem.findMany({ where: { userId }, select: { id: true, name: true } }),
+  ]);
+  return { categories, items };
+}
+
 /** Categories that can be chosen for new entries. */
 export function getActiveCategories(userId: string) {
   return db.category.findMany({ where: { userId, archivedAt: null }, select: categorySelect, orderBy: { sortOrder: "asc" } });

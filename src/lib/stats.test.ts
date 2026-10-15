@@ -197,6 +197,7 @@ function assertWorkingAddsUp(ref: StatRef, ctx: ReturnType<typeof context>) {
       if (line.op === "+") total += figure;
       else if (line.op === "−") total -= figure;
       else if (line.op === "÷") total /= figure;
+      else if (line.op === "×") total *= figure;
       else {
         // Results are rounded (up, for what's needed), never below zero, and an amount over the goal is shown as such.
         const close = Math.abs(Math.abs(total) - Math.abs(figure)) <= 1 || (figure === 0 && total <= 0);
@@ -219,8 +220,9 @@ test("each stat's working comes to the value it shows", () => {
     context(incomes, { settings: { ...noSettings, incomeRhythm: { kind: "WEEKLY", anchor: "2026-10-02" } } }),
   ].map((ctx) => ({ ...ctx, cashOnHandCents: parts.cents, cashOnHandParts: parts }));
   for (const ctx of contexts) {
-    const refs = availableStats(ctx, [{ id: "rideshare" }]).filter((ref) => statShown(ref, ctx));
-    assert.ok(refs.length >= 15);
+    const averages: StatRef[] = ["averageSpending:day:all", "averageSpending:week:category.car", "averageSpending:month:item.pho"];
+    const refs = [...availableStats(ctx, [{ id: "rideshare" }]), ...averages].filter((ref) => statShown(ref, ctx));
+    assert.ok(refs.length >= 18);
     for (const ref of refs) {
       assertWorkingAddsUp(ref, ctx);
       assert.notEqual(statDescription(ref, ctx, en), "");
@@ -351,4 +353,19 @@ test("savings adds up each fund and reads against the funds' goals", () => {
   // Not loaded: no value, and no working.
   assert.equal(resolveStats(["savings"], ctx, en)[0].value, null);
   assert.deepEqual(explainStat("savings", ctx, en, "en").blocks, []);
+});
+
+test("an average spending stat is named by its settings, reads the usual against so far, and is checked when stored", () => {
+  // History from Jul 1 through yesterday (Oct 9): 101 days; this week runs from Monday Oct 5.
+  const ctx = context([], { today: "2026-10-10" });
+  const [stat] = resolveStats(["averageSpending:week:category.car"], ctx, en);
+  assert.equal(stat.label, "Car / week");
+  assert.deepEqual(stat.value, { cents: Math.round(40000 / 101) * 7, note: { text: "This week: $0.00", tone: "muted" } });
+  assert.equal(resolveStats(["averageSpending:month:item.pho"], ctx, es)[0].label, "pho / mes");
+  // Today's spending past a usual day turns the note yellow.
+  const today = context([], { today: "2026-10-04" });
+  assert.equal(resolveStats(["averageSpending:day:all"], today, en)[0].value?.note?.tone, "warning");
+  for (const ref of ["averageSpending:week:category.car", "averageSpending:day:all"]) assert.ok(isStatRef(ref));
+  for (const ref of ["averageSpending", "averageSpending:", "averageSpending:year:all", "averageSpending:week:shop.x"]) assert.equal(isStatRef(ref), false);
+  assert.deepEqual(availableStats(ctx, []).filter((ref) => ref.startsWith("averageSpending")), []);
 });
