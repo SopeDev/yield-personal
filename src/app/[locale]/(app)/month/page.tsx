@@ -7,6 +7,7 @@ import { EntryRow } from "@/components/entry-row";
 import { Money } from "@/components/money";
 import { MonthEntries, type EntryItem } from "@/components/month-entries";
 import { StatementRow } from "@/components/statement-row";
+import { SetupChecklistCard } from "@/components/setup-checklist";
 import { SummaryCard } from "@/components/summary-card";
 import { formatCentsIn } from "@/lib/money";
 import { MonthNav } from "@/components/month-nav";
@@ -28,7 +29,7 @@ import { paymentMethodLabel } from "@/lib/payment-methods";
 import type { RecurringOccurrence } from "@/lib/recurring";
 import type { ExpectedPayday } from "@/lib/recurring-income";
 import { loadCardSettings, loadMonthView, summaryCardFor } from "@/lib/month-view";
-import { getActivePaymentMethods } from "@/lib/queries";
+import { getActivePaymentMethods, getSetupChecklist } from "@/lib/queries";
 import { monthFromSearchParam } from "@/lib/search-params";
 import { currentMonthKey, todayKey } from "@/lib/today";
 import { cn } from "@/lib/cn";
@@ -49,10 +50,12 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
   // Opening a cell of the year view filters the month's entries and recurring payments to one item.
   const itemFilter = typeof query.item === "string" ? query.item : null;
   const messages = getDictionary(locale);
-  const [view, methods, cardSettings] = await Promise.all([
+  const [view, methods, cardSettings, setupChecklist] = await Promise.all([
     loadMonthView(userId, month, currentMonth),
     getActivePaymentMethods(userId),
     loadCardSettings(userId, "month", currentMonth),
+    // What's left to set up after the wizard, on the current month only.
+    month === currentMonth ? getSetupChecklist(userId) : null,
   ]);
 
   // Listed in every currency; the summary card and By category are the main currency's.
@@ -353,6 +356,8 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
         path={`/${locale}/month`}
         title={<OverviewToggle labels={messages.nav} locale={locale} month={month} title={formatMonth(month, locale)} view="month" />}
       />
+
+      {setupChecklist && !itemFilter ? <SetupChecklistCard checklist={setupChecklist} labels={messages.setup} locale={locale} /> : null}
 
       {itemFilter ? (
         <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/40 bg-primary/10 px-4 py-3 text-sm">

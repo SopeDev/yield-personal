@@ -643,5 +643,110 @@
     "spendingNote": "Red bars are what leaves your cash each day: everyday spending, and bills and card statements on their dates.",
     "needsCash": "The forecast starts from your cash on hand. Count it in Settings to see where it's headed.",
     "countCash": "Count your cash"
+  },
+  "onboarding": {
+    "preview": "Preview: nothing you enter here is saved.",
+    "previewDone": "End of the preview. Nothing was saved.",
+    "backToApp": "Back to the app",
+    "step": "{current} of {total}",
+    "back": "Back",
+    "skip": "Skip",
+    "next": "Continue",
+    "finish": "Finish setup",
+    "saving": "Saving…",
+    "skipAll": "Skip setup, I'll do it later",
+    "error": "Something didn't save. Check your answers and try again.",
+    "welcome": {
+      "title": "Welcome to Yield",
+      "body": "Yield shows where your month is headed: what you've earned and spent, what's still to pay, and whether it'll last until the next one. A few questions now set it up for you. All of it is optional, and everything can be changed later in Settings.",
+      "language": "Language",
+      "currency": "Main currency",
+      "currencyHint": "The currency your figures are shown in."
+    },
+    "income": {
+      "title": "How do you get paid?",
+      "body": "Pick all that apply.",
+      "salary": "A salary or fixed pay",
+      "salaryHint": "About the same amount on set days",
+      "variable": "Income that varies",
+      "variableHint": "Freelance, commissions, sales, tips, rideshare… you log it as it comes in",
+      "salaryName": "Name it",
+      "salaryNameDefault": "Salary",
+      "amount": "About how much each payday?",
+      "schedule": "How often?",
+      "schedules": {
+        "MONTHLY": "Once a month",
+        "TWICE_MONTHLY": "Twice a month",
+        "WEEKLY": "Every week",
+        "BIWEEKLY": "Every two weeks"
+      },
+      "day": "Day of the month",
+      "days": "Days of the month",
+      "daysHint": "Like 15, 30",
+      "anchor": "A recent or upcoming payday",
+      "invalid": "Check the name, the amount and the pay days."
+    },
+    "cash": {
+      "title": "How much money do you have right now?",
+      "body": "Cash plus what's in your debit account and apps, but not savings or credit cards. Your forecast starts here; you can recount it any time in Settings.",
+      "amount": "Money on hand",
+      "invalid": "Enter an amount like 2,500."
+    },
+    "cards": {
+      "title": "Do you use credit cards?",
+      "body": "Card spending leaves your money when the statement is due, not when you buy. Add each card with the day its statement closes and how many days you have to pay it.",
+      "name": "Card name",
+      "namePlaceholder": "Like Nu or BBVA",
+      "closingDay": "Closing day",
+      "paymentDays": "Days to pay",
+      "add": "Add a card",
+      "addAnother": "Add another card",
+      "remove": "Remove",
+      "invalid": "Each card needs a name, a closing day (1–31) and days to pay (1–60)."
+    },
+    "bills": {
+      "title": "Your fixed bills",
+      "body": "Tap the ones you pay. They count toward what each month needs and show up on their day.",
+      "presets": {
+        "rent": "Rent",
+        "electricity": "Electricity",
+        "water": "Water",
+        "gas": "Gas",
+        "internet": "Internet",
+        "phone": "Phone",
+        "streaming": "Streaming",
+        "gym": "Gym",
+        "insurance": "Insurance",
+        "school": "School"
+      },
+      "other": "Other bill",
+      "otherName": "Bill name",
+      "amount": "Amount",
+      "day": "Day",
+      "paidWith": "Paid with",
+      "cash": "Cash or debit",
+      "variableHint": "Changes month to month: enter about how much.",
+      "invalid": "Each bill needs a name, an amount and a day (1–31), and names can't repeat.",
+      "remove": "Remove"
+    },
+    "done": {
+      "title": "You're set",
+      "body": "Log what you spend and earn as it happens with the + button. For the first couple of weeks the numbers are rough; they get sharper as your history grows.",
+      "summary": "Ready to save",
+      "salary": "Salary: {name}",
+      "variable": "Income logged as it comes in",
+      "cash": "Money on hand: {amount}",
+      "cards": "Cards: {count}",
+      "bills": "Fixed bills: {count}",
+      "nothing": "Nothing set up yet. That's fine: you can do it all from Settings."
+    }
+  },
+  "setup": {
+    "title": "Finish setting up",
+    "cash": "Count your money on hand",
+    "bills": "Add your fixed bills",
+    "cards": "Add your credit cards, if you use any",
+    "expense": "Log your first expense",
+    "dismiss": "Hide"
   }
 }

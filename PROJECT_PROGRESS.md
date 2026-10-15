@@ -129,9 +129,11 @@ Last updated: 2026-10-10
 - Custom stats: an "Average spending" stat added from the card editor with its settings (everyday spending, a category, or an item; per day, week, or month), showing the usual amount and the current period so far, with its working.
 - Stats revamp: Spending, Income, and Average income join Average spending as stats built from settings (what they're about, gross or net, and over what time), with "Change settings" in place. Total income, Net, groups' gross and net, and the daily averages were folded into them, saved cards migrating to the same figures; the income card's daily averages now look back over the history window. Checked against seeded data: saving, changing settings in place, and old cards reading the same.
 - Overview: the Month / Year switch moved into the title between the period arrows, as a small menu, freeing the row it took above them.
+- Onboarding, part A: a setup wizard new accounts open on (income for salaries, varying income or both; money on hand; cards; fixed bills), saved all at once; an owner-only preview that saves nothing; and a setup checklist on the month view. Checked against seeded data: a new account's full save, bad answers saving nothing, a repeated save creating nothing more, and existing accounts marked as set up.
 
 ## Next
 
+- Onboarding, part B: optional estimates of monthly spending per everyday category (and of income, for varying income) that stand in for averages while there's little history, fading out over the first month as real records come in; marked as estimates, with "you estimated X, you're on pace for Y".
 - Forecast: planned one-off expenses (like tires) shown on the line before they're spent.
 - Custom stats, next: a limit on an average stat ("$180 of $300 this week", the limit stored encrypted), and possibly how many times something was bought.
 - Encryption at rest, step 3 (tidy-up, after step 2 is live): drop the emptied plaintext columns and the `*_clear_plaintext` triggers, and make the required copies NOT NULL.

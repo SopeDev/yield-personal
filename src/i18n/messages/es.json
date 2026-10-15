@@ -643,5 +643,110 @@
     "spendingNote": "Las barras rojas son lo que sale de tu dinero cada día: el gasto diario, y los pagos y estados de cuenta en su fecha.",
     "needsCash": "El pronóstico parte de tu dinero disponible. Cuéntalo en Ajustes para ver hacia dónde va.",
     "countCash": "Contar tu dinero"
+  },
+  "onboarding": {
+    "preview": "Vista previa: nada de lo que escribas aquí se guarda.",
+    "previewDone": "Fin de la vista previa. No se guardó nada.",
+    "backToApp": "Volver a la app",
+    "step": "{current} de {total}",
+    "back": "Atrás",
+    "skip": "Omitir",
+    "next": "Continuar",
+    "finish": "Terminar",
+    "saving": "Guardando…",
+    "skipAll": "Omitir, lo configuro después",
+    "error": "Algo no se guardó. Revisa tus respuestas e intenta de nuevo.",
+    "welcome": {
+      "title": "Te damos la bienvenida a Yield",
+      "body": "Yield te muestra hacia dónde va tu mes: lo que has ganado y gastado, lo que falta por pagar y si te alcanza hasta el siguiente. Unas preguntas ahora lo dejan listo. Todo es opcional y lo puedes cambiar después en Ajustes.",
+      "language": "Idioma",
+      "currency": "Moneda principal",
+      "currencyHint": "La moneda en la que ves tus cifras."
+    },
+    "income": {
+      "title": "¿Cómo recibes tus ingresos?",
+      "body": "Elige todas las que apliquen.",
+      "salary": "Un sueldo o pago fijo",
+      "salaryHint": "Más o menos la misma cantidad en días fijos",
+      "variable": "Ingresos que varían",
+      "variableHint": "Freelance, comisiones, ventas, propinas, plataformas… los registras conforme llegan",
+      "salaryName": "Nómbralo",
+      "salaryNameDefault": "Sueldo",
+      "amount": "¿Cuánto más o menos cada pago?",
+      "schedule": "¿Cada cuándo?",
+      "schedules": {
+        "MONTHLY": "Una vez al mes",
+        "TWICE_MONTHLY": "Dos veces al mes",
+        "WEEKLY": "Cada semana",
+        "BIWEEKLY": "Cada dos semanas"
+      },
+      "day": "Día del mes",
+      "days": "Días del mes",
+      "daysHint": "Como 15, 30",
+      "anchor": "Un día de pago reciente o próximo",
+      "invalid": "Revisa el nombre, la cantidad y los días de pago."
+    },
+    "cash": {
+      "title": "¿Cuánto dinero tienes ahora?",
+      "body": "Efectivo más lo que tienes en tu cuenta de débito y apps, sin ahorros ni tarjetas de crédito. Tu pronóstico parte de aquí; lo puedes volver a contar cuando quieras en Ajustes.",
+      "amount": "Dinero disponible",
+      "invalid": "Escribe una cantidad como 2,500."
+    },
+    "cards": {
+      "title": "¿Usas tarjetas de crédito?",
+      "body": "Lo que gastas con tarjeta sale de tu dinero cuando vence el estado de cuenta, no cuando compras. Agrega cada tarjeta con su día de corte y cuántos días tienes para pagar.",
+      "name": "Nombre de la tarjeta",
+      "namePlaceholder": "Como Nu o BBVA",
+      "closingDay": "Día de corte",
+      "paymentDays": "Días para pagar",
+      "add": "Agregar una tarjeta",
+      "addAnother": "Agregar otra tarjeta",
+      "remove": "Quitar",
+      "invalid": "Cada tarjeta necesita nombre, día de corte (1–31) y días para pagar (1–60)."
+    },
+    "bills": {
+      "title": "Tus pagos fijos",
+      "body": "Toca los que pagas. Cuentan para lo que necesita cada mes y aparecen en su día.",
+      "presets": {
+        "rent": "Renta",
+        "electricity": "Luz",
+        "water": "Agua",
+        "gas": "Gas",
+        "internet": "Internet",
+        "phone": "Teléfono",
+        "streaming": "Streaming",
+        "gym": "Gimnasio",
+        "insurance": "Seguro",
+        "school": "Colegiatura"
+      },
+      "other": "Otro pago",
+      "otherName": "Nombre del pago",
+      "amount": "Cantidad",
+      "day": "Día",
+      "paidWith": "Se paga con",
+      "cash": "Efectivo o débito",
+      "variableHint": "Cambia cada mes: escribe más o menos cuánto.",
+      "invalid": "Cada pago necesita nombre, cantidad y día (1–31), y los nombres no se pueden repetir.",
+      "remove": "Quitar"
+    },
+    "done": {
+      "title": "Listo",
+      "body": "Registra lo que gastas y ganas conforme pasa con el botón +. Las primeras semanas las cifras son aproximadas; se afinan conforme crece tu historial.",
+      "summary": "Listo para guardar",
+      "salary": "Sueldo: {name}",
+      "variable": "Ingresos registrados conforme llegan",
+      "cash": "Dinero disponible: {amount}",
+      "cards": "Tarjetas: {count}",
+      "bills": "Pagos fijos: {count}",
+      "nothing": "Nada configurado todavía. No pasa nada: puedes hacerlo todo desde Ajustes."
+    }
+  },
+  "setup": {
+    "title": "Termina de configurar",
+    "cash": "Cuenta tu dinero disponible",
+    "bills": "Agrega tus pagos fijos",
+    "cards": "Agrega tus tarjetas de crédito, si usas",
+    "expense": "Registra tu primer gasto",
+    "dismiss": "Ocultar"
   }
 }

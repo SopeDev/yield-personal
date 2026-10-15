@@ -54,6 +54,11 @@ model User {
   /// Customized summary cards by card id ("month", "income"), each `{ headline, grid }` of stat references
   /// (`src/lib/stats.ts`). A card left out keeps its default layout.
   summaryCards         Json?                 @map("summary_cards")
+  /// When the user finished or skipped the setup wizard; until then the app opens on it. Accounts from before the
+  /// wizard were marked as onboarded when it was added.
+  onboardedAt          DateTime?             @map("onboarded_at") @db.Timestamptz(6)
+  /// When the user dismissed the setup checklist on the month view (shown after the wizard until each step is done).
+  setupDismissedAt     DateTime?             @map("setup_dismissed_at") @db.Timestamptz(6)
   createdAt            DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
   accounts             Account[]

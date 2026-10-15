@@ -7,6 +7,7 @@ import { byName } from "@/lib/items";
 import { DEFAULT_CURRENCY, isCurrency, type Currency } from "@/lib/money";
 import { dateKeyOf, monthKeyOf } from "@/lib/months";
 import { parseSummaryCards } from "@/lib/stats";
+import { checklistDone, type SetupChecklist } from "@/lib/onboarding";
 import { usualPurchases } from "@/lib/usual-purchase";
 
 const categorySelect = { id: true, key: true, name: true, sortOrder: true, kind: true } as const;
@@ -118,10 +119,30 @@ function currencyOf(value: string | undefined): Currency {
 }
 
 /** The user's main currency, read once per request however many components ask (the layout and some pages). */
-export const getMainCurrency = cache(async (userId: string) => {
-  const user = await db.user.findUnique({ where: { id: userId }, select: { currency: true } });
-  return currencyOf(user?.currency);
+/** What every app screen needs about the user: the main currency, and whether the account has been set up. */
+export const getShellUser = cache(async (userId: string) => {
+  const user = await db.user.findUnique({ where: { id: userId }, select: { currency: true, onboardedAt: true, setupDismissedAt: true, email: true } });
+  return { currency: currencyOf(user?.currency), onboarded: user?.onboardedAt != null, setupDismissed: user?.setupDismissedAt != null, email: user?.email ?? null };
 });
+
+export const getMainCurrency = cache(async (userId: string) => (await getShellUser(userId)).currency);
+
+/**
+ * The setup checklist shown on the month view after the wizard, with each step done or not, or null once it's
+ * dismissed or every step is done.
+ */
+export async function getSetupChecklist(userId: string): Promise<SetupChecklist | null> {
+  const { onboarded, setupDismissed } = await getShellUser(userId);
+  if (!onboarded || setupDismissed) return null;
+  const [counted, bills, cards, expense] = await Promise.all([
+    db.paymentMethod.findFirst({ where: { userId, kind: "CASH", cashCountedAt: { not: null } }, select: { id: true } }),
+    db.recurringPayment.findFirst({ where: { userId }, select: { id: true } }),
+    db.paymentMethod.findFirst({ where: { userId, kind: "CARD" }, select: { id: true } }),
+    db.purchase.findFirst({ where: { userId }, select: { id: true } }),
+  ]);
+  const checklist = { cash: counted !== null, bills: bills !== null, cards: cards !== null, expense: expense !== null };
+  return checklistDone(checklist) ? null : checklist;
+}
 
 /**
  * Settings that shape month figures: the balance goal (cents), the first month history counts from, the income

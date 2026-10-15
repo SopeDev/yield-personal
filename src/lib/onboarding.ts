@@ -1,0 +1,123 @@
+import { isDateKey } from "./months";
+import { isCurrency, parseAmountToCents, type Currency } from "./money";
+import { CARD_COLORS, MAX_STATEMENT_DAY } from "./payment-methods";
+import { MAX_PAYMENT_DAYS } from "./statements";
+
+/** Common fixed bills offered to tap in the wizard, named in the user's language; the variable ones start as estimates. */
+export const BILL_PRESETS = ["rent", "electricity", "water", "gas", "internet", "phone", "streaming", "gym", "insurance", "school"] as const;
+export type BillPreset = (typeof BILL_PRESETS)[number];
+export const VARIABLE_BILLS: readonly BillPreset[] = ["electricity", "water", "gas"];
+
+/** How a salary is paid: on one or two days of the month, or every week or two from a payday. */
+export const SALARY_SCHEDULES = ["MONTHLY", "TWICE_MONTHLY", "WEEKLY", "BIWEEKLY"] as const;
+export type SalarySchedule = (typeof SALARY_SCHEDULES)[number];
+
+const MAX_NAME_LENGTH = 40;
+export const MAX_ONBOARDING_CARDS = 6;
+export const MAX_ONBOARDING_BILLS = 20;
+
+/** What the wizard collects, as typed: amounts and days are text until checked. Everything is optional. */
+export type OnboardingAnswers = {
+  currency: string;
+  salary: { name: string; amount: string; schedule: SalarySchedule; days: string; anchor: string } | null;
+  variableIncome: boolean;
+  cash: string;
+  cards: { name: string; closingDay: string; paymentDays: string }[];
+  /** `card` is the index of one of `cards`, or null for cash. */
+  bills: { name: string; amount: string; day: string; card: number | null; variable: boolean }[];
+};
+
+/** What the answers save: every amount in cents and every day checked. */
+export type OnboardingPlan = {
+  currency: Currency;
+  /** Paydays for the per-payday stats: daily whenever income also comes in as it's earned. */
+  rhythm: { kind: "DAILY" } | { kind: "MONTH_DAYS"; days: number[] } | { kind: "WEEKLY" | "BIWEEKLY"; anchor: string };
+  salary: { name: string; amountCents: number; rhythm: { kind: "MONTH_DAYS"; days: number[] } | { kind: "WEEKLY" | "BIWEEKLY"; anchor: string } } | null;
+  cashCents: number | null;
+  cards: { name: string; closingDay: number; paymentDays: number; color: string }[];
+  bills: { name: string; amountCents: number; dayOfMonth: number; card: number | null; isVariable: boolean }[];
+};
+
+const day = (text: string, max = MAX_STATEMENT_DAY) => {
+  const value = Number(text.trim());
+  return Number.isInteger(value) && value >= 1 && value <= max ? value : null;
+};
+const name = (text: string) => {
+  const value = text.trim().replace(/\s+/g, " ");
+  return value && value.length <= MAX_NAME_LENGTH ? value : null;
+};
+
+/** Pay days of the month from "15, 30": one for a monthly salary, two for twice a month. */
+function payDays(text: string, count: number) {
+  const days = [...new Set(text.split(/[\s,;]+/).filter(Boolean).map((part) => day(part)))];
+  if (days.length !== count || days.some((value) => value === null)) return null;
+  return (days as number[]).sort((a, b) => a - b);
+}
+
+/**
+ * The answers checked and turned into what gets saved, or the first step with a problem. The wizard checks each
+ * step as it goes; this is the server's own check of the whole thing.
+ */
+export function planOnboarding(answers: OnboardingAnswers): { plan: OnboardingPlan } | { error: "currency" | "salary" | "cash" | "cards" | "bills" } {
+  if (!isCurrency(answers.currency)) return { error: "currency" };
+
+  let salary: OnboardingPlan["salary"] = null;
+  if (answers.salary) {
+    const salaryName = name(answers.salary.name);
+    const amountCents = parseAmountToCents(answers.salary.amount);
+    const { schedule } = answers.salary;
+    const rhythm = schedule === "MONTHLY" || schedule === "TWICE_MONTHLY"
+      ? (() => {
+        const days = payDays(answers.salary!.days, schedule === "MONTHLY" ? 1 : 2);
+        return days && { kind: "MONTH_DAYS" as const, days };
+      })()
+      : (schedule === "WEEKLY" || schedule === "BIWEEKLY") && isDateKey(answers.salary.anchor) ? { kind: schedule, anchor: answers.salary.anchor } : null;
+    if (!salaryName || !amountCents || !rhythm) return { error: "salary" };
+    salary = { name: salaryName, amountCents, rhythm };
+  }
+
+  // Empty is skipped; zero is a count like any other.
+  const cashText = answers.cash.trim();
+  const cashCents = cashText === "" ? null : /^0+(\.0{1,2})?$/.test(cashText) ? 0 : parseAmountToCents(cashText);
+  if (cashText !== "" && cashCents === null) return { error: "cash" };
+
+  if (answers.cards.length > MAX_ONBOARDING_CARDS) return { error: "cards" };
+  const cards: OnboardingPlan["cards"] = [];
+  for (const [index, card] of answers.cards.entries()) {
+    const cardName = name(card.name);
+    const closingDay = day(card.closingDay);
+    const paymentDays = day(card.paymentDays, MAX_PAYMENT_DAYS);
+    if (!cardName || !closingDay || !paymentDays) return { error: "cards" };
+    cards.push({ name: cardName, closingDay, paymentDays, color: CARD_COLORS[index % CARD_COLORS.length] });
+  }
+
+  if (answers.bills.length > MAX_ONBOARDING_BILLS) return { error: "bills" };
+  const bills: OnboardingPlan["bills"] = [];
+  const billNames = new Set<string>();
+  for (const bill of answers.bills) {
+    const billName = name(bill.name);
+    const amountCents = parseAmountToCents(bill.amount);
+    const dayOfMonth = day(bill.day);
+    const card = bill.card === null ? null : Number.isInteger(bill.card) && bill.card >= 0 && bill.card < cards.length ? bill.card : -1;
+    // Two bills of the same name would be the same item.
+    const key = billName?.toLocaleLowerCase();
+    if (!billName || !amountCents || !dayOfMonth || card === -1 || billNames.has(key!)) return { error: "bills" };
+    billNames.add(key!);
+    bills.push({ name: billName, amountCents, dayOfMonth, card, isVariable: bill.variable });
+  }
+
+  // Income that comes in as it's earned counts day by day, alongside any salary's paydays.
+  const rhythm: OnboardingPlan["rhythm"] = salary && !answers.variableIncome ? salary.rhythm : { kind: "DAILY" };
+  return { plan: { currency: answers.currency, rhythm, salary, cashCents, cards, bills } };
+}
+
+/** Nothing set up: what skipping the whole wizard saves. */
+export function emptyAnswers(currency: string): OnboardingAnswers {
+  return { currency, salary: null, variableIncome: false, cash: "", cards: [], bills: [] };
+}
+
+/** The setup checklist's steps, done or not, from what the account holds. */
+export type SetupChecklist = { cash: boolean; bills: boolean; cards: boolean; expense: boolean };
+
+export const checklistDone = (checklist: SetupChecklist) => Object.values(checklist).every(Boolean);
+
