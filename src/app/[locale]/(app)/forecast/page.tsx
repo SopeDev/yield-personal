@@ -52,11 +52,10 @@ export default async function ForecastPage({ params }: PageProps<"/[locale]/fore
       label: day.date === today ? `${messages.common.today} · ${shortDate(day.date, locale)}` : shortDate(day.date, locale),
       cents: day.cents,
       spendingCents: day.spendingCents,
-      savings: savings ? { totalCents: day.cents + savings.savingsCents, interestCents: savings.interestCents } : null,
+      savings: savings ? { totalCents: day.cents + savings.savingsCents, savingsCents: savings.savingsCents, interestCents: savings.interestCents } : null,
       events: day.events.map((event) => ({ label: eventLabel(event), cents: event.cents, estimated: event.estimated, overdue: event.overdue, savings: event.kind === "savings" })),
     };
   });
-  const savingsEnd = forecast.savings?.at(-1);
   const monthName = (dateKey: string) => new Intl.DateTimeFormat(locale, { month: "short", timeZone: "UTC" }).format(dateFromKey(dateKey)).replace(".", "");
   const ticks = days.flatMap((day, index) => (day.date.endsWith("-01") ? [{ index, label: monthName(day.date) }] : []));
   // The cash left at the end of each month the forecast reaches.
@@ -85,15 +84,10 @@ export default async function ForecastPage({ params }: PageProps<"/[locale]/fore
         <div className="px-4 pb-3 pt-4">
           <ForecastChart
             days={chartDays}
-            labels={{ title: m.title, estimated: m.estimated, overdue: m.overdue, noEvents: m.noEvents, forecast: m.line, spending: m.spending, withSavings: m.withSavings, interest: m.interest }}
+            labels={{ title: m.title, estimated: m.estimated, overdue: m.overdue, noEvents: m.noEvents, forecast: m.line, spending: m.spending, savings: m.savings, withSavings: m.withSavings, interest: m.interest }}
             sureDays={FORECAST_SURE_DAYS}
             ticks={ticks}
           />
-          {savingsEnd ? (
-            <p className="mt-3 text-sm text-muted-foreground">
-              {format(m.savingsSummary, { days: FORECAST_DAYS, amount: formatCents(savingsEnd.savingsCents, currency), interest: formatCents(savingsEnd.interestCents, currency) })}
-            </p>
-          ) : null}
         </div>
         {monthEnds.length > 0 ? (
           <dl className={cn("grid divide-x divide-border text-center", monthEnds.length === 3 ? "grid-cols-3" : monthEnds.length === 2 ? "grid-cols-2" : "grid-cols-1")}>
@@ -146,7 +140,7 @@ export default async function ForecastPage({ params }: PageProps<"/[locale]/fore
           })}</p>
           <p>{m.howCards}</p>
           <p>{m.spendingNote}</p>
-          {savingsEnd ? <p>{m.howSavings}</p> : null}
+          {forecast.savings ? <p>{m.howSavings}</p> : null}
           <p>{format(m.howFaded, { days: FORECAST_SURE_DAYS })}</p>
         </Card>
       </Section>
