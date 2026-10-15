@@ -18,7 +18,7 @@ import { Card, Section } from "@/components/section";
 import { isLocale } from "@/i18n/config";
 import { format, getDictionary } from "@/i18n/dictionaries";
 import { requireUserId } from "@/lib/auth-user";
-import { occurrencePaymentStatus } from "@/lib/cash-flow";
+import { occurrencePaymentStatus, occurrenceRowStatus } from "@/lib/cash-flow";
 import { categoryLabel } from "@/lib/categories";
 import { daysBetween, formatDayHeading, formatShortDate, groupByDay } from "@/lib/dates";
 import { searchText } from "@/lib/entry-filter";
@@ -112,6 +112,7 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
   const occurrenceRow = (occurrence: RecurringOccurrence) => {
     const { recurring } = occurrence;
     const status = occurrencePaymentStatus(occurrence, statements);
+    const rowStatus = occurrenceRowStatus(occurrence, statements, today);
     let dateLine: { text: string; tone?: string };
     if (recurring.paymentMethod.kind === "CARD") {
       const charged = dateKeyOf(occurrence.chargeDate) <= today;
@@ -155,7 +156,7 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
               // Paid by confirming it, so it shows its status instead of a paid check.
               <>
                 <span className="font-mono tabular-nums">≈ {formatCentsIn(occurrence.amountCents, recurring.paymentMethod.currency ?? view.currency, view.currency)}</span>
-                <StatusBadge labels={messages.common} paid={status.paid} />
+                <StatusBadge labels={messages.common} status={rowStatus} />
               </>
             ) : (
               <>
@@ -163,7 +164,7 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
                 {recurring.paymentMethod.kind === "CASH" ? (
                   <PaidCheck formId={paidFormId} labels={toggleLabels} paid={status.paid} />
                 ) : (
-                  <StatusBadge labels={messages.common} paid={status.paid} />
+                  <StatusBadge labels={messages.common} status={rowStatus} />
                 )}
               </>
             )}

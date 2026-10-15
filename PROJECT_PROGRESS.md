@@ -125,6 +125,7 @@ Last updated: 2026-10-10
 
 - Forecast: a red "if you stopped working" line (no income, same spending and bills) with the day cash would run out, amounts down the left at round steps with faint gridlines, and a legend.
 - Forecast: the "if you stopped working" line and runway gave way to red daily spending bars on the same scale (everyday spending, with bills and statements standing tall on their dates); income days keep their green mark under the chart.
+- Month view: card-paid recurring bills no longer read Unpaid until their statement is paid. They show Paid once charged, Scheduled before, and To confirm while estimated.
 
 ## Next
 

@@ -27,10 +27,23 @@ export function PaidToggle({ action, fields, paid, labels }: {
   );
 }
 
-export function StatusBadge({ paid, labels }: { paid: boolean; labels: { paid: string; unpaid: string } }) {
+/**
+ * A bill's status as a pill: green when paid, yellow when it's waiting on the user (unpaid, or an amount to
+ * confirm), and quiet when it will take care of itself (a card bill not charged yet).
+ */
+export function StatusBadge({ status, labels }: {
+  status: "paid" | "unpaid" | "scheduled" | "confirm";
+  labels: { paid: string; unpaid: string; scheduled: string; toConfirm: string };
+}) {
+  const label = { paid: labels.paid, unpaid: labels.unpaid, scheduled: labels.scheduled, confirm: labels.toConfirm }[status];
   return (
-    <span className={cn("rounded-full px-2.5 py-1 text-xs font-semibold", paid ? "bg-primary/15 text-primary" : "bg-warning/15 text-warning")}>
-      {paid ? labels.paid : labels.unpaid}
+    <span
+      className={cn(
+        "rounded-full px-2.5 py-1 text-xs font-semibold",
+        status === "paid" ? "bg-primary/15 text-primary" : status === "scheduled" ? "bg-foreground/5 text-muted-foreground" : "bg-warning/15 text-warning",
+      )}
+    >
+      {label}
     </span>
   );
 }

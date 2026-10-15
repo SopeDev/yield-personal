@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { monthCashFlow, occurrencePaymentStatus, recurringChargeId } from "./cash-flow";
+import { monthCashFlow, occurrencePaymentStatus, occurrenceRowStatus, recurringChargeId } from "./cash-flow";
 import type { LedgerPurchase } from "./ledger";
-import { dateFromKey } from "./months";
+import { dateFromKey, dateKeyOf } from "./months";
 import { occurrencesForMonth, type RecurringDefinition } from "./recurring";
 import { buildStatements } from "./statements";
 
@@ -41,4 +41,9 @@ test("cash spending, cash bills, and statements due make up the month's total to
   const paidStatements = statements.map((statement) => ({ ...statement, paid: true }));
   assert.equal(occurrencePaymentStatus(netflix, paidStatements).paid, true);
   assert.equal(monthCashFlow({ month: "2026-10", purchases, occurrences, statements: paidStatements }).outstandingCents, 800000);
+
+  // On its row a card bill is done once charged, whatever its statement; before that it's only scheduled.
+  assert.equal(occurrenceRowStatus(netflix, statements, dateKeyOf(netflix.chargeDate)), "paid");
+  assert.equal(occurrenceRowStatus(netflix, statements, "2026-09-30"), "scheduled");
+  assert.equal(occurrenceRowStatus({ ...netflix, estimated: true }, paidStatements, "2026-12-31"), "confirm");
 });

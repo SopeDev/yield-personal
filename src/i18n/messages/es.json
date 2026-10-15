@@ -36,6 +36,8 @@
     "yesterday": "Ayer",
     "paid": "Pagado",
     "unpaid": "Sin pagar",
+    "scheduled": "Programado",
+    "toConfirm": "Por confirmar",
     "markPaid": "Marcar pagado",
     "markUnpaid": "Marcar sin pagar",
     "change": "Cambiar",
