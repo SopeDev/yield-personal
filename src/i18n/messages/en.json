@@ -36,6 +36,8 @@
     "yesterday": "Yesterday",
     "paid": "Paid",
     "unpaid": "Unpaid",
+    "scheduled": "Scheduled",
+    "toConfirm": "To confirm",
     "markPaid": "Mark paid",
     "markUnpaid": "Mark unpaid",
     "change": "Change",

@@ -1,5 +1,5 @@
 import type { LedgerPurchase } from "./ledger";
-import { monthKeyOf, type MonthKey } from "./months";
+import { dateKeyOf, monthKeyOf, type MonthKey } from "./months";
 import type { RecurringOccurrence } from "./recurring";
 import type { Statement } from "./statements";
 
@@ -14,6 +14,17 @@ export function occurrencePaymentStatus(occurrence: RecurringOccurrence, stateme
   const chargeId = recurringChargeId(occurrence);
   const statement = statements.find((item) => item.charges.some((charge) => charge.kind === "recurring" && charge.id === chargeId)) ?? null;
   return { paid: statement?.paid ?? false, statement };
+}
+
+/**
+ * What a recurring payment's row tells the user. A cash bill is paid or unpaid. A card bill is the card's to pay
+ * through its statement, so the bill itself is done once charged ("paid"), and until then only "scheduled"; an
+ * estimated one waits on its real amount ("confirm") either way.
+ */
+export function occurrenceRowStatus(occurrence: RecurringOccurrence, statements: Statement[], today: string): "paid" | "unpaid" | "scheduled" | "confirm" {
+  if (occurrence.recurring.paymentMethod.kind === "CASH") return occurrencePaymentStatus(occurrence, statements).paid ? "paid" : "unpaid";
+  if (occurrence.estimated) return "confirm";
+  return dateKeyOf(occurrence.chargeDate) <= today ? "paid" : "scheduled";
 }
 
 /**
