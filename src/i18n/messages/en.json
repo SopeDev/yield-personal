@@ -699,7 +699,7 @@
     "overdueDays": "{count} days overdue"
   },
   "forecast": {
-    "regularDay": "A regular day",
+    "noEvents": "Just an average day",
     "howConverted": "Money in other currencies counts at today's rate: {rates}.",
     "title": "Forecast",
     "subtitle": "Your cash on hand for the next {days} days, if income and spending keep their recent pace.",
