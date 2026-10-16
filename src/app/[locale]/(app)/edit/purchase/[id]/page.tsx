@@ -41,6 +41,7 @@ export default async function EditPurchasePage({ params }: PageProps<"/[locale]/
           installments: purchase.installmentCount,
           date: dateKeyOf(purchase.date),
           note: purchase.note ?? "",
+          planned: purchase.planned,
         }}
         items={items}
         locale={locale}

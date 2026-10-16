@@ -28,7 +28,8 @@ export function occurrenceRowStatus(occurrence: RecurringOccurrence, statements:
 }
 
 /**
- * Cash leaving in a month ("total to pay") and what is still unpaid ("outstanding"). Card purchases and
+ * Cash leaving in a month ("total to pay") and what is still unpaid ("outstanding"): unpaid cash bills and statements,
+ * and cash purchases still planned (not confirmed as spent). Card purchases and
  * card-paid recurring payments are counted only through their card statement, never twice. A statement
  * belongs to the month it closes, so it can be paid as soon as it is issued; its due date is shown with it.
  * Money moved into savings is neither spent nor paid out, so it stays out of the total to pay: it leaves cash on hand,
@@ -46,9 +47,9 @@ export function monthCashFlow({ month, purchases, occurrences, statements, carry
   carryFrom?: MonthKey;
   carriedOccurrences?: RecurringOccurrence[];
 }) {
-  const cashPurchasesCents = purchases
-    .filter((purchase) => purchase.paymentMethod.kind === "CASH" && monthKeyOf(purchase.date) === month)
-    .reduce((sum, purchase) => sum + purchase.amountCents, 0);
+  const cashPurchases = purchases.filter((purchase) => purchase.paymentMethod.kind === "CASH" && monthKeyOf(purchase.date) === month);
+  const cashPurchasesCents = cashPurchases.reduce((sum, purchase) => sum + purchase.amountCents, 0);
+  const plannedPurchases = cashPurchases.filter((purchase) => purchase.planned);
   const cashOccurrences = occurrences.filter((occurrence) => occurrence.recurring.paymentMethod.kind === "CASH");
   // Listed in the order they close.
   const byClosingDate = (a: Statement, b: Statement) => a.closingDate.getTime() - b.closingDate.getTime();
@@ -71,7 +72,8 @@ export function monthCashFlow({ month, purchases, occurrences, statements, carry
     cashBillsCents,
     statementsClosingCents,
     /** Unpaid items belonging to this month. */
-    outstandingCents: sum(unpaidOccurrences.map((occurrence) => occurrence.amountCents)) + sum(unpaidStatements.map((statement) => statement.totalCents)),
+    outstandingCents: sum(unpaidOccurrences.map((occurrence) => occurrence.amountCents)) + sum(unpaidStatements.map((statement) => statement.totalCents))
+      + sum(plannedPurchases.map((purchase) => purchase.amountCents)),
     /** Unpaid statements and cash bills from earlier months, counted in their own month's totals and shown here as a reminder. */
     carriedOutstandingCents:
       sum(carriedStatements.map((statement) => statement.totalCents)) + sum(carriedOccurrences.map((occurrence) => occurrence.amountCents)),
@@ -80,5 +82,7 @@ export function monthCashFlow({ month, purchases, occurrences, statements, carry
     carriedOccurrences,
     unpaidOccurrences,
     unpaidStatements,
+    /** Cash purchases this month not confirmed as spent yet. */
+    plannedPurchases,
   };
 }

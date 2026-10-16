@@ -85,7 +85,7 @@ export function getOwnedPurchase(userId: string, id: string) {
   return db.purchase.findFirst({
     where: { id, userId },
     select: {
-      id: true, date: true, amountCents: true, note: true, installmentCount: true, paymentMethodId: true,
+      id: true, date: true, amountCents: true, note: true, installmentCount: true, paymentMethodId: true, planned: true,
       item: { select: { name: true } },
       paymentMethod: { select: { id: true, kind: true, name: true, color: true, currency: true } },
     },

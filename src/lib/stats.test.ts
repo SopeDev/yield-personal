@@ -446,3 +446,22 @@ test("a new account's estimates stand in for typical spending and pace, and the 
   assert.deepEqual(working.blocks[1].map((line) => line.label.replace(/\$[\d,.]+/, "$")), ["Your records (17%)", "Your estimate (83%, $ a month)", "Food / day · avg."]);
   assert.ok(explainStat("projectedBalance", ctx, en, "en").notes.some((note) => note.includes("83% of the pace is still your estimate")));
 });
+
+test("planned cash purchases count as still unpaid, and the projection lets an average day cover a planned everyday one", () => {
+  const plan = (id: string, date: string, amountCents: number) => ({ ...purchase(id, date, amountCents, car), planned: true });
+  const data: LedgerData = {
+    categories: [food, car],
+    purchases: [purchase("pho", "2026-10-04", 70000, food), plan("gas", "2026-10-12", 5000), plan("late", "2026-10-08", 3000)],
+    incomes: [income("u1", "2026-10-01", 300000, uber)],
+    incomeGroups: [], definitions: [], overrides: [], recurringHistory: [], statements: [], savingsMovements: [],
+  };
+  const summary = summarizeMonth(data, "2026-10");
+  const ctx = monthStatContext({ view: { ...summary, purchases: data.purchases, recentIncomes: data.incomes }, today: "2026-10-10", settings: noSettings });
+  // Both plans are this month's to pay, and neither is spent yet.
+  assert.equal(ctx.cashFlow.outstandingCents, 8000);
+  assert.deepEqual(explainStat("outstanding", ctx, en, "en").blocks[0].map((line) => line.label), ["Planned cash purchases (2)", "Still unpaid"]);
+  // The plan for the 12th is everyday spending: the projection gives back the part of it the 12th's average day covers.
+  assert.equal(ctx.projected?.plannedOverlapCents, Math.min(5000, ctx.typicalDay.cents));
+  assert.ok(ctx.projected!.plannedOverlapCents > 0);
+  for (const ref of ["outstanding", "projectedBalance"] as const) assertWorkingAddsUp(ref, ctx);
+});

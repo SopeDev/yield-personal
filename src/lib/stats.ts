@@ -3,14 +3,14 @@ import { format, type Messages } from "../i18n/dictionaries";
 import type { CashOnHandParts } from "./cash-on-hand";
 import { categoryLabel } from "./categories";
 import {
-  blendWithEstimate, dailyNet, daysLeftIn, daysOff, DAYS_PER_MONTH, incomePace, neededPerDay, projectedBalance, todaySoFar, typicalDailySpending, type CategoryEstimate,
+  blendWithEstimate, dailyNet, daysLeftIn, daysOff, DAYS_PER_MONTH, incomePace, neededPerDay, plannedEverydayOverlap, projectedBalance, todaySoFar, typicalDailySpending, type CategoryEstimate,
 } from "./daily-balance";
 import { formatShortDate } from "./dates";
 import { incomePerPayday, neededPerPayday, type IncomeRhythm } from "./income-rhythm";
 import type { LedgerIncome, LedgerIncomeGroup, LedgerPurchase } from "./ledger";
 import { DEFAULT_CURRENCY, formatCents, type Currency } from "./money";
 import type { MonthSummary } from "./month-summary";
-import { dateFromKey, type MonthKey } from "./months";
+import { dateFromKey, dateKeyOf, dateInMonth, type MonthKey } from "./months";
 import { expectedIncomeLeft, expectedPaydays, type RecurringIncomeDefinition } from "./recurring-income";
 import {
   averageIncome, INCOME_FRAMES, INCOME_PERS, incomeBetween, incomeScopeParam, parseIncomeParam, parseIncomeScope,
@@ -167,6 +167,7 @@ export function monthStatContext({ view, today, settings, cashOnHandCents = null
     projected: projectedBalance({
       month, today, balanceCents, expectedCents: expected.cents, typicalDailyCents: typicalDay.cents, paceDailyCents: pace.cents,
       todayIncomeCents: todayRecords.incomeCents, todaySpentCents: todayRecords.spentCents,
+      plannedOverlapCents: plannedEverydayOverlap({ purchases: view.purchases, today, toKey: dateKeyOf(dateInMonth(month, 31)), typicalDailyCents: typicalDay.cents }),
     }),
     paydayIncome: dayNet ? incomePerPayday({ month, today, rhythm, incomeCents: dayNet.incomeCents, everydaySpendingCents: dayNet.spendingCents }) : null,
     // The day's target is the goal's when one is set; average daily income is gross, like the target.
@@ -492,7 +493,7 @@ const STATS = {
     }),
     description: (_, messages) => messages.explain.aboutOutstanding,
     explain: ({ cashFlow, others }, messages, _, { label }) => {
-      const { unpaidOccurrences, unpaidStatements, outstandingCents, carriedOutstandingCents } = cashFlow;
+      const { unpaidOccurrences, unpaidStatements, plannedPurchases, outstandingCents, carriedOutstandingCents } = cashFlow;
       const carried = carriedOutstandingCents > 0 ? [block(amount(messages.month.carriedTitle, carriedOutstandingCents))] : [];
       const notes = [carriedOutstandingCents > 0 && messages.explain.carried, otherCurrenciesNote(others, "outstandingCents", messages)];
       if (outstandingCents === 0) return explained(carried, [messages.month.outstandingEmpty, ...notes]);
@@ -502,6 +503,8 @@ const STATS = {
             : amount(format(messages.explain.unpaidBills, { count: unpaidOccurrences.length }), sum(unpaidOccurrences.map((occurrence) => occurrence.amountCents)), "+"),
           unpaidStatements.length === 0 ? null
             : amount(format(messages.explain.unpaidStatements, { count: unpaidStatements.length }), sum(unpaidStatements.map((statement) => statement.totalCents)), "+"),
+          plannedPurchases.length === 0 ? null
+            : amount(format(messages.explain.plannedPurchases, { count: plannedPurchases.length }), sum(plannedPurchases.map((purchase) => purchase.amountCents)), "+"),
           amount(label, outstandingCents, "="),
         ),
         ...carried,
@@ -651,6 +654,7 @@ const STATS = {
           unlessZero(format(messages.explain.paceForDaysLeft, { amount: formatCents(pace.cents, currency), days }), pace.cents * projected.daysAfterToday, "+"),
           unlessZero(messages.explain.restOfTodaySpending, projected.todaySpendingLeftCents, "−"),
           unlessZero(format(messages.explain.everydayForDaysLeft, { amount: formatCents(typicalDay.cents, currency), days }), typicalDay.cents * projected.daysAfterToday, "−"),
+          unlessZero(messages.explain.plannedInEveryday, projected.plannedOverlapCents, "+"),
           amount(label, projected.cents, "="),
         )],
         [
@@ -659,6 +663,7 @@ const STATS = {
           paceEstimateNote(context, messages),
           everydayNote(context, messages),
           goalCents !== null && messages.explain.goalSavings,
+          projected.plannedOverlapCents > 0 && messages.explain.plannedInEverydayNote,
         ],
       );
     },

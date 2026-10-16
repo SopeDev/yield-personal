@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Fragment, type ReactNode } from "react";
-import { deleteExchange, deleteIncome, deletePurchase } from "@/app/actions/entries";
+import { confirmPlannedPurchase, deleteExchange, deleteIncome, deletePurchase } from "@/app/actions/entries";
 import { setOccurrencePaid } from "@/app/actions/recurring";
 import { DeleteButton } from "@/components/delete-button";
 import { EntryRow } from "@/components/entry-row";
@@ -99,27 +99,48 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
     return category ? categoryLabel(category, messages.categories) : "–";
   };
 
-  function purchaseRow(entry: MonthSpendingEntry) {
+  /**
+   * A purchase's row. One still planned says so ("Planned · Dec 5", yellow once its day has passed) and, from its day
+   * on, has a check to confirm it as spent.
+   */
+  const purchaseRow = (entry: MonthSpendingEntry) => {
     const { purchase } = entry;
-    const details = [
+    const day = dateKeyOf(purchase.date);
+    const plannedOverdue = purchase.planned === true && day < today;
+    const text = [
       categoryLabel(purchase.item.category, messages.categories),
       paymentMethodLabel(purchase.paymentMethod, messages.common.cash),
       purchase.installmentCount > 1 ? format(messages.month.installment, { number: entry.installmentNumber, count: purchase.installmentCount }) : null,
       purchase.note,
     ].filter(Boolean).join(" · ");
+    const plannedTag = purchase.planned
+      ? <span className={cn("font-medium", plannedOverdue ? "text-warning" : "text-sky-400")}>{plannedOverdue ? messages.month.plannedOverdue : format(messages.month.plannedOn, { date: formatShortDate(purchase.date, locale) })} · </span>
+      : null;
+    const confirmId = `confirm-purchase-${purchase.id}`;
     return (
       <EntryRow
         cents={entry.amountCents}
         color={purchase.paymentMethod.color}
         currency={purchase.paymentMethod.currency}
-        details={details}
+        details={<>{plannedTag}{text}</>}
         href={`/${locale}/edit/purchase/${purchase.id}`}
         key={purchase.id}
+        muted={purchase.planned}
         title={purchase.item.name}
-        trailing={<DeleteButton action={deletePurchase} confirmMessage={messages.month.confirmDeletePurchase} id={purchase.id} label={messages.common.delete} locale={locale} />}
+        trailing={(
+          <>
+            {purchase.planned && day <= today ? (
+              <>
+                <PaidCheckForm action={confirmPlannedPurchase} fields={{ locale, id: purchase.id }} id={confirmId} paid={false} />
+                <PaidCheck formId={confirmId} labels={{ markPaid: messages.month.confirmSpent, markUnpaid: messages.month.confirmSpent }} paid={false} />
+              </>
+            ) : null}
+            <DeleteButton action={deletePurchase} confirmMessage={messages.month.confirmDeletePurchase} id={purchase.id} label={messages.common.delete} locale={locale} />
+          </>
+        )}
       />
     );
-  }
+  };
 
   /**
    * A recurring payment's month, dated by what happens that day: a cash bill is due (yellow 1–2 days before,

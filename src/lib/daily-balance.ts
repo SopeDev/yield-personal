@@ -51,7 +51,7 @@ export const TYPICAL_SPENDING_MONTHS = 3;
  * `excludeCategoryIds` leaves out categories that aren't spent every day, like the costs of working.
  */
 export function typicalDailySpending({ purchases, today, historyStart = null, excludeCategoryIds = [], estimates = [] }: {
-  purchases: Pick<LedgerPurchase, "date" | "amountCents" | "installmentCount" | "item">[];
+  purchases: Pick<LedgerPurchase, "date" | "amountCents" | "installmentCount" | "item" | "planned">[];
   today: string;
   /** The first month, or day, counted. */
   historyStart?: string | null;
@@ -103,13 +103,15 @@ export function historyWindow(today: string, historyStart: string | null) {
 }
 
 /** Everyday purchases (without installments of earlier purchases) made from `fromKey` through `toKey` in the included categories. */
-function everydaySpending(purchases: Pick<LedgerPurchase, "date" | "amountCents" | "installmentCount" | "item">[], { fromKey, toKey, include }: {
+function everydaySpending(purchases: Pick<LedgerPurchase, "date" | "amountCents" | "installmentCount" | "item" | "planned">[], { fromKey, toKey, include, withPlanned = false }: {
   fromKey: string;
   toKey: string;
   include: (categoryId: string) => boolean;
+  /** Counts purchases still planned too (today's, which the day is expected to spend); averages never do. */
+  withPlanned?: boolean;
 }) {
   return purchases
-    .filter((purchase) => isEveryday(purchase.item.category) && include(purchase.item.category.id))
+    .filter((purchase) => isEveryday(purchase.item.category) && include(purchase.item.category.id) && (withPlanned || !purchase.planned))
     .filter((purchase) => dateKeyOf(purchase.date) >= fromKey && dateKeyOf(purchase.date) <= toKey)
     .reduce((sum, purchase) => sum + (consumptionInMonth(purchase, monthKeyOf(purchase.date))?.amountCents ?? 0), 0);
 }
@@ -170,7 +172,7 @@ export function incomePace({ incomes, today, historyStart = null, estimateMonthl
  * its records come in the morning, midday, or at night.
  */
 export function todaySoFar({ purchases, incomes, today, include = () => true }: {
-  purchases: Pick<LedgerPurchase, "date" | "amountCents" | "installmentCount" | "item">[];
+  purchases: Pick<LedgerPurchase, "date" | "amountCents" | "installmentCount" | "item" | "planned">[];
   incomes: Pick<LedgerIncome, "date" | "amountCents">[];
   today: string;
   include?: (categoryId: string) => boolean;
@@ -179,8 +181,30 @@ export function todaySoFar({ purchases, incomes, today, include = () => true }: 
   return {
     hasIncome: todays.length > 0,
     incomeCents: todays.reduce((sum, income) => sum + income.amountCents, 0),
-    spentCents: everydaySpending(purchases, { fromKey: today, toKey: today, include }),
+    // Something planned for today is part of what today spends, confirmed or not.
+    spentCents: everydaySpending(purchases, { fromKey: today, toKey: today, include, withPlanned: true }),
   };
+}
+
+/**
+ * How much of the everyday purchases planned for the days after today, through `toKey`, an average day already
+ * covers: each day's planned everyday spending up to `typicalDailyCents`. A plan counts in full where it's recorded
+ * (the month's total to pay, the forecast's events), so the average day it falls on spends only what's left of it,
+ * as today does with what it has already spent.
+ */
+export function plannedEverydayOverlap({ purchases, today, toKey, typicalDailyCents }: {
+  purchases: Pick<LedgerPurchase, "date" | "amountCents" | "installmentCount" | "item" | "planned">[];
+  today: string;
+  toKey: string;
+  typicalDailyCents: number;
+}) {
+  const byDay = new Map<string, number>();
+  for (const purchase of purchases) {
+    const day = dateKeyOf(purchase.date);
+    if (!purchase.planned || day <= today || day > toKey || !isEveryday(purchase.item.category)) continue;
+    byDay.set(day, (byDay.get(day) ?? 0) + (consumptionInMonth(purchase, monthKeyOf(purchase.date))?.amountCents ?? 0));
+  }
+  return [...byDay.values()].reduce((sum, cents) => sum + Math.min(cents, typicalDailyCents), 0);
 }
 
 /**
@@ -189,7 +213,7 @@ export function todaySoFar({ purchases, incomes, today, include = () => true }: 
  * day after today at the recent pace of other income minus typical daily spending. A month still to come has no
  * today: every one of its days counts at the pace. Null for a month that has ended.
  */
-export function projectedBalance({ month, today, balanceCents, expectedCents, paceDailyCents, typicalDailyCents, todayIncomeCents = 0, todaySpentCents = 0 }: {
+export function projectedBalance({ month, today, balanceCents, expectedCents, paceDailyCents, typicalDailyCents, todayIncomeCents = 0, todaySpentCents = 0, plannedOverlapCents = 0 }: {
   month: MonthKey;
   today: string;
   balanceCents: number;
@@ -199,6 +223,8 @@ export function projectedBalance({ month, today, balanceCents, expectedCents, pa
   /** Income and everyday spending already recorded today (the pace's kind of income and typical spending's purchases). */
   todayIncomeCents?: number;
   todaySpentCents?: number;
+  /** Planned everyday purchases on the days after today that an average day already covers (`plannedEverydayOverlap`). */
+  plannedOverlapCents?: number;
 }) {
   const daysLeft = daysLeftIn(month, today);
   if (daysLeft === null) return null;
@@ -211,7 +237,8 @@ export function projectedBalance({ month, today, balanceCents, expectedCents, pa
     daysAfterToday,
     todayIncomeLeftCents,
     todaySpendingLeftCents,
-    cents: balanceCents + expectedCents + todayIncomeLeftCents - todaySpendingLeftCents + (paceDailyCents - typicalDailyCents) * daysAfterToday,
+    plannedOverlapCents,
+    cents: balanceCents + expectedCents + todayIncomeLeftCents - todaySpendingLeftCents + (paceDailyCents - typicalDailyCents) * daysAfterToday + plannedOverlapCents,
   };
 }
 
@@ -230,7 +257,7 @@ export function daysOff({ month, today, historyStart = null, purchases, incomes,
   today: string;
   historyStart?: string | null;
   /** Purchases and incomes reaching back over the history window; earlier and later ones are ignored. */
-  purchases: Pick<LedgerPurchase, "date" | "amountCents" | "installmentCount" | "item">[];
+  purchases: Pick<LedgerPurchase, "date" | "amountCents" | "installmentCount" | "item" | "planned">[];
   incomes: Pick<LedgerIncome, "date" | "amountCents">[];
   workCategoryIds: string[];
   livingDailyCents: number;

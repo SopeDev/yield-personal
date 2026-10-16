@@ -2,7 +2,7 @@ import "server-only";
 
 import { averageMonthlySpending } from "@/lib/averages";
 import { DAYS_PER_MONTH, incomePace, todaySoFar, TYPICAL_SPENDING_MONTHS, typicalDailySpending } from "@/lib/daily-balance";
-import { addDays, billEvents, cardStatementEvents, FORECAST_DAYS, forecastCash, monthOfKey, paydayEvents } from "@/lib/forecast";
+import { addDays, billEvents, cardStatementEvents, FORECAST_DAYS, forecastCash, monthOfKey, paydayEvents, plannedPurchaseEvents } from "@/lib/forecast";
 import { getCashWallets, getExchanges, getRecurringIncomes, getSavingsFunds, loadCashOnHand, loadLedgerRange } from "@/lib/ledger-data";
 import { getMainCurrency, getStatNames, getUserSettings } from "@/lib/queries";
 import { cardLayout, monthStatContext, type OtherCash, type SavingsSnapshot, type StatRef, type SummaryCardId } from "@/lib/stats";
@@ -231,7 +231,8 @@ export async function loadForecast(userId: string, today: string) {
   const recordsShare = (cents: number) => Math.round(cents * (1 - estimateShare));
   const cashTypical = typicalDailySpending({ purchases: cashPurchases, today, historyStart });
   const cashDaily = { ...cashTypical, cents: recordsShare(cashTypical.realCents) + Math.round((estimateMonthlyCents / DAYS_PER_MONTH) * estimateShare) };
-  const todays = todaySoFar({ purchases: cashPurchases, incomes: paceIncomes, today });
+  // Cash planned for today is one of the day's events, so what today has spent so far is only what's confirmed.
+  const todays = todaySoFar({ purchases: cashPurchases.filter((purchase) => !purchase.planned), incomes: paceIncomes, today });
 
   const months = Array.from({ length: monthDifference(currentMonth, endMonth) + 1 }, (_, index) => addMonths(currentMonth, index));
   const occurrences = [
@@ -258,6 +259,7 @@ export async function loadForecast(userId: string, today: string) {
     ...billEvents(occurrences, { today, end }),
     ...cardEvents,
     ...paydayEvents(months.flatMap((month) => expectedPaydays(recurringIncomes, data.incomes, month)), { today, end }),
+    ...plannedPurchaseEvents(data.purchases, { today, end }),
   ];
 
   // Savings grow beside cash: planned deposits leave cash on their days, and interest adds up on the funds.

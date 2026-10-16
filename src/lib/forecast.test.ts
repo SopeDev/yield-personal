@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { addDays, axisTicks, billEvents, cardStatementEvents, compactAmount, forecastCash, paydayEvents, type ForecastEvent } from "./forecast";
+import { addDays, axisTicks, billEvents, cardStatementEvents, compactAmount, forecastCash, paydayEvents, plannedPurchaseEvents, type ForecastEvent } from "./forecast";
 import { dateFromKey } from "./months";
-import type { LedgerPaymentMethod } from "./ledger";
+import type { LedgerCategory, LedgerPaymentMethod } from "./ledger";
 import type { RecurringOccurrence } from "./recurring";
 import type { ExpectedPayday } from "./recurring-income";
 import type { Statement } from "./statements";
@@ -126,4 +126,37 @@ test("the amount axis steps by round numbers and reads them short", () => {
   assert.deepEqual(axisTicks(-5500000, 4200000), [-4000000, -2000000, 0, 2000000, 4000000]);
   assert.deepEqual(axisTicks(500000, 1300000), [600000, 800000, 1000000, 1200000]);
   assert.deepEqual([4000000, 250000, 50000, -1000000, 0].map(compactAmount), ["40k", "2.5k", "500", "−10k", "0"]);
+});
+
+test("planned cash purchases leave on their day, an everyday one filling part of that day's average spending", () => {
+  const food: LedgerCategory = { id: "food", key: "food", name: null, sortOrder: 0, kind: "EVERYDAY" };
+  const extras: LedgerCategory = { id: "extras", key: "extras", name: null, sortOrder: 1, kind: "OCCASIONAL" };
+  const planned = (id: string, date: string, amountCents: number, category = food, paymentMethod = cash, isPlanned = true) => ({
+    date: dateFromKey(date), amountCents, item: { id, name: id, category }, paymentMethod, planned: isPlanned,
+  });
+  const events = plannedPurchaseEvents([
+    planned("gas", "2026-10-11", 50000),
+    planned("tires", "2026-10-12", 400000, extras),
+    planned("late", "2026-10-08", 20000),
+    planned("card", "2026-10-11", 9900, food, nu),
+    planned("done", "2026-10-11", 7000, food, cash, false),
+  ], { today: "2026-10-10", end: "2026-12-31" });
+  assert.deepEqual(events.map((event) => [event.label, event.date, event.cents, event.overdue, event.everydayCents]), [
+    ["gas", "2026-10-11", -50000, false, 50000],
+    ["tires", "2026-10-12", -400000, false, 0],
+    // Not confirmed by its day: owed today, outside today's average spending.
+    ["late", "2026-10-10", -20000, true, 0],
+  ]);
+
+  // An average day is $700 of cash spending and $1,000 of income.
+  const { days } = forecastCash({ today: "2026-10-10", days: 3, startCents: 1000000, paceDailyCents: 100000, cashDailyCents: 70000, events });
+  // Today: the rest of an average day (+300) and the overdue plan (−200).
+  assert.equal(days[0].cents, 1010000);
+  // The $500 of gas fills most of the 11th's $700: the day spends $700 in all, not $1,200.
+  assert.deepEqual([days[1].cents - days[0].cents, days[1].spendingCents], [30000, 70000]);
+  // Tires aren't everyday spending: an average day on top of them.
+  assert.deepEqual([days[2].cents - days[1].cents, days[2].spendingCents], [100000 - 70000 - 400000, 470000]);
+  // A plan bigger than an average day spends the plan alone.
+  const big = forecastCash({ today: "2026-10-10", days: 1, startCents: 0, paceDailyCents: 0, cashDailyCents: 70000, events: plannedPurchaseEvents([planned("market", "2026-10-11", 90000)], { today: "2026-10-10", end: "2026-10-31" }) });
+  assert.equal(big.days[1].spendingCents, 90000);
 });

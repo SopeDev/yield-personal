@@ -48,6 +48,9 @@
     "close": "Cerrar"
   },
   "month": {
+    "plannedOn": "Planeado · {date}",
+    "plannedOverdue": "Planeado · vencido",
+    "confirmSpent": "Confirmar gasto",
     "includesOther": "incluye {amounts}",
     "confirmDeleteExchange": "¿Eliminar este cambio de moneda?",
     "charges": "Se carga {date}",
@@ -144,6 +147,8 @@
     "addFirst": "Agregar ingreso"
   },
   "add": {
+    "plannedHint": "Con una fecha futura queda como plan: aparece en tu pronóstico, y sale de tu dinero solo cuando lo confirmas ese día.",
+    "stillPlannedHint": "Sigue como plan: confírmalo desde el mes cuando lo gastes.",
     "exchange": "Cambio",
     "exchangeGave": "Diste",
     "exchangeGot": "Recibiste",
@@ -562,6 +567,9 @@
     "changeSettings": "Cambiar ajustes"
   },
   "explain": {
+    "plannedPurchases": "Compras planeadas en efectivo ({count})",
+    "plannedInEveryday": "Compras planeadas que cubre un día promedio",
+    "plannedInEverydayNote": "Las compras del día a día planeadas para los próximos días cuentan completas en el total a pagar, así que el día promedio en que caen solo suma lo que falte.",
     "inCurrency": "En {currency}",
     "atRate": "{amount} a {rate}",
     "convertedAt": "Las otras monedas cuentan al tipo de cambio de referencia del {date} (Banco Central Europeo), y cambian con él.",
@@ -571,7 +579,7 @@
     "aboutTotalIncome": "Todo lo que recibiste este mes, y en cuántos días.",
     "aboutSpending": "Lo que compraste este mes: compras (también con tarjeta), mensualidades de este mes y pagos recurrentes.",
     "aboutToPay": "El dinero que sale este mes: compras y pagos en efectivo, y estados de cuenta que cierran este mes. Lo que pasas a ahorros no se gasta, así que queda fuera.",
-    "aboutOutstanding": "Lo que falta pagar de los pagos en efectivo y estados de cuenta de este mes.",
+    "aboutOutstanding": "Lo que falta pagar de los pagos en efectivo y estados de cuenta de este mes, más las compras en efectivo planeadas que aún no confirmas.",
     "aboutNeededPerDay": "Lo que necesitas ganar cada día que queda del mes para cubrir lo que falta pagar, más el gasto diario típico.",
     "aboutNeededPerDayGoal": "Lo que necesitas ganar cada día que queda del mes para llegar a tu meta de balance, más el gasto diario típico.",
     "aboutDailyIncome": "Ingreso por día este mes en los días que ya terminaron (hoy cuenta cuando acabe), incluidos los días libres.",
@@ -699,6 +707,7 @@
     "overdueDays": "vencido hace {count} días"
   },
   "forecast": {
+    "plannedEvent": "{item} · planeado",
     "noEvents": "Un día promedio",
     "howConverted": "El dinero en otras monedas cuenta al tipo de cambio de hoy: {rates}.",
     "title": "Pronóstico",
