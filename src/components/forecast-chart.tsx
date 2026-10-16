@@ -29,7 +29,7 @@ export function ForecastChart({ days, sureDays, ticks, labels }: {
   sureDays: number;
   /** Month starts to label under the line. */
   ticks: { index: number; label: string }[];
-  labels: { title: string; estimated: string; overdue: string; forecast: string; spending: string; regularDay: string; savings: string; withSavings: string };
+  labels: { title: string; estimated: string; overdue: string; forecast: string; spending: string; noEvents: string; savings: string; withSavings: string };
 }) {
   const [selected, setSelected] = useState(0);
   const plot = useRef<HTMLDivElement>(null);
@@ -71,7 +71,7 @@ export function ForecastChart({ days, sureDays, ticks, labels }: {
 
   return (
     <section aria-label={labels.title} className="space-y-3">
-      {/* The day's cash, its savings, what it spends (a regular day's, or the total with that day's bills), and what happens that day. */}
+      {/* The day's cash, its savings, what it spends, and what happens that day (or that it's an average day). */}
       <div aria-live="polite" className="min-h-14">
         <p className="flex items-baseline justify-between gap-3">
           <span className="text-sm text-muted-foreground">{day.label}</span>
@@ -86,13 +86,11 @@ export function ForecastChart({ days, sureDays, ticks, labels }: {
             </span>
           </p>
         ) : null}
-        {day.spendingCents > 0 ? (
-          <p className="flex items-baseline justify-between gap-3 text-xs text-loss/80">
-            <span>{day.events.some((event) => event.cents < 0 && !event.savings) ? labels.spending : labels.regularDay}</span>
-            <Money cents={-day.spendingCents} signed whole />
-          </p>
-        ) : null}
-        {day.events.length === 0 ? null : (
+        <p className="flex items-baseline justify-between gap-3 text-xs">
+          <span className="text-loss/80">{labels.spending}</span>
+          <Money cents={-day.spendingCents} className="text-loss/80" signed whole />
+        </p>
+        {day.events.length === 0 ? <p className="text-xs text-subtle">{labels.noEvents}</p> : (
           <ul className="mt-1 space-y-0.5 text-xs">
             {day.events.map((event, index) => (
               <li className="flex justify-between gap-3" key={`${event.label}-${index}`}>

@@ -699,7 +699,7 @@
     "overdueDays": "vencido hace {count} días"
   },
   "forecast": {
-    "regularDay": "Un día normal",
+    "noEvents": "Un día promedio",
     "howConverted": "El dinero en otras monedas cuenta al tipo de cambio de hoy: {rates}.",
     "title": "Pronóstico",
     "subtitle": "Tu dinero disponible en los próximos {days} días, si ingresos y gastos siguen a su ritmo reciente.",

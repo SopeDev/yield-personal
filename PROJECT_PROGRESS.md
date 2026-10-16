@@ -140,7 +140,7 @@ Last updated: 2026-10-10
 - Forecast decluttered: whole units throughout, no savings under the cards, a two-line readout (cash; savings and interest) plus the day's events, and the subtitle moved into the explanation.
 - Live exchange rates: cash on hand, savings, and the forecast count money in other currencies at today's rate (Frankfurter, the European Central Bank's reference rates), stored so a failed fetch falls back to the last rate; records stay in their own currencies. The privacy notice names Frankfurter.
 - Clearer stat labels: To pay is Money out (Salidas), Outstanding is Still unpaid (Falta pagar), Daily income is Month's daily income, and usual averages read "· avg.", with the explanations that mention them in step.
-- Forecast readout: the day's spending is back under its cash, as "A regular day" (typical everyday spending) or, on days with bills or statements, the day's total spending above them.
+- Forecast readout: the day's spending is back under its cash, as before the declutter (every day, today included), with "Just an average day" when nothing else happens that day.
 
 ## Next
 
