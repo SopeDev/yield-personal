@@ -831,7 +831,7 @@
       "estimateFor": "About how much a month on {category}",
       "perMonth": "$ a month",
       "total": "About a month",
-      "structural": "Fixed (for your bills) and Extras (one-off purchases that shouldn't count toward your averages) are added for you. You can change all of this later in Settings.",
+      "structural": "Your bills go in Fixed, and one-off purchases that shouldn't count toward your averages go in Extras. Both are already set up, so no need to add them here. You can change all of this later in Settings.",
       "invalid": "Each category needs a name, and names can't repeat.",
       "invalidEstimate": "Enter amounts like 4,000, or leave them blank."
     },
