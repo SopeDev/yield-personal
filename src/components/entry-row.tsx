@@ -2,17 +2,21 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { Money } from "./money";
 
-/** One ledger line: a colored dot for how it was paid, a title and details, and the amount. `href` opens it for editing. */
-export function EntryRow({ color, title, details, cents, currency, signed, trailing, href }: {
+/**
+ * One ledger line: a colored dot for how it was paid, a title and details, and the amount. `href` opens it for
+ * editing; a `muted` amount isn't spent yet (a plan).
+ */
+export function EntryRow({ color, title, details, cents, currency, signed, trailing, href, muted = false }: {
   color: string;
   title: string;
-  details: string;
+  details: ReactNode;
   cents: number;
   /** The record's currency, when it isn't the main one. */
   currency?: string;
   signed?: boolean;
   trailing?: ReactNode;
   href?: string;
+  muted?: boolean;
 }) {
   const body = (
     <>
@@ -21,7 +25,7 @@ export function EntryRow({ color, title, details, cents, currency, signed, trail
         <p className="truncate font-medium">{title}</p>
         <p className="truncate text-sm text-muted-foreground">{details}</p>
       </div>
-      <Money cents={cents} className={signed ? "text-gain" : undefined} currency={currency} signed={signed} />
+      <Money cents={cents} className={signed ? "text-gain" : muted ? "text-muted-foreground" : undefined} currency={currency} signed={signed} />
     </>
   );
   return (

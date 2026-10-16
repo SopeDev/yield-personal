@@ -48,6 +48,9 @@
     "close": "Close"
   },
   "month": {
+    "plannedOn": "Planned · {date}",
+    "plannedOverdue": "Planned · overdue",
+    "confirmSpent": "Confirm as spent",
     "includesOther": "incl. {amounts}",
     "confirmDeleteExchange": "Delete this exchange?",
     "charges": "Charges {date}",
@@ -144,6 +147,8 @@
     "addFirst": "Add income"
   },
   "add": {
+    "plannedHint": "A later date makes this a plan: it shows in your forecast, and leaves your cash only once you confirm it on the day.",
+    "stillPlannedHint": "Still a plan: confirm it from the month view once it's spent.",
     "exchange": "Exchange",
     "exchangeGave": "You gave",
     "exchangeGot": "You got",
@@ -562,6 +567,9 @@
     "changeSettings": "Change settings"
   },
   "explain": {
+    "plannedPurchases": "Planned cash purchases ({count})",
+    "plannedInEveryday": "Planned everyday purchases an average day covers",
+    "plannedInEverydayNote": "Everyday purchases planned for the days ahead count in full in the total to pay, so the average day they fall on only adds what's left of it.",
     "inCurrency": "In {currency}",
     "atRate": "{amount} at {rate}",
     "convertedAt": "Other currencies count at the reference rate of {date} (European Central Bank), and change with it.",
@@ -571,7 +579,7 @@
     "aboutTotalIncome": "Everything received this month, and on how many days.",
     "aboutSpending": "What you bought this month: purchases (card ones included), installments due this month, and recurring bills.",
     "aboutToPay": "Money leaving this month: cash purchases and bills, and card statements that close this month. Money moved into savings isn't spent, so it stays out.",
-    "aboutOutstanding": "What's still unpaid of this month's cash bills and card statements.",
+    "aboutOutstanding": "What's still unpaid of this month's cash bills and card statements, plus cash purchases planned and not confirmed yet.",
     "aboutNeededPerDay": "Income needed on each day left this month to cover what's still to pay, plus a typical day's everyday spending.",
     "aboutNeededPerDayGoal": "Income needed on each day left this month to reach your balance goal, plus a typical day's everyday spending.",
     "aboutDailyIncome": "Income per day this month over the days that have finished (today counts once it's over), days off included.",
@@ -699,6 +707,7 @@
     "overdueDays": "{count} days overdue"
   },
   "forecast": {
+    "plannedEvent": "{item} · planned",
     "noEvents": "Just an average day",
     "howConverted": "Money in other currencies counts at today's rate: {rates}.",
     "title": "Forecast",

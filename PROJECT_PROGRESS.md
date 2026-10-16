@@ -141,11 +141,11 @@ Last updated: 2026-10-10
 - Live exchange rates: cash on hand, savings, and the forecast count money in other currencies at today's rate (Frankfurter, the European Central Bank's reference rates), stored so a failed fetch falls back to the last rate; records stay in their own currencies. The privacy notice names Frankfurter.
 - Clearer stat labels: To pay is Money out (Salidas), Outstanding is Still unpaid (Falta pagar), Daily income is Month's daily income, and usual averages read "· avg.", with the explanations that mention them in step.
 - Forecast readout: the day's spending is back under its cash, as before the declutter (every day, today included), with "Just an average day" when nothing else happens that day.
+- Planned purchases: logging a purchase for a later date makes it a plan, shown in the forecast on its day and owed in the month, leaving cash on hand only when confirmed with a check from its day on; an everyday plan fills its day's average spending instead of adding to it. Checked against seeded data: plans saved as such, cash unchanged, the forecast's drop (gas within an average day, tires on top), an early confirmation refused, editing never confirming, confirming on the day leaving the forecast and projection unchanged, and deleting restoring every figure.
 
 ## Next
 
 - Savings: rate tiers by balance (a higher rate only up to an amount, like 15% on the first $25,000), if they turn out to matter.
-- Forecast: planned one-off expenses (like tires) shown on the line before they're spent.
 - Custom stats, next: a limit on an average stat ("$180 of $300 this week", the limit stored encrypted), and possibly how many times something was bought.
 - Encryption at rest, step 3 (optional tidy-up, skipped for now): drop the emptied plaintext columns and the `*_clear_plaintext` triggers, and make the required copies NOT NULL. The columns are empty, so leaving them costs nothing; dropping them can't be undone.
 

@@ -15,6 +15,8 @@ export type LedgerPurchase = {
   installmentCount: number;
   item: LedgerItem;
   paymentMethod: LedgerPaymentMethod;
+  /** Not spent yet: a plan for its date, until confirmed once its day comes (`purchases.planned`). */
+  planned?: boolean;
 };
 export type LedgerIncomeSource = { id: string; name: string; groupId: string | null };
 /** Income sources grouped for a net figure: the group's income after spending in `deductCategoryIds`. */

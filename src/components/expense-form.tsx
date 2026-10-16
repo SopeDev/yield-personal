@@ -23,6 +23,8 @@ export type PurchaseInitial = {
   installments: number;
   date: string;
   note: string;
+  /** Not confirmed as spent yet. */
+  planned?: boolean;
 };
 
 const DEFAULT_CATEGORY_KEY = "food";
@@ -48,6 +50,9 @@ export function ExpenseForm({ locale, today, items, categories, methods, message
   const mainCurrency = useCurrency();
   const defaultMethodId = initial?.paymentMethodId ?? methods[0]?.id ?? "";
   const [methodId, setMethodId] = useState(defaultMethodId);
+  // A later date makes it a plan, and a plan stays one until it's confirmed from the month view.
+  const [date, setDate] = useState(initial?.date ?? today);
+  const plannedHint = date > today ? messages.add.plannedHint : initial?.planned ? messages.add.stillPlannedHint : null;
   const [methodPicked, setMethodPicked] = useState(false);
   const [ownAmount, setOwnAmount] = useState(initial?.amount ?? "");
   const amount = sharedAmount ?? ownAmount;
@@ -125,7 +130,8 @@ export function ExpenseForm({ locale, today, items, categories, methods, message
       ) : null}
 
       <Field error={errors.date} errors={messages.errors} htmlFor="date" label={messages.add.date}>
-        <input className={inputClass} defaultValue={initial?.date ?? today} id="date" name="date" required type="date" />
+        <input className={inputClass} id="date" name="date" onChange={(event) => setDate(event.target.value)} required type="date" value={date} />
+        {plannedHint ? <p className="text-sm text-sky-400">{plannedHint}</p> : null}
       </Field>
 
       <Field error={errors.note} errors={messages.errors} htmlFor="note" label={messages.add.note}>

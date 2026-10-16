@@ -209,6 +209,9 @@ model Purchase {
   amountEnc        String?       @map("amount_enc")
   noteEnc          String?       @map("note_enc")
   installmentCount Int           @default(1) @map("installment_count")
+  /// A plan, not yet spent: logged for a later date, it stays planned until confirmed once its day comes. A planned
+  /// cash purchase leaves cash on hand only when confirmed; until then the forecast and the month count it as owed.
+  planned          Boolean       @default(false)
   createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
   user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)

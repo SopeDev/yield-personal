@@ -12,6 +12,7 @@ import { resolveItem } from "@/lib/item-resolution";
 import { isCurrency, parseAmountToCents } from "@/lib/money";
 import { getMainCurrency } from "@/lib/queries";
 import { dateFromKey, isDateKey } from "@/lib/months";
+import { todayKey } from "@/lib/today";
 import { localeFromForm, requireActionUserId } from "./action-user";
 import type { FormState } from "./form-state";
 
@@ -67,6 +68,8 @@ async function parsePurchase(userId: string, formData: FormData, { isEdit }: { i
   return {
     data: { itemId: item.itemId, paymentMethodId, date: dateFromKey(date), ...seal("Purchase", { amountCents: amountCents!, note: note || null }), installmentCount },
     month: date.slice(0, 7),
+    // Dated after today, it's a plan: not spent until confirmed once its day comes.
+    future: date > todayKey(),
   };
 }
 
@@ -108,7 +111,7 @@ export async function createPurchase(_state: FormState, formData: FormData): Pro
   const id = readClientId(formData);
   const existing = id ? await db.purchase.findUnique({ where: { id }, select: { userId: true } }) : null;
   if (existing && existing.userId !== userId) return { error: "generic" };
-  if (!existing) await db.purchase.create({ data: { id, userId, ...parsed.data } });
+  if (!existing) await db.purchase.create({ data: { id, userId, ...parsed.data, planned: parsed.future } });
 
   revalidatePath(`/${locale}`, "layout");
   redirect(`/${locale}/month?m=${parsed.month}`);
@@ -122,7 +125,10 @@ export async function updatePurchase(_state: FormState, formData: FormData): Pro
   const parsed = await parsePurchase(userId, formData, { isEdit: true });
   if (!parsed.data) return { fieldErrors: parsed.fieldErrors };
 
-  const { count } = await db.purchase.updateMany({ where: { id, userId }, data: parsed.data });
+  // Moving a purchase to a later date makes it a plan; a plan stays one until confirmed, whatever its new date.
+  const { count } = parsed.future
+    ? await db.purchase.updateMany({ where: { id, userId }, data: { ...parsed.data, planned: true } })
+    : await db.purchase.updateMany({ where: { id, userId }, data: parsed.data });
   if (count === 0) return { error: "generic" };
 
   revalidatePath(`/${locale}`, "layout");
@@ -157,6 +163,15 @@ export async function updateIncome(_state: FormState, formData: FormData): Promi
 
   revalidatePath(`/${locale}`, "layout");
   redirect(`/${locale}/income?m=${parsed.month}`);
+}
+
+/** Confirms a planned purchase as spent, once its day has come: from then on it's an ordinary purchase. */
+export async function confirmPlannedPurchase(formData: FormData) {
+  const userId = await requireActionUserId();
+  const id = readText(formData, "id");
+  if (!isUuid(id)) return;
+  await db.purchase.updateMany({ where: { id, userId, planned: true, date: { lte: dateFromKey(todayKey()) } }, data: { planned: false } });
+  revalidatePath(`/${localeFromForm(formData)}`, "layout");
 }
 
 export async function deletePurchase(formData: FormData) {

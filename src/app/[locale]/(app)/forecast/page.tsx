@@ -45,7 +45,8 @@ export default async function ForecastPage({ params }: PageProps<"/[locale]/fore
   const inMonth = days[FORECAST_SURE_DAYS];
   // A move into savings is named by its fund (the emergency fund in the interface's language).
   const eventLabel = (event: (typeof days)[number]["events"][number]) =>
-    event.kind === "savings" ? format(m.toSavings, { fund: event.label || messages.savings.emergencyFund }) : event.label;
+    event.kind === "savings" ? format(m.toSavings, { fund: event.label || messages.savings.emergencyFund })
+      : event.kind === "planned" ? format(m.plannedEvent, { item: event.label }) : event.label;
   const chartDays: ForecastChartDay[] = days.map((day, index) => {
     const savings = forecast.savings?.[index];
     return {

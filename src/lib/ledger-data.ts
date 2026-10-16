@@ -21,6 +21,7 @@ const purchaseSelect = {
   amountCents: true,
   note: true,
   installmentCount: true,
+  planned: true,
   item: { select: itemSelect },
   paymentMethod: { select: paymentMethodSelect },
 } as const;
@@ -246,7 +247,8 @@ export async function loadCashOnHand(userId: string, knownWallets?: CashWallet[]
   const select = { date: true, createdAt: true, amountCents: true } as const;
   const [incomes, cashPurchases, savingsMovements, exchanges, paidBills] = await Promise.all([
     db.income.findMany({ where, select: { ...select, currency: true } }),
-    db.purchase.findMany({ where: { ...where, paymentMethod: { kind: "CASH" } }, select: { ...select, paymentMethodId: true } }),
+    // Planned purchases leave cash only once confirmed as spent.
+    db.purchase.findMany({ where: { ...where, planned: false, paymentMethod: { kind: "CASH" } }, select: { ...select, paymentMethodId: true } }),
     db.savingsMovement.findMany({ where, select: { ...select, fund: { select: { currency: true } } } }),
     db.currencyExchange.findMany({ where, select: { date: true, createdAt: true, fromCurrency: true, fromCents: true, toCurrency: true, toCents: true } }),
     getBillsPaidSince(userId, firstSetAt),

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { blendWithEstimate, dailyNet, daysOff, incomePace, neededPerDay, projectedBalance, typicalDailySpending } from "./daily-balance";
+import { blendWithEstimate, dailyNet, daysOff, incomePace, neededPerDay, plannedEverydayOverlap, projectedBalance, typicalDailySpending } from "./daily-balance";
 import type { LedgerCategory, LedgerPurchase, MonthSpendingEntry } from "./ledger";
 import { dateFromKey } from "./months";
 
@@ -157,10 +157,10 @@ test("the pace of income spreads income since the history start over every day, 
 test("the projected balance adds what's expected and each day left at the pace, less typical spending", () => {
   // 22 days left from Oct 10, nothing recorded today yet: 1,000 + 500 expected + all of today (30 in, 20 out) + 21 × (30 − 20).
   const october = { month: "2026-10" as const, today: "2026-10-10", balanceCents: 100000, expectedCents: 50000, paceDailyCents: 3000, typicalDailyCents: 2000 };
-  assert.deepEqual(projectedBalance(october), { daysLeft: 22, daysAfterToday: 21, todayIncomeLeftCents: 3000, todaySpendingLeftCents: 2000, cents: 172000 });
+  assert.deepEqual(projectedBalance(october), { daysLeft: 22, daysAfterToday: 21, todayIncomeLeftCents: 3000, todaySpendingLeftCents: 2000, plannedOverlapCents: 0, cents: 172000 });
   // Today's records count once: 12 earned and 5 spent so far (already in the balance) leave 18 and 15 of an average day.
   assert.deepEqual(projectedBalance({ ...october, balanceCents: 100700, todayIncomeCents: 1200, todaySpentCents: 500 }), {
-    daysLeft: 22, daysAfterToday: 21, todayIncomeLeftCents: 1800, todaySpendingLeftCents: 1500, cents: 172000,
+    daysLeft: 22, daysAfterToday: 21, todayIncomeLeftCents: 1800, todaySpendingLeftCents: 1500, plannedOverlapCents: 0, cents: 172000,
   });
   // A day past the average expects nothing more today, and never takes back what was earned.
   assert.equal(projectedBalance({ ...october, balanceCents: 104000, todayIncomeCents: 4000, todaySpentCents: 0 })?.todayIncomeLeftCents, 0);
@@ -210,4 +210,27 @@ test("estimates stand in for typical spending and income pace while there's litt
   const pace = incomePace({ incomes: [], today: "2026-10-25", historyStart: "2026-10-20", estimateMonthlyCents: 3040000 });
   assert.deepEqual([pace.days, pace.cents], [5, Math.round(100000 * (25 / 30))]);
   assert.equal(blendWithEstimate(1234, 3, 0).cents, 1234);
+});
+
+test("planned everyday purchases ahead are covered by their day's average spending, up to a day's worth, and stay out of averages", () => {
+  const food: LedgerCategory = { id: "food", key: "food", name: null, sortOrder: 0, kind: "EVERYDAY" };
+  const extras: LedgerCategory = { id: "extras", key: "extras", name: null, sortOrder: 1, kind: "OCCASIONAL" };
+  const cashMethod = { id: "cash", kind: "CASH" as const, name: "Cash", color: "#000" };
+  const purchase = (id: string, date: string, amountCents: number, category = food, planned = true): LedgerPurchase => ({
+    id, date: dateFromKey(date), amountCents, note: null, installmentCount: 1, item: { id, name: id, category }, paymentMethod: cashMethod, planned,
+  });
+  const purchases = [
+    purchase("gas", "2026-10-12", 50000),
+    purchase("market", "2026-10-13", 90000),
+    purchase("snack", "2026-10-13", 5000),
+    purchase("tires", "2026-10-14", 400000, extras),
+    purchase("today", "2026-10-10", 30000),
+    purchase("next-month", "2026-11-02", 20000),
+    purchase("spent", "2026-10-12", 10000, food, false),
+  ];
+  // A day's average is $700: the gas fills $500 of the 12th; the 13th's $950 fills all $700; tires aren't everyday.
+  assert.equal(plannedEverydayOverlap({ purchases, today: "2026-10-10", toKey: "2026-10-31", typicalDailyCents: 70000 }), 50000 + 70000);
+  // Unconfirmed plans from past days never count as spending in the averages.
+  const past = [purchase("missed", "2026-10-05", 300000), purchase("real", "2026-10-06", 31000, food, false)];
+  assert.equal(typicalDailySpending({ purchases: past, today: "2026-10-10", historyStart: "2026-10" }).cents, Math.round(31000 / 9));
 });
