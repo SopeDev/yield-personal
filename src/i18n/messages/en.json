@@ -831,13 +831,13 @@
       "estimateFor": "About how much a month on {category}",
       "perMonth": "$ a month",
       "total": "About a month",
-      "structural": "Fixed (for your bills) and Extras (one-off purchases that shouldn't count toward your averages) are added for you. You can change all of this later in Settings.",
+      "structural": "Your bills go in Fixed, and one-off purchases that shouldn't count toward your averages go in Extras. Both are already set up, so no need to add them here. You can change all of this later in Settings.",
       "invalid": "Each category needs a name, and names can't repeat.",
       "invalidEstimate": "Enter amounts like 4,000, or leave them blank."
     },
     "done": {
       "title": "You're set. Now let's see where it goes.",
-      "body": "Log what you spend and earn as it happens with the + button; it takes five seconds. The first couple of weeks are rough: the more you log, the more it tells you.",
+      "body": "Log what you spend and earn as it happens with the + button; it takes five seconds. Your numbers start out as rough estimates and get sharper with every week you log.",
       "summary": "Ready to save",
       "salary": "Salary: {name}",
       "variable": "Income logged as it comes in",

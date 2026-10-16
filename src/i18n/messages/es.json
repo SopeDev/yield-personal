@@ -831,13 +831,13 @@
       "estimateFor": "Más o menos cuánto al mes en {category}",
       "perMonth": "$ al mes",
       "total": "Más o menos al mes",
-      "structural": "Fijos (para tus pagos) y Extras (compras únicas que no deben contar en tus promedios) se agregan solos. Puedes cambiar todo esto después en Ajustes.",
+      "structural": "Tus pagos fijos van en Fijos, y las compras únicas que no deben contar en tus promedios van en Extras. Las dos ya están creadas, así que no hace falta agregarlas aquí. Puedes cambiar todo esto después en Ajustes.",
       "invalid": "Cada categoría necesita nombre, y los nombres no se pueden repetir.",
       "invalidEstimate": "Escribe cantidades como 4,000, o déjalas en blanco."
     },
     "done": {
       "title": "Listo. Ahora sí, a ver a dónde se va.",
-      "body": "Registra lo que gastas y ganas al momento con el botón +; toma cinco segundos. Las primeras semanas las cifras son aproximadas: entre más registras, más te dicen.",
+      "body": "Registra lo que gastas y ganas al momento con el botón +; toma cinco segundos. Al principio tus cifras son estimados, y se van afinando con cada semana que registras.",
       "summary": "Listo para guardar",
       "salary": "Sueldo: {name}",
       "variable": "Ingresos registrados conforme llegan",
