@@ -837,7 +837,7 @@
     },
     "done": {
       "title": "You're set. Now let's see where it goes.",
-      "body": "Log what you spend and earn as it happens with the + button; it takes five seconds. The first couple of weeks are rough: the more you log, the more it tells you.",
+      "body": "Log what you spend and earn as it happens with the + button; it takes five seconds. Your numbers start out as rough estimates and get sharper with every week you log.",
       "summary": "Ready to save",
       "salary": "Salary: {name}",
       "variable": "Income logged as it comes in",

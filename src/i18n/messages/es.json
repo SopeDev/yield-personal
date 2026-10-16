@@ -837,7 +837,7 @@
     },
     "done": {
       "title": "Listo. Ahora sí, a ver a dónde se va.",
-      "body": "Registra lo que gastas y ganas al momento con el botón +; toma cinco segundos. Las primeras semanas las cifras son aproximadas: entre más registras, más te dicen.",
+      "body": "Registra lo que gastas y ganas al momento con el botón +; toma cinco segundos. Al principio tus cifras son estimados, y se van afinando con cada semana que registras.",
       "summary": "Listo para guardar",
       "salary": "Sueldo: {name}",
       "variable": "Ingresos registrados conforme llegan",
