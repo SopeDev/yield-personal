@@ -150,11 +150,11 @@ export function OnboardingWizard({ locale, labels: m, currency: initialCurrency,
   const choice = (on: boolean, toggle: () => void, title: string, hint: string) => (
     <button
       aria-pressed={on}
-      className={cn("flex w-full items-start gap-3 rounded-xl border p-4 text-left transition", on ? "border-primary bg-primary/10" : "border-border bg-surface")}
+      className={cn("flex w-full items-center gap-3 rounded-xl border p-4 text-left transition", on ? "border-primary bg-primary/10" : "border-border bg-surface")}
       onClick={toggle}
       type="button"
     >
-      <span className={cn("mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md border", on ? "border-primary bg-primary text-primary-foreground" : "border-border")}>
+      <span className={cn("flex size-5 shrink-0 items-center justify-center rounded-md border-2", on ? "border-primary bg-primary text-primary-foreground" : "border-muted-foreground/60")}>
         {on ? <Check aria-hidden="true" className="size-3.5" strokeWidth={3} /> : null}
       </span>
       <span>
