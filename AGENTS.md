@@ -12,7 +12,7 @@ Before implementing a substantial new feature:
 - After implementation, run the project's verification checks.
 - Update PROJECT_DECISIONS.md only for durable decisions.
 - Update PROJECT_PROGRESS.md with completed work and the next planned slice.
-- Do not stage, commit, or push Git changes. The user always handles Git staging, commits, and pushes.
+- After verifying a change, always commit it, push it, and open a pull request (or update the open one for the branch), without asking first. The user reviews and merges pull requests.
 - Treat project as a mobile-first, installable PWA. Design and implement the smallest viewport first, then enhance layouts for larger screens.
 
 ## Tool usage
