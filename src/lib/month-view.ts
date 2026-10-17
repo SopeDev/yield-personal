@@ -15,6 +15,7 @@ import { emergencyFundGoal, fundBalance } from "@/lib/savings";
 import { DEPOSIT_MATCH_DAYS, depositDays, matchDeposits, projectSavings, type GrowingFund } from "@/lib/savings-growth";
 import { installmentsOwed } from "@/lib/statements";
 import { convertCents, type ExchangeRates } from "@/lib/currency-conversion";
+import { formatCents } from "@/lib/money";
 import { loadExchangeRates } from "@/lib/exchange-rates";
 
 /** The year view and averages cover the last 12 months, ending with the given month. */
@@ -235,11 +236,24 @@ export async function loadForecast(userId: string, today: string) {
   const todays = todaySoFar({ purchases: cashPurchases.filter((purchase) => !purchase.planned), incomes: paceIncomes, today });
 
   const months = Array.from({ length: monthDifference(currentMonth, endMonth) + 1 }, (_, index) => addMonths(currentMonth, index));
-  const occurrences = [
+  const occurrencesOf = (ledger: typeof data) => [
     // Cash bills left unpaid in earlier months are owed now.
-    ...unpaidCashOccurrences(data.definitions, data.overrides, addMonths(currentMonth, -CARRY_UNPAID_MONTHS), currentMonth, data.recurringHistory),
-    ...months.flatMap((month) => occurrencesForMonth(data.definitions, data.overrides, month, data.recurringHistory)),
+    ...unpaidCashOccurrences(ledger.definitions, ledger.overrides, addMonths(currentMonth, -CARRY_UNPAID_MONTHS), currentMonth, ledger.recurringHistory),
+    ...months.flatMap((month) => occurrencesForMonth(ledger.definitions, ledger.overrides, month, ledger.recurringHistory)),
   ];
+  const occurrences = occurrencesOf(data);
+  // Cash bills in other currencies are paid from those wallets, which count in cash at today's rate: they leave it
+  // the same way, converted (one in a currency with no rate known is left out, like its wallet).
+  const otherCurrencies = currenciesIn(allData, currency).filter((code) => code !== currency);
+  const billRates = await loadExchangeRates(currency, otherCurrencies);
+  const otherBillEvents = otherCurrencies.flatMap((code) => {
+    const rate = billRates.get(code);
+    if (!rate) return [];
+    return billEvents(occurrencesOf(forCurrency(allData, code, currency)), { today, end }).map((event) => ({
+      event: { ...event, label: `${event.label} (${formatCents(-event.cents, code, true)})`, cents: -convertCents(-event.cents, rate.rate) },
+      conversion: { currency: code, rate: rate.rate, date: rate.date },
+    }));
+  });
   const cardEvents = cards
     .filter((card) => (card.currency ?? currency) === currency && card.closingDay != null && card.paymentDays != null)
     .flatMap((card) => {
@@ -257,6 +271,7 @@ export async function loadForecast(userId: string, today: string) {
     });
   const events = [
     ...billEvents(occurrences, { today, end }),
+    ...otherBillEvents.map(({ event }) => event),
     ...cardEvents,
     ...paydayEvents(months.flatMap((month) => expectedPaydays(recurringIncomes, data.incomes, month)), { today, end }),
     ...plannedPurchaseEvents(data.purchases, { today, end }),
@@ -281,6 +296,7 @@ export async function loadForecast(userId: string, today: string) {
     converted: conversionsUsed([
       ...otherCash.flatMap((cash) => (cash.converted ? [{ currency: cash.currency, rate: cash.converted.rate, date: cash.converted.date }] : [])),
       ...funds.flatMap((fund) => (fund.converted ? [fund.converted] : [])),
+      ...otherBillEvents.map(({ conversion }) => conversion),
     ]),
     paceDailyCents: pace.cents,
     cashDailyCents: cashDaily.cents,

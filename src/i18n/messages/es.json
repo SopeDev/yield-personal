@@ -292,6 +292,7 @@
     "rate": "Escribe una tasa entre 0 y 100%, como 15 u 8.5."
   },
   "recurring": {
+    "inCurrency": "Este pago es en {currency}: su monto queda en esa moneda y sale de esa cartera.",
     "title": "Pagos recurrentes",
     "description": "Pagos que se repiten cada mes. Aparecen en cada mes para marcarlos como pagados; los que se pagan con tarjeta se pagan con su estado de cuenta.",
     "empty": "Todavía no hay pagos recurrentes.",

@@ -142,6 +142,7 @@ Last updated: 2026-10-10
 - Clearer stat labels: To pay is Money out (Salidas), Outstanding is Still unpaid (Falta pagar), Daily income is Month's daily income, and usual averages read "· avg.", with the explanations that mention them in step.
 - Forecast readout: the day's spending is back under its cash, as before the declutter (every day, today included), with "Just an average day" when nothing else happens that day.
 - Planned purchases: logging a purchase for a later date makes it a plan, shown in the forecast on its day and owed in the month, leaving cash on hand only when confirmed with a check from its day on; an everyday plan fills its day's average spending instead of adding to it. Checked against seeded data: plans saved as such, cash unchanged, the forecast's drop (gas within an average day, tires on top), an early confirmation refused, editing never confirming, confirming on the day leaving the forecast and projection unchanged, and deleting restoring every figure.
+- Recurring bills in other currencies made plain: payment methods in another currency show it ("Dólares · US$"), and the amount and a note say the bill is in that currency. The forecast takes cash bills in other currencies out on their dates at today's rate. Checked against seeded data: a US$650 rent from the dollar wallet leaving $11,830 each month at 18.2.
 
 ## Next
 

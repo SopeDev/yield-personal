@@ -4,12 +4,15 @@ import { useActionState, useState } from "react";
 import { createRecurringPayment, updateRecurringPayment } from "@/app/actions/recurring";
 import type { FormState } from "@/app/actions/form-state";
 import { format, type Messages } from "@/i18n/dictionaries";
+import { currencySymbol } from "@/lib/money";
 import { MAX_STATEMENT_DAY } from "@/lib/payment-methods";
+import { useCurrency } from "./currency";
 import { MoneyInput } from "./amount-input";
 import { Chip, Field, inputClass, SubmitButton } from "./form-controls";
 import { ItemField, type CategoryOption, type ItemOption } from "./item-field";
 
-type Option = { id: string; label: string; color?: string };
+/** A payment method; its `currency` is the bill's (money in other currencies is never converted). */
+type Option = { id: string; label: string; color?: string; currency?: string };
 
 /** Values of an existing recurring payment being edited. */
 export type RecurringInitial = {
@@ -40,7 +43,11 @@ export function RecurringForm({ locale, currentMonth, items, categories, methods
   const [intervalMonths, setIntervalMonths] = useState(initial?.intervalMonths ?? 1);
   const errors = state.fieldErrors ?? {};
   const idPrefix = initial ? `recurring-${initial.id}` : "recurring-new";
-  const selectedMethodId = initial?.paymentMethodId ?? methods[0]?.id;
+  const mainCurrency = useCurrency();
+  // The bill is in its payment method's currency: a dollar wallet makes a bill in dollars.
+  const [methodId, setMethodId] = useState(initial?.paymentMethodId ?? methods[0]?.id);
+  const currency = methods.find((method) => method.id === methodId)?.currency ?? mainCurrency;
+  const otherCurrency = currency !== mainCurrency;
 
   return (
     <form action={formAction} className="space-y-5 p-4">
@@ -64,7 +71,7 @@ export function RecurringForm({ locale, currentMonth, items, categories, methods
       </label>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field error={errors.amount} errors={messages.errors} htmlFor={`${idPrefix}-amount`} label={isVariable ? messages.recurring.estimateFallback : messages.recurring.usualAmount}>
+        <Field error={errors.amount} errors={messages.errors} htmlFor={`${idPrefix}-amount`} label={`${isVariable ? messages.recurring.estimateFallback : messages.recurring.usualAmount}${otherCurrency ? ` (${currencySymbol(currency, true)})` : ""}`}>
           <MoneyInput className={`${inputClass} font-mono`} defaultValue={initial?.amount} id={`${idPrefix}-amount`} name="amount" />
         </Field>
         <Field error={errors.dayOfMonth} errors={messages.errors} htmlFor={`${idPrefix}-day`} label={messages.recurring.dayOfMonth}>
@@ -91,9 +98,18 @@ export function RecurringForm({ locale, currentMonth, items, categories, methods
       <Field error={errors.paymentMethodId} errors={messages.errors} label={messages.add.paidWith}>
         <div className="flex flex-wrap gap-2">
           {methods.map((method) => (
-            <Chip color={method.color} defaultChecked={method.id === selectedMethodId} key={method.id} label={method.label} name="paymentMethodId" value={method.id} />
+            <Chip
+              checked={method.id === methodId}
+              color={method.color}
+              key={method.id}
+              label={method.currency && method.currency !== mainCurrency ? `${method.label} · ${currencySymbol(method.currency, true)}` : method.label}
+              name="paymentMethodId"
+              onChange={() => setMethodId(method.id)}
+              value={method.id}
+            />
           ))}
         </div>
+        {otherCurrency ? <p className="text-sm text-muted-foreground">{format(messages.recurring.inCurrency, { currency: currencySymbol(currency, true) })}</p> : null}
       </Field>
 
       {initial ? (
