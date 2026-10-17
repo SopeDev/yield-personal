@@ -30,7 +30,7 @@ export default async function RecurringPaymentsPage({ params }: PageProps<"/[loc
     getActivePaymentMethods(userId),
   ]);
   const categoryOptions = categories.map((category) => ({ id: category.id, key: category.key, label: categoryLabel(category, messages.categories) }));
-  const methodOptions = methods.map((method) => ({ id: method.id, label: paymentMethodLabel(method, messages.common.cash), color: method.color }));
+  const methodOptions = methods.map((method) => ({ id: method.id, label: paymentMethodLabel(method, messages.common.cash), color: method.color, currency: method.currency }));
   const active = definitions.filter((definition) => !definition.endMonth || monthKeyOf(definition.endMonth) >= currentMonth);
   const ended = definitions.filter((definition) => definition.endMonth && monthKeyOf(definition.endMonth) < currentMonth);
 

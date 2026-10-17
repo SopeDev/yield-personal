@@ -292,6 +292,7 @@
     "rate": "Enter a rate between 0 and 100%, like 15 or 8.5."
   },
   "recurring": {
+    "inCurrency": "This bill is in {currency}: its amount stays in that currency, and it's paid from that wallet.",
     "title": "Recurring payments",
     "description": "Bills that repeat every month. They appear in each month to mark as paid; card-paid bills are paid with their card statement.",
     "empty": "No recurring payments yet.",
