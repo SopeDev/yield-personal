@@ -7,7 +7,9 @@ import type { FormState } from "@/app/actions/form-state";
 import type { Messages } from "@/i18n/dictionaries";
 import { format } from "@/i18n/dictionaries";
 import { cn } from "@/lib/cn";
+import { formatCentsIn } from "@/lib/money";
 import { MoneyInput } from "./amount-input";
+import { useCurrency } from "./currency";
 import { Field, inputClass } from "./form-controls";
 import { Money } from "./money";
 
@@ -24,16 +26,18 @@ export function PlannedDepositRow({ locale, messages, fundId, fundName, currency
   date: string;
   dateLabel: string;
   plannedCents: number;
-  made: { dateLabel: string; amountCents: number } | null;
+  /** What has gone in for it: all of it (`complete`), or part, with the days it went in. */
+  made: { dateLabel: string; amountCents: number; complete: boolean } | null;
   overdue: boolean;
   confirmable: boolean;
 }) {
   const [state, formAction, pending] = useActionState<FormState, FormData>(confirmPlannedDeposit, {});
+  const mainCurrency = useCurrency();
   const m = messages.month;
   const dot = <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full bg-sky-400" />;
   const title = <p className="truncate font-medium">{fundName}</p>;
 
-  if (made) {
+  if (made?.complete) {
     return (
       <li className="flex items-center gap-3 py-3 pl-4 pr-3">
         {dot}
@@ -53,8 +57,9 @@ export function PlannedDepositRow({ locale, messages, fundId, fundName, currency
       <div className="min-w-0 flex-1">
         {title}
         <p className={cn("truncate text-sm text-muted-foreground", overdue && "font-medium text-warning")}>{format(m.depositOn, { date: dateLabel })}</p>
+        {made ? <p className="truncate text-sm text-sky-400">{format(m.depositedSoFar, { amount: formatCentsIn(made.amountCents, currency, mainCurrency), date: made.dateLabel })}</p> : null}
       </div>
-      <Money cents={plannedCents} className="text-muted-foreground" currency={currency} />
+      <Money cents={plannedCents - (made?.amountCents ?? 0)} className="text-muted-foreground" currency={currency} />
     </>
   );
   if (!confirmable) return <li className="flex items-center gap-3 py-3 pl-4 pr-3">{header}</li>;
@@ -80,7 +85,7 @@ export function PlannedDepositRow({ locale, messages, fundId, fundName, currency
           <input name="planned" type="hidden" value={date} />
           <div className="grid grid-cols-2 gap-3">
             <Field error={state.fieldErrors?.amount} errors={messages.errors} htmlFor={`${quickId}-amount`} label={m.depositAmount}>
-              <MoneyInput className={`${inputClass} font-mono`} defaultValue={(plannedCents / 100).toFixed(2)} id={`${quickId}-amount`} name="amount" />
+              <MoneyInput className={`${inputClass} font-mono`} defaultValue={((plannedCents - (made?.amountCents ?? 0)) / 100).toFixed(2)} id={`${quickId}-amount`} name="amount" />
             </Field>
             <Field error={state.fieldErrors?.date} errors={messages.errors} htmlFor={`${quickId}-date`} label={messages.add.date}>
               <input className={inputClass} defaultValue={date} id={`${quickId}-date`} name="date" type="date" />

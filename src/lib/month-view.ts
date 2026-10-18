@@ -12,7 +12,7 @@ import { addMonths, dateKeyOf, monthDifference, type MonthKey } from "@/lib/mont
 import { occurrencesForMonth, unpaidCashOccurrences } from "@/lib/recurring";
 import { expectedPaydays, recurringIncomeRhythmOf } from "@/lib/recurring-income";
 import { emergencyFundGoal, fundBalance } from "@/lib/savings";
-import { DEPOSIT_MATCH_DAYS, depositDays, matchDeposits, projectSavings, type GrowingFund } from "@/lib/savings-growth";
+import { DEPOSIT_MATCH_DAYS, depositDays, matchDeposits, projectSavings, type DepositMade, type GrowingFund } from "@/lib/savings-growth";
 import { installmentsOwed } from "@/lib/statements";
 import { convertCents, type ExchangeRates } from "@/lib/currency-conversion";
 import { formatCents } from "@/lib/money";
@@ -327,6 +327,11 @@ async function growingFunds(userId: string, currency: string, today: string): Pr
     const rhythm = fund.depositRhythm && fund.depositCents
       ? recurringIncomeRhythmOf({ kind: fund.depositRhythm, anchor: fund.depositAnchor ? dateKeyOf(fund.depositAnchor) : null, days: fund.depositDays })
       : null;
+    const made = rhythm ? [...matchDeposits(
+      depositDays(rhythm, addDays(today, -DEPOSIT_MATCH_DAYS.after), addDays(today, FORECAST_DAYS)),
+      own.map((movement) => ({ date: dateKeyOf(movement.date), amountCents: movement.amountCents })),
+      fund.depositCents ?? undefined,
+    )] : [];
     return {
       id: fund.id,
       // The emergency fund's name is shown in the interface's language.
@@ -336,18 +341,17 @@ async function growingFunds(userId: string, currency: string, today: string): Pr
       rateUntil: fund.interestUntil ? dateKeyOf(fund.interestUntil) : null,
       afterBps: fund.interestAfterBps,
       deposit: rhythm && fund.depositCents ? { cents: inMain(fund.depositCents), rhythm } : null,
-      // Planned days from a little before today on that a deposit already made (matched in the fund's own currency), so they aren't moved again.
-      doneDates: rhythm ? [...matchDeposits(
-        depositDays(rhythm, addDays(today, -DEPOSIT_MATCH_DAYS.after), addDays(today, FORECAST_DAYS)),
-        own.map((movement) => ({ date: dateKeyOf(movement.date), amountCents: movement.amountCents })),
-      )].flatMap(([day, match]) => (match ? [day] : [])) : [],
+      // Planned days from a little before today on that deposits already made (matched in the fund's own currency), so
+      // they aren't moved again, and those partly made, which move only the rest.
+      doneDates: made.flatMap(([day, match]) => (match?.complete ? [day] : [])),
+      partlyMade: Object.fromEntries(made.flatMap(([day, match]) => (match && !match.complete ? [[day, inMain(match.amountCents)]] : []))),
       ...(rate ? { converted: { currency: fund.currency, rate: rate.rate, date: rate.date } } : {}),
     };
   });
 }
 
-/** A planned deposit's day in a month, and the deposit that made it, if one has. */
-export type PlannedDepositRow = { fundId: string; fundName: string; currency: string; date: string; plannedCents: number; made: { date: string; amountCents: number } | null };
+/** A planned deposit's day in a month, and what has gone in for it (all of it, or part), if anything has. */
+export type PlannedDepositRow = { fundId: string; fundName: string; currency: string; date: string; plannedCents: number; made: DepositMade | null };
 
 /**
  * The month's planned deposits into savings, by day, each with the deposit that made it (`matchDeposits`). Only the
@@ -364,7 +368,7 @@ export async function loadPlannedDeposits(userId: string, month: MonthKey, curre
     const rhythm = recurringIncomeRhythmOf({ kind: fund.depositRhythm!, anchor: fund.depositAnchor ? dateKeyOf(fund.depositAnchor) : null, days: fund.depositDays });
     if (!rhythm) return [];
     const own = movements.filter((movement) => movement.fundId === fund.id).map((movement) => ({ date: dateKeyOf(movement.date), amountCents: movement.amountCents }));
-    return [...matchDeposits(depositDays(rhythm, from, to), own)].map(([date, made]) => ({
+    return [...matchDeposits(depositDays(rhythm, from, to), own, fund.depositCents!)].map(([date, made]) => ({
       fundId: fund.id,
       fundName: fund.kind === "EMERGENCY" ? "" : (fund.name ?? ""),
       currency: fund.currency,

@@ -16,6 +16,8 @@ export type GrowingFund = {
   deposit: { cents: number; rhythm: RecurringIncomeRhythm } | null;
   /** Planned deposit days already done (see `matchDeposits`), which the forecast no longer moves. */
   doneDates: string[];
+  /** What's already gone in for planned days only partly made, by day: the forecast moves only the rest. */
+  partlyMade?: Record<string, number>;
 };
 
 /** Days interest is spread over in a year, as banks count it day by day. */
@@ -57,10 +59,11 @@ export function projectSavings({ today, days, funds }: { today: string; days: nu
   for (let index = 0; index <= days; index += 1) {
     const date = addDays(today, index);
     funds.forEach((fund, which) => {
-      if (fund.deposit && deposits[which].has(date)) {
-        balances[which] += fund.deposit.cents;
-        deposited += fund.deposit.cents;
-        events.push({ date, kind: "savings", label: fund.name, cents: -fund.deposit.cents, estimated: false, overdue: false });
+      const due = fund.deposit && deposits[which].has(date) ? fund.deposit.cents - (fund.partlyMade?.[date] ?? 0) : 0;
+      if (due > 0) {
+        balances[which] += due;
+        deposited += due;
+        events.push({ date, kind: "savings", label: fund.name, cents: -due, estimated: false, overdue: false });
       }
       const earned = (balances[which] * rateOn(fund, date)) / 10000 / DAYS_PER_YEAR;
       balances[which] += earned;
@@ -84,19 +87,32 @@ export const ratePercent = (bps: number) => String(bps / 100);
 /** How far before and after a planned deposit's day a deposit into its fund counts as making it. */
 export const DEPOSIT_MATCH_DAYS = { before: 3, after: 10 } as const;
 
+/** What went into a fund for one planned day: the deposits' total, their days (the last one in `date`), and whether they cover the plan. */
+export type DepositMade = { date: string; dates: string[]; amountCents: number; complete: boolean };
+
 /**
- * Which planned deposits were made: each planned day, in order, takes the first deposit into the fund (money in, not
- * yet taken by an earlier day) from 3 days before it to 10 days after, so a deposit made a little early or late still
- * counts. The deposit made for each day, or null.
+ * Which planned deposits were made: each planned day, in order, takes the deposits into the fund (money in, not yet
+ * taken by an earlier day) from 3 days before it to 10 days after, so a deposit made a little early or late still
+ * counts, and one split in several still adds up. With `plannedCents` a day takes deposits until they come to it
+ * (it's complete then, and partly made until); without it, one deposit makes a day. What went in for each day, or null.
  */
-export function matchDeposits<M extends { date: string; amountCents: number }>(plannedDays: string[], movements: M[]) {
+export function matchDeposits<M extends { date: string; amountCents: number }>(plannedDays: string[], movements: M[], plannedCents?: number) {
   const deposits = movements.filter((movement) => movement.amountCents > 0).sort((a, b) => a.date.localeCompare(b.date));
   const used = new Set<M>();
-  return new Map(plannedDays.map((day) => {
+  return new Map(plannedDays.map((day): [string, DepositMade | null] => {
     const from = addDays(day, -DEPOSIT_MATCH_DAYS.before);
     const to = addDays(day, DEPOSIT_MATCH_DAYS.after);
-    const match = deposits.find((deposit) => !used.has(deposit) && deposit.date >= from && deposit.date <= to) ?? null;
-    if (match) used.add(match);
-    return [day, match] as const;
+    const taken: M[] = [];
+    let cents = 0;
+    for (const deposit of deposits) {
+      if (used.has(deposit) || deposit.date < from || deposit.date > to) continue;
+      used.add(deposit);
+      taken.push(deposit);
+      cents += deposit.amountCents;
+      if (plannedCents === undefined || cents >= plannedCents) break;
+    }
+    if (taken.length === 0) return [day, null];
+    const dates = taken.map((deposit) => deposit.date);
+    return [day, { date: dates.at(-1)!, dates, amountCents: cents, complete: plannedCents === undefined || cents >= plannedCents }];
   }));
 }

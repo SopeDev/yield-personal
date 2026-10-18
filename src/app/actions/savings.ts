@@ -182,14 +182,16 @@ export async function confirmPlannedDeposit(_state: FormState, formData: FormDat
   });
   const rhythm = fund?.depositRhythm ? recurringIncomeRhythmOf({ kind: fund.depositRhythm, anchor: fund.depositAnchor ? dateKeyOf(fund.depositAnchor) : null, days: fund.depositDays }) : null;
   if (!fund?.depositCents || !rhythm) return { error: "generic" };
-  // A day already made (a second tap, or a screen from before it was) records nothing more.
+  // A day already made in full (a second tap, or a screen from before it was) records nothing more.
   const month = planned.slice(0, 7);
   const days = depositDays(rhythm, `${month}-01`, `${month}-31`);
-  const made = matchDeposits(days, fund.movements.map((movement) => ({ date: dateKeyOf(movement.date), amountCents: movement.amountCents })));
+  const made = matchDeposits(days, fund.movements.map((movement) => ({ date: dateKeyOf(movement.date), amountCents: movement.amountCents })), fund.depositCents);
   if (!days.includes(planned)) return { error: "generic" };
-  if (made.get(planned)) return { savedAt: Date.now() };
+  const soFar = made.get(planned);
+  if (soFar?.complete) return { savedAt: Date.now() };
+  // One tap puts in what the plan still needs (all of it, or the rest of a deposit already started).
   const amountText = readText(formData, "amount");
-  const amountCents = amountText === "" ? fund.depositCents : parseAmountToCents(amountText);
+  const amountCents = amountText === "" ? fund.depositCents - (soFar?.amountCents ?? 0) : parseAmountToCents(amountText);
   const today = todayKey();
   const date = readText(formData, "date") || (planned <= today ? planned : today);
   const fieldErrors: FormState["fieldErrors"] = {};
