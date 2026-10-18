@@ -1,4 +1,5 @@
 import { AppShell } from "@/components/app-shell";
+import { APP_VERSION_SHORT } from "@/lib/app-version";
 import { CurrencyProvider } from "@/components/currency";
 import { RefreshOnReturn } from "@/components/refresh-on-return";
 import { isLocale } from "@/i18n/config";
@@ -17,7 +18,7 @@ export default async function AppLayout({ children, params }: LayoutProps<"/[loc
   return (
     <CurrencyProvider currency={currency}>
       <RefreshOnReturn />
-      <AppShell labels={getDictionary(locale).nav} locale={locale}>{children}</AppShell>
+      <AppShell labels={getDictionary(locale).nav} locale={locale} version={APP_VERSION_SHORT}>{children}</AppShell>
     </CurrencyProvider>
   );
 }

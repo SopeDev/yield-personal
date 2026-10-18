@@ -217,6 +217,11 @@ export function OnboardingWizard({ locale, labels: m, currency: initialCurrency,
             ))}
           </div>
           <p className="text-sm text-subtle">{m.welcome.currencyHint}</p>
+          {/* A personal project in beta: who's behind it, thanks, and where to say what's missing. */}
+          <div className="space-y-1 rounded-xl border border-border bg-surface p-4 text-sm">
+            <p className="font-medium">{m.welcome.noteTitle}</p>
+            <p className="text-muted-foreground">{m.welcome.note}</p>
+          </div>
         </Screen>
       ) : null}
 

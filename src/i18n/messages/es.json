@@ -9,6 +9,8 @@
     "signOut": "Cerrar sesión"
   },
   "nav": {
+    "beta": "beta",
+    "feedback": "Enviar comentarios",
     "month": "Mes",
     "income": "Ingresos",
     "add": "Agregar",
@@ -749,6 +751,8 @@
     "skipAll": "Omitir, lo configuro después",
     "error": "Algo no se guardó. Revisa tus respuestas e intenta de nuevo.",
     "welcome": {
+      "noteTitle": "Gracias por estar aquí",
+      "note": "Gracias por querer cuidar mejor tu dinero. Hice Yield porque lo necesitaba para mis propias finanzas, vi lo mucho que me ayudó y quise compartirlo. Es un proyecto personal y sigue en desarrollo, así que puede que encuentres detalles por pulir o cosas que cambien. Si algo es confuso, no funciona o te hace falta, dímelo cuando quieras con \"Enviar comentarios\" arriba. — Jorge",
       "title": "¿A dónde se va tu dinero?",
       "body": "Unas preguntas rápidas y Yield te dice cómo va tu mes antes de que se acabe. Primero: ¿en qué moneda manejas tu dinero?",
       "currency": "Moneda principal",
@@ -893,5 +897,26 @@
     "button": "Eliminar mi cuenta para siempre",
     "mismatch": "Escribe {word} tal cual para confirmar.",
     "deleted": "Tu cuenta y todos sus datos se eliminaron. Gracias por probar Yield."
+  },
+  "feedback": {
+    "title": "Enviar comentarios",
+    "aboutTitle": "Yield {version} · beta",
+    "settingsHint": "Ideas, errores o algo que no se sienta bien",
+    "intro": "Yield es un proyecto personal que construyo en mis ratos libres, y sigue en beta. Lo que me cuentes define lo que sigue.",
+    "introAsk": "Algo confuso, una cifra que se ve mal, una idea o simplemente lo que te gusta: todo ayuda. Leo cada mensaje.",
+    "messageLabel": "Tu mensaje",
+    "placeholder": "¿Qué pasó, o qué haría Yield mejor para ti?",
+    "send": "Enviar",
+    "thanks": "¡Gracias!",
+    "thanksBody": "Tu mensaje me llegó. Si necesita respuesta, te escribo al correo de tu cuenta.",
+    "another": "Enviar otro",
+    "tooMany": "Son muchos mensajes para un día. Intenta mañana, o escríbeme por correo.",
+    "orEmail": "¿Prefieres correo? Escribe a",
+    "emailSubject": "Comentarios sobre Yield {version}",
+    "inboxLink": "Abrir la bandeja de comentarios",
+    "inboxTitle": "Bandeja de comentarios",
+    "inboxEmpty": "Aún no hay comentarios.",
+    "notificationTitle": "Nuevos comentarios",
+    "notificationBody": "Alguien envió comentarios sobre Yield. Toca para leerlos."
   }
 }

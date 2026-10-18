@@ -6,7 +6,7 @@ import type { Locale } from "@/i18n/config";
  */
 
 export const LEGAL_CONTACT = "jorgecarlosquevedo@gmail.com";
-export const LEGAL_UPDATED = "2026-10-15";
+export const LEGAL_UPDATED = "2026-10-18";
 
 export type LegalSection = { heading: string; paragraphs?: string[]; items?: string[] };
 export type LegalDocument = { title: string; intro: string; sections: LegalSection[] };
@@ -27,6 +27,7 @@ const privacy: Record<Locale, LegalDocument> = {
         items: [
           "De tu cuenta de Google: tu nombre, correo y foto de perfil, solo para identificarte al iniciar sesión. No tenemos acceso a tu correo, tus archivos ni nada más de tu cuenta de Google.",
           "Lo que registras en la app: gastos, ingresos, pagos recurrentes, tarjetas, dinero disponible, ahorros, estimados, notas y los nombres que les pones. Son datos financieros: al crear tu cuenta y registrarlos nos das tu consentimiento expreso para tratarlos con los fines de este aviso.",
+          "Los comentarios que nos envíes desde la app: se guardan cifrados junto con la versión de la app y tu idioma, y los leemos con tu nombre y correo para poder responderte.",
           "Datos técnicos mínimos: una cookie para mantener tu sesión y otra para recordar tu idioma. Si activas los recordatorios, la suscripción de notificaciones de tu navegador.",
         ],
       },
@@ -90,6 +91,7 @@ const privacy: Record<Locale, LegalDocument> = {
         items: [
           "From your Google account: your name, email and profile photo, only to identify you when you sign in. We have no access to your email, your files, or anything else in your Google account.",
           "What you record in the app: spending, income, recurring payments, cards, money on hand, savings, estimates, notes, and the names you give them. This is financial data: by creating your account and recording it, you give your express consent for us to handle it for the purposes in this notice.",
+          "Feedback you send us from the app: kept encrypted with the app version and your language, and read with your name and email so we can reply.",
           "Minimal technical data: one cookie to keep you signed in and another to remember your language. If you turn on reminders, your browser's notification subscription.",
         ],
       },

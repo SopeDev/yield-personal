@@ -48,6 +48,7 @@ export const ENCRYPTED_FIELDS = {
     toCents: { copy: "toEnc", column: "to_enc", kind: "int", optional: false, context: "currency_exchanges.to_cents" },
     note: { copy: "noteEnc", column: "note_enc", kind: "text", optional: true, context: "currency_exchanges.note" },
   },
+  Feedback: { message: { copy: "messageEnc", column: "message_enc", kind: "text", optional: false, context: "feedback.message" } },
 } as const satisfies Record<string, Record<string, FieldSpec>>;
 
 type FieldSpec = { copy: string; column: string; kind: "int" | "text"; optional: boolean; context: string };
@@ -204,6 +205,9 @@ export function withEncryption(base: PrismaClient) {
         fromCents: { needs: { fromEnc: true }, compute: (row) => requiredInt(row.fromEnc, F.CurrencyExchange.fromCents.context) },
         toCents: { needs: { toEnc: true }, compute: (row) => requiredInt(row.toEnc, F.CurrencyExchange.toCents.context) },
         note: { needs: { noteEnc: true }, compute: (row) => optionalText(row.noteEnc, F.CurrencyExchange.note.context) },
+      },
+      feedback: {
+        message: { needs: { messageEnc: true }, compute: (row) => requiredText(row.messageEnc, F.Feedback.message.context) },
       },
     },
   });

@@ -86,6 +86,7 @@ model User {
   currencyExchanges    CurrencyExchange[]
   expenseItems         ExpenseItem[]
   pushSubscriptions    PushSubscription[]
+  feedback             Feedback[]
 
   @@map("users")
 }
@@ -507,4 +508,21 @@ model ExchangeRate {
 
   @@id([base, quote])
   @@map("exchange_rates")
+}
+
+/// A message sent to the app's owner from the feedback screen, with the app version and language it was sent from.
+/// Deleted with its account.
+model Feedback {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  /// Encrypted (src/lib/field-crypto.ts); the client reads it as `message` (src/db/encryption.ts).
+  messageEnc String   @map("message_enc")
+  appVersion String   @map("app_version")
+  locale     String
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([createdAt])
+  @@map("feedback")
 }

@@ -8,10 +8,12 @@ import { CalendarDays, ChartLine, PiggyBank, Plus, Settings, Wallet } from "luci
 import type { Locale } from "@/i18n/config";
 import { cn } from "@/lib/cn";
 
-export function AppShell({ children, locale, labels }: {
+export function AppShell({ children, locale, labels, version }: {
   children: ReactNode;
   locale: Locale;
-  labels: { overview: string; income: string; add: string; settings: string; savings: string; forecast: string };
+  labels: { overview: string; income: string; add: string; settings: string; savings: string; forecast: string; beta: string; feedback: string };
+  /** The app's version as shown ("v0.9"), beside the logo with the link to send feedback under it. */
+  version: string;
 }) {
   const pathname = usePathname();
   // The Overview tab holds the month and year views; Cards are reached from the month's statements and Settings.
@@ -30,9 +32,15 @@ export function AppShell({ children, locale, labels }: {
     <div className="min-h-svh">
       <header className="sticky top-0 z-30 border-b border-border bg-background/90 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur">
         <div className="mx-auto flex w-full max-w-2xl items-center justify-between">
-          <Link href={`/${locale}/month`}>
-            <Image alt="Yield" height={24} priority src="/brand/yield-logo.svg" width={80} />
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link href={`/${locale}/month`}>
+              <Image alt="Yield" height={24} priority src="/brand/yield-logo.svg" width={80} />
+            </Link>
+            <div className="flex flex-col leading-tight">
+              <span className="font-mono text-[11px] text-subtle">{version} · {labels.beta}</span>
+              <Link className="text-[11px] font-medium text-primary" href={`/${locale}/feedback`}>{labels.feedback}</Link>
+            </div>
+          </div>
           <div className="flex items-center gap-1">
             <Link
               aria-current={settingsActive ? "page" : undefined}

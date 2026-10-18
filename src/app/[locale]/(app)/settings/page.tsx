@@ -1,9 +1,10 @@
-import { Banknote, CreditCard, FileText, Globe, HandCoins, List, Repeat, ShieldCheck, Tags, Target, Trash2 } from "lucide-react";
+import { Banknote, CreditCard, FileText, Globe, HandCoins, List, MessageSquare, Repeat, ShieldCheck, Tags, Target, Trash2 } from "lucide-react";
 import { signOut } from "@/auth";
 import { Card, Section } from "@/components/section";
 import { LinkRow } from "@/components/settings-layout";
 import { isLocale } from "@/i18n/config";
-import { getDictionary } from "@/i18n/dictionaries";
+import { format, getDictionary } from "@/i18n/dictionaries";
+import { APP_VERSION_SHORT } from "@/lib/app-version";
 import { requireUserId } from "@/lib/auth-user";
 
 /**
@@ -51,6 +52,14 @@ export default async function SettingsPage({ params }: PageProps<"/[locale]/sett
           <ul className="divide-y divide-border">
             <LinkRow hint={settings.sourcesHint} href={href("income")} icon={HandCoins} title={settings.sourcesAndGroups} />
             <LinkRow hint={settings.recurringIncomeHint} href={href("recurring-income")} icon={Repeat} title={settings.recurringIncomeLink} />
+          </ul>
+        </Card>
+      </Section>
+
+      <Section title={format(messages.feedback.aboutTitle, { version: APP_VERSION_SHORT })}>
+        <Card>
+          <ul className="divide-y divide-border">
+            <LinkRow hint={messages.feedback.settingsHint} href={`/${locale}/feedback`} icon={MessageSquare} title={messages.feedback.title} />
           </ul>
         </Card>
       </Section>
