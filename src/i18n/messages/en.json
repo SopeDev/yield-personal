@@ -9,6 +9,8 @@
     "signOut": "Sign out"
   },
   "nav": {
+    "beta": "beta",
+    "feedback": "Send feedback",
     "month": "Month",
     "income": "Income",
     "add": "Add",
@@ -749,6 +751,8 @@
     "skipAll": "Skip setup, I'll do it later",
     "error": "Something didn't save. Check your answers and try again.",
     "welcome": {
+      "noteTitle": "Thank you for being here",
+      "note": "Thanks for wanting to take better care of your money. I made Yield because I needed it for my own finances, saw how much it helped, and wanted to share it. It's a personal project and still in development, so you may run into rough edges or things that change. If anything is confusing, broken, or missing, tell me any time with \"Send feedback\" at the top. — Jorge",
       "title": "Where does your money go?",
       "body": "A few quick questions and Yield tells you how your month is going before it's over. First: what currency do you use?",
       "currency": "Main currency",
@@ -893,5 +897,26 @@
     "button": "Delete my account forever",
     "mismatch": "Type {word} exactly to confirm.",
     "deleted": "Your account and all its data were deleted. Thanks for trying Yield."
+  },
+  "feedback": {
+    "title": "Send feedback",
+    "aboutTitle": "Yield {version} · beta",
+    "settingsHint": "Ideas, bugs, or anything that feels off",
+    "intro": "Yield is a personal project I'm building in my spare time, and it's still in beta. What you tell me shapes what comes next.",
+    "introAsk": "Something confusing, a figure that looks wrong, an idea, or just what you like: all of it helps. I read every message.",
+    "messageLabel": "Your message",
+    "placeholder": "What happened, or what would make Yield better for you?",
+    "send": "Send",
+    "thanks": "Thank you!",
+    "thanksBody": "Your message reached me. If it needs an answer, I'll write to your account's email.",
+    "another": "Send another",
+    "tooMany": "That's a lot of messages for one day. Try again tomorrow, or email me.",
+    "orEmail": "Prefer email? Write to",
+    "emailSubject": "Yield {version} feedback",
+    "inboxLink": "Open the feedback inbox",
+    "inboxTitle": "Feedback inbox",
+    "inboxEmpty": "No feedback yet.",
+    "notificationTitle": "New feedback",
+    "notificationBody": "Someone sent feedback on Yield. Tap to read it."
   }
 }
