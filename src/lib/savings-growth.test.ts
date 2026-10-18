@@ -42,3 +42,19 @@ test("a planned deposit is made by a deposit into its fund from 3 days before to
   assert.deepEqual([...made].map(([day, match]) => [day, match?.date ?? null, match?.amountCents ?? null]), [["2026-10-15", "2026-10-13", 100000], ["2026-10-30", "2026-11-02", 80000]]);
   assert.equal(matchDeposits(["2026-10-15"], [movement("2026-10-26")]).get("2026-10-15"), null);
 });
+
+test("a planned deposit split in several adds up, and one only partly made leaves the rest to move", () => {
+  const movement = (date: string, amountCents = 100000) => ({ date, amountCents });
+  // $2,000 planned on the 15th and 30th; $1,000 went in on the 13th and $1,000 on the 15th.
+  const made = matchDeposits(["2026-10-15", "2026-10-30"], [movement("2026-10-13"), movement("2026-10-15")], 200000);
+  assert.deepEqual(made.get("2026-10-15"), { date: "2026-10-15", dates: ["2026-10-13", "2026-10-15"], amountCents: 200000, complete: true });
+  assert.equal(made.get("2026-10-30"), null);
+  // Only $1,000 so far: partly made, and a later deposit isn't taken from the next day while that one waits.
+  const partly = matchDeposits(["2026-10-15", "2026-10-30"], [movement("2026-10-13"), movement("2026-10-29", 200000)], 200000);
+  assert.deepEqual([partly.get("2026-10-15")?.complete, partly.get("2026-10-15")?.amountCents], [false, 100000]);
+  assert.deepEqual([partly.get("2026-10-30")?.complete, partly.get("2026-10-30")?.amountCents], [true, 200000]);
+  // The forecast moves the rest of a day partly made, and nothing for one done.
+  const deposit = { cents: 200000, rhythm: { kind: "MONTH_DAYS" as const, days: [15, 30] } };
+  const growth = projectSavings({ today: "2026-10-15", days: 20, funds: [fund({ rateBps: null, deposit, partlyMade: { "2026-10-15": 100000 } })] });
+  assert.deepEqual(growth.events.map((event) => [event.date, event.cents]), [["2026-10-15", -100000], ["2026-10-30", -200000]]);
+});

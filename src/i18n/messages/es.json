@@ -128,6 +128,7 @@
     "savingsTitle": "Ahorros del mes",
     "depositOn": "Depósito · {date}",
     "depositedOn": "Depositado el {date}",
+    "depositedSoFar": "{amount} depositado hasta ahora ({date})",
     "deposited": "Hecho",
     "markDeposited": "Marcar como depositado",
     "depositAmount": "Cantidad depositada",

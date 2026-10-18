@@ -89,6 +89,8 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
     ...(itemFilter ? [] : exchanges).map((exchange) => ({ kind: "exchange" as const, exchange, date: exchange.date })),
   ].sort((a, b) => b.date.getTime() - a.date.getTime());
   const today = todayKey();
+  // Several days in one line: "Oct 13 and Oct 15" / "13 oct y 15 oct".
+  const listFormat = new Intl.ListFormat(locale, { type: "conjunction" });
   const summary = summaryCardFor("month", { view, today, ...cardSettings });
   // A new account's first weeks: its starting estimates beside what its records come to.
   const estimates = month === currentMonth ? estimateCheck({
@@ -383,7 +385,11 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
                   fundName={deposit.fundName || messages.savings.emergencyFund}
                   key={`${deposit.fundId}-${deposit.date}`}
                   locale={locale}
-                  made={deposit.made ? { dateLabel: formatShortDate(dateFromKey(deposit.made.date), locale), amountCents: deposit.made.amountCents } : null}
+                  made={deposit.made ? {
+                    dateLabel: listFormat.format(deposit.made.dates.map((date) => formatShortDate(dateFromKey(date), locale))),
+                    amountCents: deposit.made.amountCents,
+                    complete: deposit.made.complete,
+                  } : null}
                   messages={messages}
                   overdue={deposit.date < today}
                   plannedCents={deposit.plannedCents}
