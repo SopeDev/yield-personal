@@ -910,6 +910,7 @@
     "title": "Enviar comentarios",
     "aboutTitle": "Yield {version} · beta",
     "settingsHint": "Ideas, errores o algo que no se sienta bien",
+    "signature": "— Jorge",
     "intro": "Yield es un proyecto personal que construyo en mis ratos libres, y sigue en beta. Lo que me cuentes define lo que sigue.",
     "introAsk": "Algo confuso, una cifra que se ve mal, una idea o simplemente lo que te gusta: todo ayuda. Leo cada mensaje.",
     "messageLabel": "Tu mensaje",
