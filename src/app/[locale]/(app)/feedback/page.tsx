@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { FeedbackForm } from "@/components/feedback-form";
-import { Card } from "@/components/section";
 import { LEGAL_CONTACT } from "@/content/legal";
 import { isLocale } from "@/i18n/config";
 import { format, getDictionary } from "@/i18n/dictionaries";
@@ -18,14 +17,15 @@ export default async function FeedbackPage({ params }: PageProps<"/[locale]/feed
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1">
+      {/* A note, not a box: anything boxed right above the form reads as another field. */}
+      <div className="space-y-3">
         <h1 className="font-display text-2xl font-semibold">{m.title}</h1>
-        <p className="font-mono text-xs text-subtle">{APP_VERSION_SHORT} · {messages.nav.beta}</p>
+        <div className="space-y-2 border-l-2 border-primary/60 pl-3 text-sm text-muted-foreground">
+          <p>{m.intro}</p>
+          <p>{m.introAsk}</p>
+          <p className="text-subtle">{m.signature}</p>
+        </div>
       </div>
-      <Card className="space-y-2 px-4 py-4 text-sm text-muted-foreground">
-        <p>{m.intro}</p>
-        <p>{m.introAsk}</p>
-      </Card>
       <FeedbackForm locale={locale} messages={messages} />
       <p className="text-sm text-muted-foreground">
         {m.orEmail} <a className="font-medium text-primary" href={`mailto:${LEGAL_CONTACT}?subject=${encodeURIComponent(format(m.emailSubject, { version: APP_VERSION_SHORT }))}`}>{LEGAL_CONTACT}</a>

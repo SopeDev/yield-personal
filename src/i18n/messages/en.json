@@ -910,6 +910,7 @@
     "title": "Send feedback",
     "aboutTitle": "Yield {version} · beta",
     "settingsHint": "Ideas, bugs, or anything that feels off",
+    "signature": "— Jorge",
     "intro": "Yield is a personal project I'm building in my spare time, and it's still in beta. What you tell me shapes what comes next.",
     "introAsk": "Something confusing, a figure that looks wrong, an idea, or just what you like: all of it helps. I read every message.",
     "messageLabel": "Your message",
