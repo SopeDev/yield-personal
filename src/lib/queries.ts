@@ -101,7 +101,7 @@ export function walletCurrencies(mainCurrency: string, methods: { kind: string; 
 export function getOwnedIncome(userId: string, id: string) {
   return db.income.findFirst({
     where: { id, userId },
-    select: { id: true, date: true, amountCents: true, note: true, currency: true, source: { select: { id: true, name: true } } },
+    select: { id: true, date: true, amountCents: true, note: true, currency: true, expected: true, source: { select: { id: true, name: true } } },
   });
 }
 

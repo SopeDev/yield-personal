@@ -50,6 +50,8 @@
     "close": "Cerrar"
   },
   "month": {
+    "expectedOverdue": "Esperado · atrasado",
+    "confirmReceived": "Confirmar recibido",
     "plannedOn": "Planeado · {date}",
     "plannedOverdue": "Planeado · vencido",
     "confirmSpent": "Confirmar gasto",
@@ -100,6 +102,8 @@
     "actualAmount": "Monto real",
     "neededPerPayday": "Necesario por pago",
     "incomePerPayday": "Ingreso por pago",
+    "paymentsToCome": "{count} pagos por llegar",
+    "paymentsToComeOne": "1 pago por llegar",
     "paydaysLeft": "Quedan {count} pagos",
     "paydaysLeftOne": "Queda 1 pago",
     "noPaydaysLeft": "Sin pagos restantes",
@@ -150,6 +154,8 @@
     "addFirst": "Agregar ingreso"
   },
   "add": {
+    "expectedHint": "Con una fecha futura queda como esperado: aparece en tu pronóstico, y cuenta como recibido solo cuando lo confirmas ese día.",
+    "stillExpectedHint": "Sigue esperado: confírmalo desde el mes cuando llegue.",
     "plannedHint": "Con una fecha futura queda como plan: aparece en tu pronóstico, y sale de tu dinero solo cuando lo confirmas ese día.",
     "stillPlannedHint": "Sigue como plan: confírmalo desde el mes cuando lo gastes.",
     "exchange": "Cambio",
@@ -571,6 +577,8 @@
     "changeSettings": "Cambiar ajustes"
   },
   "explain": {
+    "expectedInPace": "Ritmo que reemplazan los pagos esperados",
+    "expectedInPaceNote": "Los pagos esperados de una fuente que tu ritmo ya cuenta reemplazan la parte de esa fuente en el ritmo de su día, así no se cuentan dos veces.",
     "plannedPurchases": "Compras planeadas en efectivo ({count})",
     "plannedInEveryday": "Compras planeadas que cubre un día promedio",
     "plannedInEverydayNote": "Las compras del día a día planeadas para los próximos días cuentan completas en el total a pagar, así que el día promedio en que caen solo suma lo que falte.",
@@ -590,7 +598,7 @@
     "aboutDaysOff": "Los días que aún puedes descansar este mes a tu ritmo reciente de trabajo y aun así cubrir el mes.",
     "aboutDaysOffGoal": "Los días que aún puedes descansar este mes a tu ritmo reciente de trabajo y aun así llegar a tu meta de balance.",
     "aboutProjectedBalance": "Hacia dónde va el balance del mes si los ingresos y el gasto diario siguen a su ritmo reciente.",
-    "aboutExpectedIncome": "Ingresos recurrentes que aún no recibes este mes.",
+    "aboutExpectedIncome": "Ingresos que aún no llegan este mes: pagos recurrentes y pagos que esperas.",
     "aboutNeededPerPayday": "Lo que necesitas recibir en cada pago que queda del mes para cubrir lo que falta pagar y el gasto diario hasta fin de mes.",
     "aboutNeededPerPaydayGoal": "Lo que necesitas recibir en cada pago que queda del mes para llegar a tu meta de balance, con el gasto diario hasta fin de mes.",
     "aboutIncomePerPayday": "Ingreso promedio por pago en lo que va del mes.",
@@ -664,7 +672,7 @@
     "daysOffNoPace": "Aparece cuando hay ingresos en los últimos {days} días terminados (hoy cuenta cuando acabe) y un día trabajado deja más de lo que cuesta.",
     "currentMonthOnly": "Solo se cuenta para el mes en curso.",
     "paceNote": "El ritmo reciente son tus ingresos de los últimos {days} días terminados (hoy cuenta cuando acabe) divididos entre todos ellos, incluidos los días libres. Los ingresos recurrentes no cuentan, porque se esperan aparte.",
-    "expectedNote": "Un pago sigue esperado hasta que lo marcas como recibido en la vista del mes.",
+    "expectedNote": "Un día de pago o un pago esperado sigue esperado hasta que lo marcas recibido en el mes; un pago esperado cuyo día pasa sin eso deja de contarse como por llegar.",
     "noPaydaysLeft": "No quedan pagos este mes, así que se muestra el monto completo.",
     "rhythmNote": "Los pagos siguen tu ritmo de ingresos en Ajustes.",
     "beforeFirstPayday": "Aparece después del primer pago del mes.",

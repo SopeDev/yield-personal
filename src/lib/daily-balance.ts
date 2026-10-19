@@ -208,12 +208,36 @@ export function plannedEverydayOverlap({ purchases, today, toKey, typicalDailyCe
 }
 
 /**
+ * How much of the pace the expected one-off income on the days after today replaces: on each day, each source's
+ * expected income up to that source's share of the pace (`sourcePaceCents`). The pace counts that source's income
+ * spread over every day; on a day its payment is expected, the payment is that day's income from it.
+ */
+export function expectedIncomeOverlap({ expected, today, sourcePaceCents }: {
+  expected: Pick<LedgerIncome, "date" | "amountCents" | "source">[];
+  today: string;
+  sourcePaceCents: (sourceId: string) => number;
+}) {
+  const byDaySource = new Map<string, { sourceId: string; cents: number }>();
+  for (const income of expected) {
+    const day = dateKeyOf(income.date);
+    if (day <= today) continue;
+    const key = `${day}|${income.source.id}`;
+    byDaySource.set(key, { sourceId: income.source.id, cents: (byDaySource.get(key)?.cents ?? 0) + income.amountCents });
+  }
+  const paceOf = new Map<string, number>();
+  return [...byDaySource.values()].reduce((total, { sourceId, cents }) => {
+    if (!paceOf.has(sourceId)) paceOf.set(sourceId, sourcePaceCents(sourceId));
+    return total + Math.min(cents, paceOf.get(sourceId)!);
+  }, 0);
+}
+
+/**
  * Where the month's balance is headed: its balance so far, plus recurring income still expected, plus the rest of
  * today (what an average day still has to bring in and spend beyond today's records, never below zero), plus each
  * day after today at the recent pace of other income minus typical daily spending. A month still to come has no
  * today: every one of its days counts at the pace. Null for a month that has ended.
  */
-export function projectedBalance({ month, today, balanceCents, expectedCents, paceDailyCents, typicalDailyCents, todayIncomeCents = 0, todaySpentCents = 0, plannedOverlapCents = 0 }: {
+export function projectedBalance({ month, today, balanceCents, expectedCents, paceDailyCents, typicalDailyCents, todayIncomeCents = 0, todaySpentCents = 0, plannedOverlapCents = 0, expectedOverlapCents = 0 }: {
   month: MonthKey;
   today: string;
   balanceCents: number;
@@ -225,6 +249,8 @@ export function projectedBalance({ month, today, balanceCents, expectedCents, pa
   todaySpentCents?: number;
   /** Planned everyday purchases on the days after today that an average day already covers (`plannedEverydayOverlap`). */
   plannedOverlapCents?: number;
+  /** The pace that expected one-off income replaces on its days (`expectedIncomeOverlap`), counted once in `expectedCents`. */
+  expectedOverlapCents?: number;
 }) {
   const daysLeft = daysLeftIn(month, today);
   if (daysLeft === null) return null;
@@ -238,7 +264,9 @@ export function projectedBalance({ month, today, balanceCents, expectedCents, pa
     todayIncomeLeftCents,
     todaySpendingLeftCents,
     plannedOverlapCents,
-    cents: balanceCents + expectedCents + todayIncomeLeftCents - todaySpendingLeftCents + (paceDailyCents - typicalDailyCents) * daysAfterToday + plannedOverlapCents,
+    expectedOverlapCents,
+    cents: balanceCents + expectedCents + todayIncomeLeftCents - todaySpendingLeftCents + (paceDailyCents - typicalDailyCents) * daysAfterToday
+      + plannedOverlapCents - expectedOverlapCents,
   };
 }
 

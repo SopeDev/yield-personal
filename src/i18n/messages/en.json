@@ -50,6 +50,8 @@
     "close": "Close"
   },
   "month": {
+    "expectedOverdue": "Expected · late",
+    "confirmReceived": "Confirm received",
     "plannedOn": "Planned · {date}",
     "plannedOverdue": "Planned · overdue",
     "confirmSpent": "Confirm as spent",
@@ -100,6 +102,8 @@
     "actualAmount": "Actual amount",
     "neededPerPayday": "Needed per payday",
     "incomePerPayday": "Income per payday",
+    "paymentsToCome": "{count} payments to come",
+    "paymentsToComeOne": "1 payment to come",
     "paydaysLeft": "{count} paydays left",
     "paydaysLeftOne": "1 payday left",
     "noPaydaysLeft": "No paydays left",
@@ -150,6 +154,8 @@
     "addFirst": "Add income"
   },
   "add": {
+    "expectedHint": "A later date makes this expected: it shows in your forecast, and counts as received only once you confirm it on the day.",
+    "stillExpectedHint": "Still expected: confirm it from the month view once it arrives.",
     "plannedHint": "A later date makes this a plan: it shows in your forecast, and leaves your cash only once you confirm it on the day.",
     "stillPlannedHint": "Still a plan: confirm it from the month view once it's spent.",
     "exchange": "Exchange",
@@ -571,6 +577,8 @@
     "changeSettings": "Change settings"
   },
   "explain": {
+    "expectedInPace": "Pace the expected payments take the place of",
+    "expectedInPaceNote": "Expected payments from a source your pace already counts take the place of that source's share of the pace on their day, so it isn't counted twice.",
     "plannedPurchases": "Planned cash purchases ({count})",
     "plannedInEveryday": "Planned everyday purchases an average day covers",
     "plannedInEverydayNote": "Everyday purchases planned for the days ahead count in full in the total to pay, so the average day they fall on only adds what's left of it.",
@@ -590,7 +598,7 @@
     "aboutDaysOff": "Days you can still take off this month at your recent pace of work and still cover the month.",
     "aboutDaysOffGoal": "Days you can still take off this month at your recent pace of work and still reach your balance goal.",
     "aboutProjectedBalance": "Where the month's balance is headed if income and everyday spending keep their recent pace.",
-    "aboutExpectedIncome": "Recurring income not received yet this month.",
+    "aboutExpectedIncome": "Income not received yet this month: recurring paydays and payments you're expecting.",
     "aboutNeededPerPayday": "Income needed on each payday left this month to cover what's still to pay and everyday spending until the month ends.",
     "aboutNeededPerPaydayGoal": "Income needed on each payday left this month to reach your balance goal, with everyday spending until the month ends.",
     "aboutIncomePerPayday": "Average income per payday so far this month.",
@@ -664,7 +672,7 @@
     "daysOffNoPace": "Shown once there's income in the last {days} finished days (today counts once it's over) and a day worked earns more than it costs.",
     "currentMonthOnly": "Only counted for the current month.",
     "paceNote": "The recent pace is your income over the last {days} finished days (today counts once it's over) divided by all of them, days off included. Recurring income is left out, since it's expected instead.",
-    "expectedNote": "A payday stays expected until you mark it received in the month view.",
+    "expectedNote": "A payday or expected payment stays expected until you mark it received in the month view; an expected payment whose day passes without that no longer counts as coming.",
     "noPaydaysLeft": "No paydays are left this month, so the whole amount shows.",
     "rhythmNote": "Paydays follow your income rhythm in Settings.",
     "beforeFirstPayday": "Shown after the month's first payday.",

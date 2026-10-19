@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Fragment, type ReactNode } from "react";
-import { confirmPlannedPurchase, deleteExchange, deleteIncome, deletePurchase } from "@/app/actions/entries";
+import { confirmExpectedIncome, confirmPlannedPurchase, deleteExchange, deleteIncome, deletePurchase } from "@/app/actions/entries";
 import { setOccurrencePaid } from "@/app/actions/recurring";
 import { DeleteButton } from "@/components/delete-button";
 import { EntryRow } from "@/components/entry-row";
@@ -65,7 +65,9 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
   ]);
 
   // Listed in every currency; the summary card and By category are the main currency's.
-  const { cards, statements, spending, lists: { entries, incomes, occurrences, statementsClosing, carriedStatements, carriedOccurrences, exchanges, expectedPaydays } } = view;
+  const { cards, statements, spending, lists: { entries, incomes: received, expectedIncomes, occurrences, statementsClosing, carriedStatements, carriedOccurrences, exchanges, expectedPaydays } } = view;
+  // Income expected and not confirmed yet is listed on its day with what was received.
+  const incomes = [...received, ...expectedIncomes].sort((a, b) => b.date.getTime() - a.date.getTime());
   const statementCards = new Map(cards.map((card) => [card.id, card]));
   // Active methods to move a month's bill to, plus its current one if since archived.
   // A bill moves only between methods in its own currency: amounts are never converted.
@@ -274,27 +276,50 @@ export default async function MonthPage({ params, searchParams }: PageProps<"/[l
       currency: purchase.paymentMethod.currency ?? view.currency,
     };
   };
-  const incomeItem = (income: LedgerIncome): EntryItem => ({
-    key: income.id,
-    row: (
-      <EntryRow
-        cents={income.amountCents}
-        currency={income.currency}
-        color="var(--color-gain)"
-        details={[messages.month.income, income.note].filter(Boolean).join(" · ")}
-        href={`/${locale}/edit/income/${income.id}`}
-        key={income.id}
-        signed
-        title={income.source.name}
-        trailing={<DeleteButton action={deleteIncome} confirmMessage={messages.month.confirmDeleteIncome} id={income.id} label={messages.common.delete} locale={locale} />}
-      />
-    ),
-    kind: "income",
-    text: searchText(income.source.name, messages.month.income, income.note),
-    categoryId: null,
-    cents: income.amountCents,
-    currency: income.currency ?? view.currency,
-  });
+  /**
+   * An income's row. One still expected says so ("Expected · Nov 3", yellow once its day has passed) and, from its day
+   * on, has a check to confirm it arrived; it adds nothing to what the filter counts as received.
+   */
+  const incomeItem = (income: LedgerIncome): EntryItem => {
+    const day = dateKeyOf(income.date);
+    const late = income.expected === true && day < today;
+    const expectedTag = income.expected
+      ? <span className={cn("font-medium", late ? "text-warning" : "text-sky-400")}>{late ? messages.month.expectedOverdue : format(messages.month.expectedOn, { date: formatShortDate(income.date, locale) })} · </span>
+      : null;
+    const confirmId = `confirm-income-${income.id}`;
+    return {
+      key: income.id,
+      row: (
+        <EntryRow
+          cents={income.amountCents}
+          currency={income.currency}
+          color="var(--color-gain)"
+          details={<>{expectedTag}{[messages.month.income, income.note].filter(Boolean).join(" · ")}</>}
+          href={`/${locale}/edit/income/${income.id}`}
+          key={income.id}
+          muted={income.expected}
+          signed={!income.expected}
+          title={income.source.name}
+          trailing={(
+            <>
+              {income.expected && day <= today ? (
+                <>
+                  <PaidCheckForm action={confirmExpectedIncome} fields={{ locale, id: income.id }} id={confirmId} paid={false} />
+                  <PaidCheck formId={confirmId} labels={{ markPaid: messages.month.confirmReceived, markUnpaid: messages.month.confirmReceived }} paid={false} />
+                </>
+              ) : null}
+              <DeleteButton action={deleteIncome} confirmMessage={messages.month.confirmDeleteIncome} id={income.id} label={messages.common.delete} locale={locale} />
+            </>
+          )}
+        />
+      ),
+      kind: "income",
+      text: searchText(income.source.name, messages.month.income, income.note),
+      categoryId: null,
+      cents: income.expected ? 0 : income.amountCents,
+      currency: income.currency ?? view.currency,
+    };
+  };
   const exchangeItem = (exchange: Exchange): EntryItem => ({
     key: exchange.id,
     row: (

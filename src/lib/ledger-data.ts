@@ -150,7 +150,7 @@ export async function loadLedgerRange(userId: string, from: MonthKey, to: MonthK
     db.income.findMany({
       where: { userId, date: { gte: monthRange(purchasesFrom && purchasesFrom < from ? purchasesFrom : from).start, lt: monthRange(to).end } },
       select: {
-        id: true, date: true, amountCents: true, note: true, currency: true, recurringIncomeId: true, expectedOn: true,
+        id: true, date: true, amountCents: true, note: true, currency: true, recurringIncomeId: true, expectedOn: true, expected: true,
         source: { select: { id: true, name: true, groupId: true } },
       },
       orderBy: [{ date: "desc" }, { createdAt: "desc" }],
@@ -174,7 +174,9 @@ export async function loadLedgerRange(userId: string, from: MonthKey, to: MonthK
   });
 
   const data: LedgerData = {
-    categories, purchases, incomes, incomeGroups, definitions, overrides, recurringHistory, statements,
+    // Income still expected is kept apart: nothing that counts what was received sees it.
+    categories, purchases, incomes: incomes.filter((income) => !income.expected), expectedIncomes: incomes.filter((income) => income.expected),
+    incomeGroups, definitions, overrides, recurringHistory, statements,
     savingsMovements: savingsMovements.map(({ fund, ...movement }) => ({ ...movement, currency: fund.currency })),
   };
   return { data, cards };
@@ -246,7 +248,7 @@ export async function loadCashOnHand(userId: string, knownWallets?: CashWallet[]
   const where = { userId, date: { gte: dateFromKey(firstDay), lte: dateFromKey(today) } };
   const select = { date: true, createdAt: true, amountCents: true } as const;
   const [incomes, cashPurchases, savingsMovements, exchanges, paidBills] = await Promise.all([
-    db.income.findMany({ where, select: { ...select, currency: true } }),
+    db.income.findMany({ where: { ...where, expected: false }, select: { ...select, currency: true } }),
     // Planned purchases leave cash only once confirmed as spent.
     db.purchase.findMany({ where: { ...where, planned: false, paymentMethod: { kind: "CASH" } }, select: { ...select, paymentMethodId: true } }),
     db.savingsMovement.findMany({ where, select: { ...select, fund: { select: { currency: true } } } }),
