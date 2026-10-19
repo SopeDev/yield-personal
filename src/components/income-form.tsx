@@ -9,7 +9,8 @@ import { AmountInput } from "./amount-input";
 import { Chip, Field, inputClass, SubmitButton, submitWithoutReset, useClientId } from "./form-controls";
 
 /** Values of an existing income entry being edited. */
-export type IncomeInitial = { id: string; amount: string; sourceId: string; date: string; note: string; currency: string };
+/** An income being edited; `expected` when it hasn't been confirmed as received yet. */
+export type IncomeInitial = { id: string; amount: string; sourceId: string; date: string; note: string; currency: string; expected?: boolean };
 
 /**
  * Records new income, or edits an entry when `initial` is given. With cash wallets in several currencies
@@ -33,6 +34,9 @@ export function IncomeForm({ locale, today, sources, groups = [], currencies, me
   const clientId = useClientId();
   const errors = state.fieldErrors ?? {};
   const [currency, setCurrency] = useState(initial?.currency ?? currencies[0]);
+  // A later date makes it expected, and expected income stays so until it's confirmed from the month view.
+  const [date, setDate] = useState(initial?.date ?? today);
+  const expectedHint = date > today ? messages.add.expectedHint : initial?.expected ? messages.add.stillExpectedHint : null;
   const [sourceChoice, setSourceChoice] = useState(initial?.sourceId ?? sources[0]?.id ?? NEW_SOURCE);
   const [sourceName, setSourceName] = useState("");
   const matchingSource = sourceChoice === NEW_SOURCE ? findSourceByName(sources, sourceName) : undefined;
@@ -93,7 +97,8 @@ export function IncomeForm({ locale, today, sources, groups = [], currencies, me
       ) : null}
 
       <Field error={errors.date} errors={messages.errors} htmlFor="date" label={messages.add.date}>
-        <input className={inputClass} defaultValue={initial?.date ?? today} id="date" name="date" required type="date" />
+        <input className={inputClass} id="date" name="date" onChange={(event) => setDate(event.target.value)} required type="date" value={date} />
+        {expectedHint ? <p className="text-sm text-sky-400">{expectedHint}</p> : null}
       </Field>
 
       <Field error={errors.note} errors={messages.errors} htmlFor="note" label={messages.add.note}>

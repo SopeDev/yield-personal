@@ -99,7 +99,12 @@ async function parseIncome(userId: string, formData: FormData, { isEdit }: { isE
     return { fieldErrors: sourceErrors[source.error] as FormState["fieldErrors"] };
   }
 
-  return { data: { sourceId: source.sourceId, date: dateFromKey(date), ...seal("Income", { amountCents: amountCents!, note: note || null }), currency }, month: date.slice(0, 7) };
+  return {
+    data: { sourceId: source.sourceId, date: dateFromKey(date), ...seal("Income", { amountCents: amountCents!, note: note || null }), currency },
+    month: date.slice(0, 7),
+    // Dated after today, it's expected: not received until confirmed once its day comes.
+    future: date > todayKey(),
+  };
 }
 
 export async function createPurchase(_state: FormState, formData: FormData): Promise<FormState> {
@@ -144,7 +149,7 @@ export async function createIncome(_state: FormState, formData: FormData): Promi
   const id = readClientId(formData);
   const existing = id ? await db.income.findUnique({ where: { id }, select: { userId: true } }) : null;
   if (existing && existing.userId !== userId) return { error: "generic" };
-  if (!existing) await db.income.create({ data: { id, userId, ...parsed.data } });
+  if (!existing) await db.income.create({ data: { id, userId, ...parsed.data, expected: parsed.future } });
 
   revalidatePath(`/${locale}`, "layout");
   redirect(`/${locale}/income?m=${parsed.month}`);
@@ -158,11 +163,21 @@ export async function updateIncome(_state: FormState, formData: FormData): Promi
   const parsed = await parseIncome(userId, formData, { isEdit: true });
   if (!parsed.data) return { fieldErrors: parsed.fieldErrors };
 
-  const { count } = await db.income.updateMany({ where: { id, userId }, data: parsed.data });
+  // Moving income to a later date makes it expected; expected income stays so until confirmed, whatever its new date.
+  const { count } = await db.income.updateMany({ where: { id, userId }, data: parsed.future ? { ...parsed.data, expected: true } : parsed.data });
   if (count === 0) return { error: "generic" };
 
   revalidatePath(`/${locale}`, "layout");
   redirect(`/${locale}/income?m=${parsed.month}`);
+}
+
+/** Confirms expected income as received, once its day has come: from then on it's ordinary income. */
+export async function confirmExpectedIncome(formData: FormData) {
+  const userId = await requireActionUserId();
+  const id = readText(formData, "id");
+  if (!isUuid(id)) return;
+  await db.income.updateMany({ where: { id, userId, expected: true, date: { lte: dateFromKey(todayKey()) } }, data: { expected: false } });
+  revalidatePath(`/${localeFromForm(formData)}`, "layout");
 }
 
 /** Confirms a planned purchase as spent, once its day has come: from then on it's an ordinary purchase. */

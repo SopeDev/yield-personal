@@ -31,6 +31,8 @@ export type LedgerIncome = {
   /** The recurring income, and its payday, this was received for. */
   recurringIncomeId?: string | null;
   expectedOn?: Date | null;
+  /** Not received yet: expected on its date, until confirmed (`incomes.expected`). */
+  expected?: boolean;
 };
 
 export type MonthSpendingEntry = {

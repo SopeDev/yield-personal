@@ -2,13 +2,13 @@ import "server-only";
 
 import { averageMonthlySpending } from "@/lib/averages";
 import { DAYS_PER_MONTH, incomePace, todaySoFar, TYPICAL_SPENDING_MONTHS, typicalDailySpending } from "@/lib/daily-balance";
-import { addDays, billEvents, cardStatementEvents, FORECAST_DAYS, forecastCash, monthOfKey, paydayEvents, plannedPurchaseEvents } from "@/lib/forecast";
+import { addDays, billEvents, cardStatementEvents, expectedIncomeEvents, FORECAST_DAYS, forecastCash, monthOfKey, paydayEvents, plannedPurchaseEvents } from "@/lib/forecast";
 import { getCashWallets, getExchanges, getRecurringIncomes, getSavingsFunds, loadCashOnHand, loadLedgerRange } from "@/lib/ledger-data";
 import { getMainCurrency, getStatNames, getUserSettings } from "@/lib/queries";
 import { cardLayout, monthStatContext, type OtherCash, type SavingsSnapshot, type StatRef, type SummaryCardId } from "@/lib/stats";
 import { currenciesIn, forCurrency, summarizeMonth, type MonthSummary } from "@/lib/month-summary";
 import { db } from "@/db/client";
-import { addMonths, dateKeyOf, monthDifference, type MonthKey } from "@/lib/months";
+import { addMonths, dateKeyOf, monthDifference, monthKeyOf, type MonthKey } from "@/lib/months";
 import { occurrencesForMonth, unpaidCashOccurrences } from "@/lib/recurring";
 import { expectedPaydays, recurringIncomeRhythmOf } from "@/lib/recurring-income";
 import { emergencyFundGoal, fundBalance } from "@/lib/savings";
@@ -58,9 +58,12 @@ export async function loadMonthView(userId: string, month: MonthKey, currentMont
     recentIncomes: main.data.incomes,
     incomeGroupDefs: main.data.incomeGroups,
     recurringIncomes: recurringIncomes.filter((recurring) => (recurring.currency ?? currency) === currency),
+    // One-off income expected this month in the main currency (like a client's payment), counted as coming.
+    expectedIncomes: (main.data.expectedIncomes ?? []).filter((income) => monthKeyOf(income.date) === month),
     lists: {
       entries: newestFirst(summaries.flatMap((summary) => summary.entries), (entry) => entry.purchase.date),
       incomes: newestFirst(summaries.flatMap((summary) => summary.incomes), (income) => income.date),
+      expectedIncomes: (data.expectedIncomes ?? []).filter((income) => monthKeyOf(income.date) === month),
       occurrences: summaries.flatMap((summary) => summary.occurrences)
         .sort((a, b) => a.recurring.dayOfMonth - b.recurring.dayOfMonth || a.recurring.item.name.localeCompare(b.recurring.item.name)),
       statementsClosing: summaries.flatMap((summary) => summary.cashFlow.statementsClosing).sort(byClosingDate),
@@ -275,6 +278,12 @@ export async function loadForecast(userId: string, today: string) {
     ...cardEvents,
     ...paydayEvents(months.flatMap((month) => expectedPaydays(recurringIncomes, data.incomes, month)), { today, end }),
     ...plannedPurchaseEvents(data.purchases, { today, end }),
+    // Expected one-off income on its day, taking the place of its source's share of the pace that day.
+    ...expectedIncomeEvents(data.expectedIncomes ?? [], {
+      today, end,
+      sourcePaceCents: (sourceId) => incomePace({ incomes: paceIncomes.filter((income) => income.source.id === sourceId), today, historyStart }).cents,
+      inPace: (sourceId) => !recurringSourceIds.has(sourceId),
+    }),
   ];
 
   // Savings grow beside cash: planned deposits leave cash on their days, and interest adds up on the funds.

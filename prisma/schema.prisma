@@ -309,6 +309,10 @@ model Income {
   noteEnc           String?          @map("note_enc")
   recurringIncomeId String?          @map("recurring_income_id") @db.Uuid
   expectedOn        DateTime?        @map("expected_on") @db.Date
+  /// Not received yet: income logged for a later date (like a client's payment) is expected until confirmed once its
+  /// day comes. Expected income stays out of cash on hand and every received figure; the month and forecast count it
+  /// as coming until its day passes unconfirmed.
+  expected          Boolean          @default(false)
   createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
   user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)

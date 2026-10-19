@@ -157,10 +157,10 @@ test("the pace of income spreads income since the history start over every day, 
 test("the projected balance adds what's expected and each day left at the pace, less typical spending", () => {
   // 22 days left from Oct 10, nothing recorded today yet: 1,000 + 500 expected + all of today (30 in, 20 out) + 21 × (30 − 20).
   const october = { month: "2026-10" as const, today: "2026-10-10", balanceCents: 100000, expectedCents: 50000, paceDailyCents: 3000, typicalDailyCents: 2000 };
-  assert.deepEqual(projectedBalance(october), { daysLeft: 22, daysAfterToday: 21, todayIncomeLeftCents: 3000, todaySpendingLeftCents: 2000, plannedOverlapCents: 0, cents: 172000 });
+  assert.deepEqual(projectedBalance(october), { daysLeft: 22, daysAfterToday: 21, todayIncomeLeftCents: 3000, todaySpendingLeftCents: 2000, plannedOverlapCents: 0, expectedOverlapCents: 0, cents: 172000 });
   // Today's records count once: 12 earned and 5 spent so far (already in the balance) leave 18 and 15 of an average day.
   assert.deepEqual(projectedBalance({ ...october, balanceCents: 100700, todayIncomeCents: 1200, todaySpentCents: 500 }), {
-    daysLeft: 22, daysAfterToday: 21, todayIncomeLeftCents: 1800, todaySpendingLeftCents: 1500, plannedOverlapCents: 0, cents: 172000,
+    daysLeft: 22, daysAfterToday: 21, todayIncomeLeftCents: 1800, todaySpendingLeftCents: 1500, plannedOverlapCents: 0, expectedOverlapCents: 0, cents: 172000,
   });
   // A day past the average expects nothing more today, and never takes back what was earned.
   assert.equal(projectedBalance({ ...october, balanceCents: 104000, todayIncomeCents: 4000, todaySpentCents: 0 })?.todayIncomeLeftCents, 0);

@@ -30,7 +30,7 @@ export default async function EditIncomePage({ params }: PageProps<"/[locale]/ed
     <div className="space-y-6">
       <h1 className="font-display text-2xl font-semibold">{messages.edit.incomeTitle}</h1>
       <IncomeForm
-        initial={{ id: income.id, amount: (income.amountCents / 100).toFixed(2), sourceId: income.source.id, date: dateKeyOf(income.date), note: income.note ?? "", currency: income.currency }}
+        initial={{ id: income.id, amount: (income.amountCents / 100).toFixed(2), sourceId: income.source.id, date: dateKeyOf(income.date), note: income.note ?? "", currency: income.currency, expected: income.expected }}
         currencies={currencyOptions}
         groups={groups.filter((group) => !group.archivedAt).map(({ id, name }) => ({ id, name }))}
         locale={locale}

@@ -1,5 +1,5 @@
 import { isEveryday } from "./categories";
-import type { LedgerPurchase } from "./ledger";
+import type { LedgerIncome, LedgerPurchase } from "./ledger";
 import { addMonths, dateFromKey, dateKeyOf, monthKeyOf, type MonthKey } from "./months";
 import type { RecurringOccurrence } from "./recurring";
 import type { ExpectedPayday } from "./recurring-income";
@@ -26,6 +26,8 @@ export type ForecastEvent = {
   overdue: boolean;
   /** For a planned purchase on its own day, the part of it that's everyday spending: the day's typical spending covers that much of it. */
   everydayCents?: number;
+  /** For expected income, the part of the day's pace of income it takes the place of. */
+  paceCents?: number;
 };
 
 export type ForecastDay = {
@@ -71,7 +73,9 @@ export function forecastCash({ today, days = FORECAST_DAYS, startCents, paceDail
     // it (today, beyond what's already recorded too).
     const plannedEveryday = dayEvents.reduce((sum, event) => sum + (event.everydayCents ?? 0), 0);
     const typicalLeft = Math.max(0, cashDailyCents - plannedEveryday - (index === 0 ? todayCashSpentCents : 0));
-    const incomeLeft = index === 0 ? Math.max(0, paceDailyCents - todayIncomeCents) : paceDailyCents;
+    // Likewise expected income takes the place of its source's share of the day's pace.
+    const paceReplaced = dayEvents.reduce((sum, event) => sum + (event.paceCents ?? 0), 0);
+    const incomeLeft = Math.max(0, paceDailyCents - paceReplaced - (index === 0 ? todayIncomeCents : 0));
     cents += incomeLeft - typicalLeft + dayEvents.reduce((sum, event) => sum + event.cents, 0);
     // Money moved into savings leaves cash but isn't spent.
     const spent = dayEvents.filter((event) => event.cents < 0 && event.kind !== "savings").reduce((sum, event) => sum + event.cents, 0);
@@ -122,6 +126,33 @@ export function plannedPurchaseEvents(purchases: Pick<LedgerPurchase, "date" | "
         overdue,
         everydayCents: !overdue && isEveryday(purchase.item.category) ? purchase.amountCents : 0,
       }];
+    });
+}
+
+/**
+ * One-off income still expected, each on its date from today on, up to the end of the horizon; once its day passes
+ * unconfirmed it's left out (late money isn't counted on). Each carries the share of the pace it takes the place of:
+ * its source's, up to its amount, on days after today; today, its whole amount, as income received today counts.
+ */
+export function expectedIncomeEvents(incomes: Pick<LedgerIncome, "date" | "amountCents" | "source" | "expected">[], { today, end, sourcePaceCents, inPace = () => true }: {
+  today: string;
+  end: string;
+  sourcePaceCents: (sourceId: string) => number;
+  /** Whether the pace counts the source's income at all (recurring income's sources it doesn't). */
+  inPace?: (sourceId: string) => boolean;
+}): ForecastEvent[] {
+  const byDaySource = new Map<string, number>();
+  return incomes
+    .filter((income) => income.expected && dateKeyOf(income.date) >= today && dateKeyOf(income.date) <= end)
+    .map((income) => {
+      const date = dateKeyOf(income.date);
+      const key = `${date}|${income.source.id}`;
+      // Several payments from one source on one day replace its share of the pace once between them.
+      const left = Math.max(0, sourcePaceCents(income.source.id) - (byDaySource.get(key) ?? 0));
+      // Today, a payment counts toward the day's pace like income already received (it will be, once confirmed).
+      const paceCents = !inPace(income.source.id) ? 0 : date > today ? Math.min(income.amountCents, left) : income.amountCents;
+      byDaySource.set(key, (byDaySource.get(key) ?? 0) + paceCents);
+      return { date, kind: "income" as const, label: income.source.name, cents: income.amountCents, estimated: false, overdue: false, paceCents };
     });
 }
 

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { addDays, axisTicks, billEvents, cardStatementEvents, compactAmount, forecastCash, paydayEvents, plannedPurchaseEvents, type ForecastEvent } from "./forecast";
+import { addDays, axisTicks, billEvents, cardStatementEvents, expectedIncomeEvents, compactAmount, forecastCash, paydayEvents, plannedPurchaseEvents, type ForecastEvent } from "./forecast";
 import { dateFromKey } from "./months";
 import type { LedgerCategory, LedgerPaymentMethod } from "./ledger";
 import type { RecurringOccurrence } from "./recurring";
@@ -159,4 +159,19 @@ test("planned cash purchases leave on their day, an everyday one filling part of
   // A plan bigger than an average day spends the plan alone.
   const big = forecastCash({ today: "2026-10-10", days: 1, startCents: 0, paceDailyCents: 0, cashDailyCents: 70000, events: plannedPurchaseEvents([planned("market", "2026-10-11", 90000)], { today: "2026-10-10", end: "2026-10-31" }) });
   assert.equal(big.days[1].spendingCents, 90000);
+});
+
+test("expected one-off income arrives on its day, in place of its source's share of the pace, and a late one isn't counted on", () => {
+  const freelance = { id: "freelance", name: "Freelance", groupId: null };
+  const uber = { id: "uber", name: "Uber", groupId: null };
+  const expected = (date: string, amountCents: number, source = freelance) => ({ date: dateFromKey(date), amountCents, source, expected: true });
+  // Freelance makes $100 of the $1,000 daily pace.
+  const paceOf = (sourceId: string) => (sourceId === "freelance" ? 10000 : 90000);
+  const events = expectedIncomeEvents([expected("2026-10-12", 500000), expected("2026-10-08", 200000), expected("2026-10-11", 3000, uber)], {
+    today: "2026-10-10", end: "2026-12-31", sourcePaceCents: paceOf,
+  });
+  assert.deepEqual(events.map((event) => [event.label, event.date, event.cents, event.paceCents]), [["Freelance", "2026-10-12", 500000, 10000], ["Uber", "2026-10-11", 3000, 3000]]);
+  const { days } = forecastCash({ today: "2026-10-10", days: 2, startCents: 0, paceDailyCents: 100000, cashDailyCents: 0, events });
+  // The 11th: $30 of Uber in place of $30 of the pace; the 12th: $5,000 in place of freelance's $100.
+  assert.deepEqual([days[1].cents - days[0].cents, days[2].cents - days[1].cents], [100000, 100000 - 10000 + 500000]);
 });

@@ -3,7 +3,7 @@ import { format, type Messages } from "../i18n/dictionaries";
 import type { CashOnHandParts } from "./cash-on-hand";
 import { categoryLabel } from "./categories";
 import {
-  blendWithEstimate, dailyNet, daysLeftIn, daysOff, DAYS_PER_MONTH, incomePace, neededPerDay, plannedEverydayOverlap, projectedBalance, todaySoFar, typicalDailySpending, type CategoryEstimate,
+  blendWithEstimate, dailyNet, daysLeftIn, daysOff, DAYS_PER_MONTH, expectedIncomeOverlap, incomePace, neededPerDay, plannedEverydayOverlap, projectedBalance, todaySoFar, typicalDailySpending, type CategoryEstimate,
 } from "./daily-balance";
 import { formatShortDate } from "./dates";
 import { incomePerPayday, neededPerPayday, type IncomeRhythm } from "./income-rhythm";
@@ -89,6 +89,8 @@ export function monthStatContext({ view, today, settings, cashOnHandCents = null
     incomeGroupDefs?: LedgerIncomeGroup[];
     /** Recurring income in the main currency, whose paydays not received yet are expected. */
     recurringIncomes?: RecurringIncomeDefinition[];
+    /** One-off income expected this month in the main currency, not confirmed yet (like a client's payment). */
+    expectedIncomes?: LedgerIncome[];
     /** Each other currency's totals this month, noted beside the main currency's (never added to them). */
     others?: OtherCurrencyTotals[];
   };
@@ -120,10 +122,24 @@ export function monthStatContext({ view, today, settings, cashOnHandCents = null
   // Recurring income still expected this month counts as coming; it is no part of the pace of other income.
   const recurringIncomes = view.recurringIncomes ?? [];
   const paydays = expectedPaydays(recurringIncomes, incomes, month);
-  const expected = expectedIncomeLeft(paydays);
+  // One-off income expected from today on counts as coming too; once its day passes unconfirmed it no longer does
+  // (money that's late isn't counted on), though the month still lists it.
+  const oneOffs = (view.expectedIncomes ?? []).filter((item) => dateKeyOf(item.date) >= today);
+  const recurringExpected = expectedIncomeLeft(paydays);
+  const expected = {
+    cents: recurringExpected.cents + sum(oneOffs.map((item) => item.amountCents)),
+    paydaysLeft: recurringExpected.paydaysLeft + oneOffs.length,
+    paydays: recurringExpected.paydays + oneOffs.length,
+    oneOffs,
+  };
   const recurringSourceIds = new Set(recurringIncomes.map((recurring) => recurring.source.id));
   const paceIncomes = (view.recentIncomes ?? incomes).filter((item) => !item.recurringIncomeId && !recurringSourceIds.has(item.source.id));
   const pace = incomePace({ incomes: paceIncomes, today, historyStart, estimateMonthlyCents: estimates.incomeMonthlyCents });
+  // Expected income from a source the pace counts takes its place on its day, up to that source's share of the pace.
+  const expectedOverlapCents = expectedIncomeOverlap({
+    expected: oneOffs, today,
+    sourcePaceCents: (sourceId) => incomePace({ incomes: paceIncomes.filter((item) => item.source.id === sourceId), today, historyStart }).cents,
+  });
   const needed = neededPerDay({
     month, today, toPayCents: cashFlow.toPayCents, incomeCents: income.totalCents + expected.cents, goalCents, typicalDailyCents: typicalDay.cents,
   });
@@ -131,7 +147,9 @@ export function monthStatContext({ view, today, settings, cashOnHandCents = null
   const workCategoryIds = income.deductCategoryIds;
   const livingDay = typicalDailySpending({ purchases: view.purchases, today, historyStart, excludeCategoryIds: workCategoryIds, estimates: estimates.spending });
   // What today has already brought in (the pace's kind of income) and spent; forecasts add only the rest of an average day.
-  const todayRecords = todaySoFar({ purchases: view.purchases, incomes: paceIncomes, today });
+  // A payment expected today counts as today's income, as it will once confirmed, so confirming it changes nothing.
+  const todayExpected = oneOffs.filter((item) => dateKeyOf(item.date) === today && !recurringSourceIds.has(item.source.id));
+  const todayRecords = todaySoFar({ purchases: view.purchases, incomes: [...paceIncomes, ...todayExpected], today });
   return {
     ...view,
     today,
@@ -168,6 +186,7 @@ export function monthStatContext({ view, today, settings, cashOnHandCents = null
       month, today, balanceCents, expectedCents: expected.cents, typicalDailyCents: typicalDay.cents, paceDailyCents: pace.cents,
       todayIncomeCents: todayRecords.incomeCents, todaySpentCents: todayRecords.spentCents,
       plannedOverlapCents: plannedEverydayOverlap({ purchases: view.purchases, today, toKey: dateKeyOf(dateInMonth(month, 31)), typicalDailyCents: typicalDay.cents }),
+      expectedOverlapCents,
     }),
     paydayIncome: dayNet ? incomePerPayday({ month, today, rhythm, incomeCents: dayNet.incomeCents, everydaySpendingCents: dayNet.spendingCents }) : null,
     // The day's target is the goal's when one is set; average daily income is gross, like the target.
@@ -655,6 +674,7 @@ const STATS = {
           unlessZero(messages.explain.restOfTodaySpending, projected.todaySpendingLeftCents, "−"),
           unlessZero(format(messages.explain.everydayForDaysLeft, { amount: formatCents(typicalDay.cents, currency), days }), typicalDay.cents * projected.daysAfterToday, "−"),
           unlessZero(messages.explain.plannedInEveryday, projected.plannedOverlapCents, "+"),
+          unlessZero(messages.explain.expectedInPace, projected.expectedOverlapCents, "−"),
           amount(label, projected.cents, "="),
         )],
         [
@@ -664,6 +684,7 @@ const STATS = {
           everydayNote(context, messages),
           goalCents !== null && messages.explain.goalSavings,
           projected.plannedOverlapCents > 0 && messages.explain.plannedInEverydayNote,
+          projected.expectedOverlapCents > 0 && messages.explain.expectedInPaceNote,
         ],
       );
     },
@@ -674,15 +695,16 @@ const STATS = {
     shown: (context) => context.projected !== null && context.expected.paydays > 0,
     value: ({ expected }, messages) => (expected.paydaysLeft === 0 ? { cents: 0, tone: "gain", note: { text: messages.month.allReceived, tone: "gain" } } : {
       cents: expected.cents,
-      note: { text: expected.paydaysLeft === 1 ? messages.month.paydaysLeftOne : format(messages.month.paydaysLeft, { count: expected.paydaysLeft }), tone: "muted" },
+      note: { text: expected.paydaysLeft === 1 ? messages.month.paymentsToComeOne : format(messages.month.paymentsToCome, { count: expected.paydaysLeft }), tone: "muted" },
     }),
     description: (_, messages) => messages.explain.aboutExpectedIncome,
     explain: ({ paydays, expected }, messages, _, { label, locale }) => {
       const left = paydays.filter((payday) => payday.received === null);
-      if (left.length === 0) return why(messages.month.allReceived);
+      if (left.length === 0 && expected.oneOffs.length === 0) return why(messages.month.allReceived);
       return explained(
         [block(
           ...left.map(({ recurring, date }) => amount(format(messages.explain.payday, { source: recurring.source.name, date: formatShortDate(dateFromKey(date), locale) }), recurring.amountCents, "+")),
+          ...expected.oneOffs.map((item) => amount(format(messages.explain.payday, { source: item.source.name, date: formatShortDate(item.date, locale) }), item.amountCents, "+")),
           amount(label, expected.cents, "="),
         )],
         [messages.explain.expectedNote],

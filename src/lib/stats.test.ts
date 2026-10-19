@@ -3,6 +3,7 @@ import { test } from "node:test";
 import en from "../i18n/messages/en.json";
 import es from "../i18n/messages/es.json";
 import type { LedgerIncome, LedgerPurchase } from "./ledger";
+import { incomePace } from "./daily-balance";
 import { summarizeMonth, type LedgerData } from "./month-summary";
 import { dateFromKey } from "./months";
 import type { RecurringIncomeDefinition } from "./recurring-income";
@@ -199,7 +200,7 @@ test("the projected balance adds expected recurring income and the recent pace o
   // Over the finished days, Jul 1 to Oct 9 (101): Uber's 1,000 is 9.90 a day (the salary isn't pace), 600 everyday
   // spending 5.94. Balance 4,000 − 600 = 3,400, + 3,000 expected, + 22 days left × (9.90 − 5.94).
   assert.deepEqual(projected.value, { cents: 648712, tone: "gain", note: { text: "Goal $7,000.00 · $512.88 short", tone: "warning" } });
-  assert.deepEqual(expected.value, { cents: 300000, note: { text: "1 payday left", tone: "muted" } });
+  assert.deepEqual(expected.value, { cents: 300000, note: { text: "1 payment to come", tone: "muted" } });
   // The expected salary counts as coming: (7,000 − 6,400) ÷ 22 days + 5.94 a day, rounded up.
   assert.equal(needed.value?.cents, 3322);
 
@@ -464,4 +465,28 @@ test("planned cash purchases count as still unpaid, and the projection lets an a
   assert.equal(ctx.projected?.plannedOverlapCents, Math.min(5000, ctx.typicalDay.cents));
   assert.ok(ctx.projected!.plannedOverlapCents > 0);
   for (const ref of ["outstanding", "projectedBalance"] as const) assertWorkingAddsUp(ref, ctx);
+});
+
+test("a payment expected from today on counts as coming income, a late one stops counting, and the projection's working adds up", () => {
+  const freelance = { id: "freelance", name: "Freelance", groupId: null };
+  const expectedIncome = (id: string, date: string, amountCents: number): LedgerIncome => ({ ...income(id, date, amountCents, freelance), expected: true });
+  const data: LedgerData = {
+    categories: [food, car], purchases: [purchase("pho", "2026-10-04", 20000, food)],
+    incomes: [income("u1", "2026-10-02", 100000, uber), income("f0", "2026-10-03", 90000, freelance)],
+    incomeGroups: [], definitions: [], overrides: [], recurringHistory: [], statements: [], savingsMovements: [],
+  };
+  const summary = summarizeMonth(data, "2026-10");
+  const ctx = monthStatContext({
+    view: { ...summary, purchases: data.purchases, recentIncomes: data.incomes, expectedIncomes: [expectedIncome("client", "2026-10-20", 500000), expectedIncome("late", "2026-10-05", 70000)] },
+    today: "2026-10-10", settings: noSettings,
+  });
+  // Received income leaves both out; only the payment still to come is expected.
+  assert.equal(ctx.income.totalCents, 190000);
+  assert.deepEqual([ctx.expected.cents, ctx.expected.paydaysLeft], [500000, 1]);
+  assert.deepEqual(resolveStats(["expectedIncome"], ctx, en)[0].value, { cents: 500000, note: { text: "1 payment to come", tone: "muted" } });
+  // The client's payment takes the place of freelance's share of the pace on the 20th: its $900 over the history window.
+  const freelanceShare = incomePace({ incomes: [data.incomes[1]], today: "2026-10-10", historyStart: null }).cents;
+  assert.ok(freelanceShare > 0);
+  assert.equal(ctx.projected?.expectedOverlapCents, freelanceShare);
+  for (const ref of ["expectedIncome", "projectedBalance", "neededPerDay"] as const) assertWorkingAddsUp(ref, ctx);
 });
