@@ -234,3 +234,33 @@ test("planned everyday purchases ahead are covered by their day's average spendi
   const past = [purchase("missed", "2026-10-05", 300000), purchase("real", "2026-10-06", 31000, food, false)];
   assert.equal(typicalDailySpending({ purchases: past, today: "2026-10-10", historyStart: "2026-10" }).cents, Math.round(31000 / 9));
 });
+
+test("big things bought rarely are spread over at least 3 months, and over the past year once there is one", () => {
+  const carCategory: LedgerCategory = { id: "car", key: "car", name: null, sortOrder: 0, kind: "EVERYDAY" };
+  const foodCategory: LedgerCategory = { id: "food", key: "food", name: null, sortOrder: 1, kind: "EVERYDAY" };
+  const method = { id: "cash", kind: "CASH" as const, name: "Cash", color: "#000" };
+  const bought = (item: string, date: string, amountCents: number, category = carCategory): LedgerPurchase => ({
+    id: `${item}-${date}`, date: dateFromKey(date), amountCents, note: null, installmentCount: 1, item: { id: item, name: item, category }, paymentMethod: method,
+  });
+  // Three weeks of history (Oct 1–21, today Oct 22): gas every other day, one set of brakes, and food in places visited once.
+  const gas = Array.from({ length: 11 }, (_, index) => bought("Gasolina", `2026-10-${String(1 + index * 2).padStart(2, "0")}`, 40000));
+  const food = ["Rica China", "Hamburguesas", "Tacos", "Sushi"].map((name, index) => bought(name, `2026-10-${String(3 + index * 5).padStart(2, "0")}`, 30000, foodCategory));
+  const brakes = bought("Frenos", "2026-10-20", 180000);
+  const typical = typicalDailySpending({ purchases: [...gas, ...food, brakes], today: "2026-10-22", historyStart: "2026-10-01" });
+  // Gas and food count as bought over the 21 days; the brakes as $1,800 every 90 days.
+  assert.equal(typical.days, 21);
+  assert.equal(typical.cents, Math.round((11 * 40000 + 4 * 30000 + (180000 / 90) * 21) / 21));
+  assert.deepEqual(typical.rare, { names: ["Frenos"], spreadDays: 90 });
+  // A year on, with brakes twice in it, they come to two sets a year (and gas, bought often, still counts as bought).
+  const later = typicalDailySpending({
+    purchases: [bought("Frenos", "2026-03-10", 180000), bought("Frenos", "2026-09-10", 180000), bought("Gasolina", "2026-12-20", 40000), bought("Gasolina", "2026-12-21", 40000), ...Array.from({ length: 40 }, (_, index) => bought("Gasolina", dateKeyFrom(index), 40000))],
+    today: "2027-01-01", historyStart: null,
+  });
+  assert.deepEqual(later.rare.spreadDays, 365);
+  assert.deepEqual(later.rare.names, []);
+});
+
+/** Every 9th day back from Dec 31, 2026. */
+function dateKeyFrom(index: number) {
+  return new Date(Date.parse("2026-12-31T00:00:00Z") - index * 9 * 86_400_000).toISOString().slice(0, 10);
+}

@@ -1,7 +1,7 @@
 import "server-only";
 
 import { averageMonthlySpending } from "@/lib/averages";
-import { DAYS_PER_MONTH, incomePace, todaySoFar, TYPICAL_SPENDING_MONTHS, typicalDailySpending } from "@/lib/daily-balance";
+import { DAYS_PER_MONTH, incomePace, RARE_LOOKBACK_MONTHS, todaySoFar, typicalDailySpending } from "@/lib/daily-balance";
 import { addDays, billEvents, cardStatementEvents, expectedIncomeEvents, FORECAST_DAYS, forecastCash, monthOfKey, paydayEvents, plannedPurchaseEvents } from "@/lib/forecast";
 import { getCashWallets, getExchanges, getRecurringIncomes, getSavingsFunds, loadCashOnHand, loadLedgerRange } from "@/lib/ledger-data";
 import { getMainCurrency, getStatNames, getUserSettings } from "@/lib/queries";
@@ -35,7 +35,7 @@ export const CARRY_UNPAID_MONTHS = 12;
 export async function loadMonthView(userId: string, month: MonthKey, currentMonth: MonthKey) {
   const carryFrom = month === currentMonth ? addMonths(month, -CARRY_UNPAID_MONTHS) : undefined;
   const [{ data, cards }, currency, exchanges, recurringIncomes] = await Promise.all([
-    loadLedgerRange(userId, month, month, { statementsFrom: carryFrom, purchasesFrom: addMonths(currentMonth, -TYPICAL_SPENDING_MONTHS) }),
+    loadLedgerRange(userId, month, month, { statementsFrom: carryFrom, purchasesFrom: addMonths(currentMonth, -RARE_LOOKBACK_MONTHS) }),
     getMainCurrency(userId),
     getExchanges(userId, month),
     getRecurringIncomes(userId),
@@ -218,7 +218,7 @@ export async function loadForecast(userId: string, today: string) {
   const end = addDays(today, FORECAST_DAYS);
   const endMonth = monthOfKey(end);
   const [{ data: allData, cards }, settings, wallets, allRecurringIncomes] = await Promise.all([
-    loadLedgerRange(userId, currentMonth, endMonth, { statementsFrom: addMonths(currentMonth, -CARRY_UNPAID_MONTHS), purchasesFrom: addMonths(currentMonth, -TYPICAL_SPENDING_MONTHS) }),
+    loadLedgerRange(userId, currentMonth, endMonth, { statementsFrom: addMonths(currentMonth, -CARRY_UNPAID_MONTHS), purchasesFrom: addMonths(currentMonth, -RARE_LOOKBACK_MONTHS) }),
     getUserSettings(userId),
     getCashWallets(userId),
     getRecurringIncomes(userId),

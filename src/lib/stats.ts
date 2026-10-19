@@ -279,6 +279,9 @@ function otherCurrenciesNote(others: OtherCurrencyTotals[], field: Exclude<keyof
 
 const everydayNote = ({ typicalDay, currency }: StatContext, messages: Messages) => [
   format(messages.explain.everydayNote, { days: typicalDay.days }),
+  typicalDay.rare.names.length > 0 ? format(messages.explain.rareNote, {
+    items: typicalDay.rare.names.join(", "), months: Math.round(typicalDay.rare.spreadDays / DAYS_PER_MONTH),
+  }) : null,
   typicalDay.estimateShare > 0 ? format(messages.explain.estimateNote, {
     percent: Math.round(typicalDay.estimateShare * 100), amount: formatCents(typicalDay.estimateMonthlyCents, currency), real: formatCents(typicalDay.realCents, currency),
   }) : null,
