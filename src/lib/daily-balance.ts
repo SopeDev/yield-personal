@@ -44,10 +44,21 @@ export function dailyNet({ month, today, entries, incomes, finishedOnly = false 
 /** Full months before the current one pooled into typical daily spending. */
 export const TYPICAL_SPENDING_MONTHS = 3;
 
+/** How far back things bought rarely are averaged, and the least they're spread over (see `windowSpending`). */
+export const RARE_LOOKBACK_DAYS = 365;
+/** Months of purchases loaded for it: a year back. */
+export const RARE_LOOKBACK_MONTHS = 12;
+export const RARE_MIN_DAYS = 90;
+/** An item bought less often than once in this many days, or only once, is bought rarely. */
+const RARE_GAP_DAYS = 30;
+/** A rare item is spread out only when big for its category: this many times the category's middle purchase or more. */
+const RARE_SIZE_FACTOR = 2;
+
 /**
  * What an ordinary day costs: everyday purchases (as in `dailyNet`: everyday categories, without
  * recurring bills or installments of earlier purchases) from the last full months through yesterday (finished days only), divided by
- * those days. Months before `historyStart` are skipped, since they may hold only partial records.
+ * those days, with things bought rarely spread over their own longer span (`windowSpending`). Months before
+ * `historyStart` are skipped, since they may hold only partial records.
  * `excludeCategoryIds` leaves out categories that aren't spent every day, like the costs of working.
  */
 export function typicalDailySpending({ purchases, today, historyStart = null, excludeCategoryIds = [], estimates = [] }: {
@@ -59,11 +70,69 @@ export function typicalDailySpending({ purchases, today, historyStart = null, ex
   /** Monthly estimates per category, blended in while there's little history (`blendWithEstimate`). */
   estimates?: CategoryEstimate[];
 }) {
-  const { fromKey, toKey, days } = historyWindow(today, historyStart);
+  const { days } = historyWindow(today, historyStart);
   const estimateMonthlyCents = estimates.filter((estimate) => !excludeCategoryIds.includes(estimate.categoryId)).reduce((sum, estimate) => sum + estimate.monthlyCents, 0);
-  if (days < 1) return { days: 0, ...blendWithEstimate(0, 0, estimateMonthlyCents) };
-  const spentCents = everydaySpending(purchases, { fromKey, toKey, include: (categoryId) => !excludeCategoryIds.includes(categoryId) });
-  return { days, ...blendWithEstimate(spentCents / days, days, estimateMonthlyCents) };
+  if (days < 1) return { days: 0, rare: { names: [], spreadDays: 0 }, ...blendWithEstimate(0, 0, estimateMonthlyCents) };
+  const spent = windowSpending(purchases, { today, historyStart, include: (categoryId) => !excludeCategoryIds.includes(categoryId) });
+  return { days, rare: { names: spent.rareNames, spreadDays: spent.rareDays }, ...blendWithEstimate(spent.cents / days, days, estimateMonthlyCents) };
+}
+
+/**
+ * Everyday spending over the history window (`historyWindow`), with big things bought rarely counted at their own
+ * pace. An item bought often (gas, coffee) counts as bought in the window. An item bought rarely (only once, or less
+ * than monthly) that's big for its category (twice its middle purchase or more, like brakes beside gas) is averaged
+ * over the last year instead, from `historyStart` on, and spread over at least 3 months even with less history: one
+ * set of brakes in a few weeks isn't a set every few weeks. That pace, over the window's days, is what it adds. Small
+ * things bought once (a new restaurant) stay as bought: together they're everyday spending. Items are told apart by
+ * name, whatever their category.
+ */
+export function windowSpending(purchases: Pick<LedgerPurchase, "date" | "amountCents" | "installmentCount" | "item" | "planned">[], { today, historyStart = null, include }: {
+  today: string;
+  historyStart?: string | null;
+  include: (categoryId: string) => boolean;
+}) {
+  const { fromKey, toKey, days } = historyWindow(today, historyStart);
+  const start = historyStart && historyStart.length === 7 ? `${historyStart}-01` : historyStart;
+  const yearBack = new Date(Date.parse(`${toKey}T00:00:00Z`) - (RARE_LOOKBACK_DAYS - 1) * 86_400_000).toISOString().slice(0, 10);
+  const longFrom = start && start > yearBack ? start : yearBack;
+  const longDays = Math.max(1, Math.round((Date.parse(`${toKey}T00:00:00Z`) - Date.parse(`${longFrom}T00:00:00Z`)) / 86_400_000) + 1);
+  const amountOf = (purchase: Pick<LedgerPurchase, "date" | "amountCents" | "installmentCount">) => consumptionInMonth(purchase, monthKeyOf(purchase.date))?.amountCents ?? 0;
+
+  const byItem = new Map<string, { name: string; categoryId: string; count: number; longCents: number; windowCents: number }>();
+  const amountsByCategory = new Map<string, number[]>();
+  for (const purchase of purchases) {
+    const day = dateKeyOf(purchase.date);
+    if (purchase.planned || !isEveryday(purchase.item.category) || !include(purchase.item.category.id) || day < longFrom || day > toKey) continue;
+    amountsByCategory.set(purchase.item.category.id, [...(amountsByCategory.get(purchase.item.category.id) ?? []), amountOf(purchase)]);
+    const entry = byItem.get(purchase.item.id) ?? { name: purchase.item.name, categoryId: purchase.item.category.id, count: 0, longCents: 0, windowCents: 0 };
+    entry.count += 1;
+    entry.longCents += amountOf(purchase);
+    if (day >= fromKey) entry.windowCents += amountOf(purchase);
+    byItem.set(purchase.item.id, entry);
+  }
+  const rareDays = Math.min(RARE_LOOKBACK_DAYS, Math.max(RARE_MIN_DAYS, longDays));
+  let cents = 0;
+  const rareNames: string[] = [];
+  for (const entry of byItem.values()) {
+    const rare = (entry.count === 1 || longDays / entry.count > RARE_GAP_DAYS)
+      && entry.longCents / entry.count >= RARE_SIZE_FACTOR * median(amountsByCategory.get(entry.categoryId) ?? []);
+    if (!rare) {
+      cents += entry.windowCents;
+    } else {
+      cents += (entry.longCents / rareDays) * days;
+      // Named only when the window itself holds it, as the things that make its typical day.
+      if (entry.windowCents > 0) rareNames.push(entry.name);
+    }
+  }
+  return { cents: Math.round(cents), fromKey, toKey, days, rareDays, rareNames };
+}
+
+/** The middle value (the mean of the two middle ones for an even count); 0 for none. */
+function median(values: number[]) {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 1 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
 }
 
 /** A category's estimated monthly spending, from the setup wizard. */
@@ -298,7 +367,8 @@ export function daysOff({ month, today, historyStart = null, purchases, incomes,
   const worked = incomes.filter((income) => dateKeyOf(income.date) >= fromKey && dateKeyOf(income.date) <= toKey);
   const workDays = new Set(worked.map((income) => dateKeyOf(income.date))).size;
   const grossCents = worked.reduce((sum, income) => sum + income.amountCents, 0);
-  const workCostCents = everydaySpending(purchases, { fromKey, toKey, include: (categoryId) => workCategoryIds.includes(categoryId) });
+  // Things bought rarely for work (like brakes) count at their own pace, as in typical spending.
+  const workCostCents = windowSpending(purchases, { today, historyStart, include: (categoryId) => workCategoryIds.includes(categoryId) }).cents;
   // Net earned over all the days worked; per day worked it is this ÷ workDays, kept whole to round exactly.
   const netCents = grossCents - workCostCents;
   if (workDays === 0 || netCents <= 0) return null;

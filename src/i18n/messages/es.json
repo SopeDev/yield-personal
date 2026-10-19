@@ -579,6 +579,7 @@
     "changeSettings": "Cambiar ajustes"
   },
   "explain": {
+    "rareNote": "Las cosas grandes que compras rara vez, como {items}, cuentan repartidas en {months} meses, no como si se repitieran cada pocas semanas.",
     "expectedInPace": "Ritmo que reemplazan los pagos esperados",
     "expectedInPaceNote": "Los pagos esperados de una fuente que tu ritmo ya cuenta reemplazan la parte de esa fuente en el ritmo de su día, así no se cuentan dos veces.",
     "plannedPurchases": "Compras planeadas en efectivo ({count})",
