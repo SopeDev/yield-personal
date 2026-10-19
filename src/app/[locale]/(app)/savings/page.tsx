@@ -94,6 +94,19 @@ export default async function SavingsPage({ params }: PageProps<"/[locale]/savin
           <Money cents={average.totalCents} />
         </li>
       </ul>
+      {average.excluded.length > 0 ? (
+        <div className="space-y-2 border-t border-border px-4 py-3">
+          <p className="text-xs font-medium text-muted-foreground">{messages.savings.workCostsOut}</p>
+          <ul className="space-y-1">
+            {average.excluded.map(({ category, averageCents }) => (
+              <li className="flex items-center justify-between gap-3 text-sm text-muted-foreground" key={category.id}>
+                <span>{categoryLabel(category, messages.categories)}</span>
+                <Money cents={averageCents} />
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       <p className="border-t border-border px-4 py-3 text-xs text-muted-foreground">{messages.savings.excludedNote}</p>
     </>
   );
@@ -129,6 +142,11 @@ export default async function SavingsPage({ params }: PageProps<"/[locale]/savin
                     {averageBreakdown}
                   </InfoDialog>{" "}
                   <span className="text-muted-foreground">{format(messages.savings.timesMonths, { months: emergency.coverMonths })}</span>
+                  {average.excluded.length > 0 ? (
+                    <span className="block text-xs text-muted-foreground">
+                      {format(messages.savings.withoutWorkCosts, { categories: average.excluded.map(({ category }) => categoryLabel(category, messages.categories)).join(", ") })}
+                    </span>
+                  ) : null}
                 </dt>
                 <dd><Money cents={emergency.emergencyCents} /></dd>
               </div>

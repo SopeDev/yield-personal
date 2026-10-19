@@ -32,3 +32,9 @@ test("reproduces the spreadsheet's average monthly spending", () => {
 test("returns zero with no spending", () => {
   assert.equal(averageMonthlySpending([]).totalCents, 0);
 });
+
+test("work costs are averaged apart and left out of the total", () => {
+  const months = [{ month: "2026-10" as MonthKey, byCategory: [{ category: food, totalCents: 400000 }, { category: car, totalCents: 800000 }] }];
+  const average = averageMonthlySpending(months, { excludeCategoryIds: ["car"] });
+  assert.deepEqual([average.totalCents, average.byCategory.map((item) => item.category.id), average.excluded.map((item) => [item.category.id, item.averageCents])], [400000, ["food"], [["car", 800000]]]);
+});

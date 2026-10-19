@@ -426,6 +426,8 @@
     "archiveGoal": "Archive goal",
     "confirmArchiveGoal": "Archive this goal? Its movements stay in your history.",
     "settings": "Settings",
+    "withoutWorkCosts": "Without work costs: {categories}",
+    "workCostsOut": "Left out as work costs (your income groups deduct them): they stop if the income stops.",
     "excludedNote": "Categories set to not count in the average (like Extras) are left out.",
     "growth": "Interest and deposits",
     "rate": "Annual interest rate (%)",

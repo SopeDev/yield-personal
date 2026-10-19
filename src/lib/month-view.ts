@@ -139,10 +139,14 @@ export function summaryCardFor(card: SummaryCardId, { view, today, settings, cas
   return { context, layout: cardLayout(card, settings.summaryCards, context) };
 }
 
-/** Average monthly spending over the given months, skipping those before `historyStart` (they may hold only partial records). */
-function averageSince(months: MonthSummary[], historyStart: MonthKey | null) {
+/**
+ * Average monthly spending over the given months, skipping those before `historyStart` (they may hold only partial
+ * records), without `excludeCategoryIds`.
+ */
+function averageSince(months: MonthSummary[], historyStart: MonthKey | null, excludeCategoryIds: string[] = []) {
   return averageMonthlySpending(
     months.filter((month) => !historyStart || month.month >= historyStart).map((month) => ({ month: month.month, byCategory: month.spending.byCategory })),
+    { excludeCategoryIds },
   );
 }
 
@@ -159,7 +163,10 @@ export async function loadYearView(userId: string, endMonth: MonthKey) {
 /** Savings funds with balances, and the emergency fund goal from average spending and installments owed. */
 export async function loadSavingsView(userId: string, currentMonth: MonthKey) {
   const [{ data, months, allSavingsMovements }, funds, { historyStartMonth }] = await Promise.all([loadYearView(userId, currentMonth), getSavingsFunds(userId), getUserSettings(userId)]);
-  const average = averageSince(months, historyStartMonth);
+  // The emergency fund covers living without income, so the costs of working (the categories income groups deduct,
+  // like gas for rideshare) stay out: they stop with the work, as days off count them.
+  const workCategoryIds = [...new Set(data.incomeGroups.flatMap((group) => group.deductCategoryIds))];
+  const average = averageSince(months, historyStartMonth, workCategoryIds);
   const installmentsOwedCents = installmentsOwed(data.statements);
 
   return {
