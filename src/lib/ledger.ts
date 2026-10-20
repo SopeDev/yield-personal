@@ -33,6 +33,8 @@ export type LedgerIncome = {
   expectedOn?: Date | null;
   /** Not received yet: expected on its date, until confirmed (`incomes.expected`). */
   expected?: boolean;
+  /** For expected income in another currency counted in the main one at today's rate: its own amount. */
+  original?: { currency: string; cents: number };
 };
 
 export type MonthSpendingEntry = {

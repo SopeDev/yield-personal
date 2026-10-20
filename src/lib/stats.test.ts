@@ -490,3 +490,19 @@ test("a payment expected from today on counts as coming income, a late one stops
   assert.equal(ctx.projected?.expectedOverlapCents, freelanceShare);
   for (const ref of ["expectedIncome", "projectedBalance", "neededPerDay"] as const) assertWorkingAddsUp(ref, ctx);
 });
+
+test("a payment expected in another currency counts converted, names its own amount, and replaces none of the pace", () => {
+  const freelance = { id: "freelance", name: "Freelance", groupId: null };
+  const data: LedgerData = {
+    categories: [food], purchases: [], incomes: [income("f0", "2026-10-03", 90000, freelance)],
+    incomeGroups: [], definitions: [], overrides: [], recurringHistory: [], statements: [], savingsMovements: [],
+  };
+  const converted: LedgerIncome = { ...income("usd", "2026-10-30", 364000, freelance), currency: "USD", expected: true, original: { currency: "USD", cents: 20000 } };
+  const ctx = monthStatContext({ view: { ...summarizeMonth(data, "2026-10"), purchases: [], recentIncomes: data.incomes, expectedIncomes: [converted] }, today: "2026-10-20", settings: noSettings });
+  assert.equal(ctx.expected.cents, 364000);
+  assert.equal(ctx.projected?.expectedOverlapCents, 0);
+  const working = explainStat("expectedIncome", ctx, en, "en");
+  assert.equal(working.blocks[0][0].label, "Freelance (US$200.00) · Oct 30");
+  assert.ok(working.notes.includes(en.explain.expectedConverted));
+  assertWorkingAddsUp("expectedIncome", ctx);
+});

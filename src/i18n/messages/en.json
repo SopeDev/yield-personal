@@ -579,6 +579,7 @@
     "changeSettings": "Change settings"
   },
   "explain": {
+    "expectedConverted": "Payments expected in other currencies count at today's exchange rate.",
     "rareNote": "Big things you buy rarely, like {items}, count spread over {months} months, not as if they came back every few weeks.",
     "expectedInPace": "Pace the expected payments take the place of",
     "expectedInPaceNote": "Expected payments from a source your pace already counts take the place of that source's share of the pace on their day, so it isn't counted twice.",

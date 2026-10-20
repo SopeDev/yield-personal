@@ -46,6 +46,14 @@ export async function loadMonthView(userId: string, month: MonthKey, currentMont
   });
   const [main, ...others] = byCurrency;
   const summaries = byCurrency.map((entry) => entry.summary);
+  // Expected income in other currencies is coming money too: like the balances it will join, it counts in the main
+  // currency at today's rate (one in a currency with no rate known is left out).
+  const otherExpected = others.flatMap(({ data: currencyData }) => (currencyData.expectedIncomes ?? []).filter((income) => monthKeyOf(income.date) === month));
+  const expectedRates = otherExpected.length > 0 ? await loadExchangeRates(currency, otherExpected.map((income) => income.currency ?? currency)) : new Map();
+  const convertedExpected = otherExpected.flatMap((income) => {
+    const rate = expectedRates.get(income.currency ?? currency);
+    return rate ? [{ ...income, amountCents: convertCents(income.amountCents, rate.rate), original: { currency: income.currency!, cents: income.amountCents } }] : [];
+  });
   const newestFirst = <T,>(items: T[], date: (item: T) => Date) => items.sort((a, b) => date(b).getTime() - date(a).getTime());
   const byClosingDate = (a: { closingDate: Date }, b: { closingDate: Date }) => a.closingDate.getTime() - b.closingDate.getTime();
 
@@ -59,7 +67,7 @@ export async function loadMonthView(userId: string, month: MonthKey, currentMont
     incomeGroupDefs: main.data.incomeGroups,
     recurringIncomes: recurringIncomes.filter((recurring) => (recurring.currency ?? currency) === currency),
     // One-off income expected this month in the main currency (like a client's payment), counted as coming.
-    expectedIncomes: (main.data.expectedIncomes ?? []).filter((income) => monthKeyOf(income.date) === month),
+    expectedIncomes: [...(main.data.expectedIncomes ?? []).filter((income) => monthKeyOf(income.date) === month), ...convertedExpected],
     lists: {
       entries: newestFirst(summaries.flatMap((summary) => summary.entries), (entry) => entry.purchase.date),
       incomes: newestFirst(summaries.flatMap((summary) => summary.incomes), (income) => income.date),
@@ -256,6 +264,15 @@ export async function loadForecast(userId: string, today: string) {
   // the same way, converted (one in a currency with no rate known is left out, like its wallet).
   const otherCurrencies = currenciesIn(allData, currency).filter((code) => code !== currency);
   const billRates = await loadExchangeRates(currency, otherCurrencies);
+  // Expected income in other currencies arrives the same way, converted; it's no part of the main currency's pace.
+  const otherIncomeEvents = otherCurrencies.flatMap((code) => {
+    const rate = billRates.get(code);
+    if (!rate) return [];
+    return expectedIncomeEvents(forCurrency(allData, code, currency).expectedIncomes ?? [], { today, end, sourcePaceCents: () => 0, inPace: () => false }).map((event) => ({
+      event: { ...event, label: `${event.label} (${formatCents(event.cents, code, true)})`, cents: convertCents(event.cents, rate.rate) },
+      conversion: { currency: code, rate: rate.rate, date: rate.date },
+    }));
+  });
   const otherBillEvents = otherCurrencies.flatMap((code) => {
     const rate = billRates.get(code);
     if (!rate) return [];
@@ -282,6 +299,7 @@ export async function loadForecast(userId: string, today: string) {
   const events = [
     ...billEvents(occurrences, { today, end }),
     ...otherBillEvents.map(({ event }) => event),
+    ...otherIncomeEvents.map(({ event }) => event),
     ...cardEvents,
     ...paydayEvents(months.flatMap((month) => expectedPaydays(recurringIncomes, data.incomes, month)), { today, end }),
     ...plannedPurchaseEvents(data.purchases, { today, end }),
@@ -313,6 +331,7 @@ export async function loadForecast(userId: string, today: string) {
       ...otherCash.flatMap((cash) => (cash.converted ? [{ currency: cash.currency, rate: cash.converted.rate, date: cash.converted.date }] : [])),
       ...funds.flatMap((fund) => (fund.converted ? [fund.converted] : [])),
       ...otherBillEvents.map(({ conversion }) => conversion),
+      ...otherIncomeEvents.map(({ conversion }) => conversion),
     ]),
     paceDailyCents: pace.cents,
     cashDailyCents: cashDaily.cents,
