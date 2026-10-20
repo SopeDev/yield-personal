@@ -136,8 +136,9 @@ export function monthStatContext({ view, today, settings, cashOnHandCents = null
   const paceIncomes = (view.recentIncomes ?? incomes).filter((item) => !item.recurringIncomeId && !recurringSourceIds.has(item.source.id));
   const pace = incomePace({ incomes: paceIncomes, today, historyStart, estimateMonthlyCents: estimates.incomeMonthlyCents });
   // Expected income from a source the pace counts takes its place on its day, up to that source's share of the pace.
+  // Income in other currencies (converted) is no part of the pace, so it replaces none of it.
   const expectedOverlapCents = expectedIncomeOverlap({
-    expected: oneOffs, today,
+    expected: oneOffs.filter((item) => !item.original), today,
     sourcePaceCents: (sourceId) => incomePace({ incomes: paceIncomes.filter((item) => item.source.id === sourceId), today, historyStart }).cents,
   });
   const needed = neededPerDay({
@@ -148,7 +149,7 @@ export function monthStatContext({ view, today, settings, cashOnHandCents = null
   const livingDay = typicalDailySpending({ purchases: view.purchases, today, historyStart, excludeCategoryIds: workCategoryIds, estimates: estimates.spending });
   // What today has already brought in (the pace's kind of income) and spent; forecasts add only the rest of an average day.
   // A payment expected today counts as today's income, as it will once confirmed, so confirming it changes nothing.
-  const todayExpected = oneOffs.filter((item) => dateKeyOf(item.date) === today && !recurringSourceIds.has(item.source.id));
+  const todayExpected = oneOffs.filter((item) => dateKeyOf(item.date) === today && !item.original && !recurringSourceIds.has(item.source.id));
   const todayRecords = todaySoFar({ purchases: view.purchases, incomes: [...paceIncomes, ...todayExpected], today });
   return {
     ...view,
@@ -707,10 +708,13 @@ const STATS = {
       return explained(
         [block(
           ...left.map(({ recurring, date }) => amount(format(messages.explain.payday, { source: recurring.source.name, date: formatShortDate(dateFromKey(date), locale) }), recurring.amountCents, "+")),
-          ...expected.oneOffs.map((item) => amount(format(messages.explain.payday, { source: item.source.name, date: formatShortDate(item.date, locale) }), item.amountCents, "+")),
+          ...expected.oneOffs.map((item) => amount(format(messages.explain.payday, {
+            source: item.original ? `${item.source.name} (${formatCents(item.original.cents, item.original.currency, true)})` : item.source.name,
+            date: formatShortDate(item.date, locale),
+          }), item.amountCents, "+")),
           amount(label, expected.cents, "="),
         )],
-        [messages.explain.expectedNote],
+        [messages.explain.expectedNote, expected.oneOffs.some((item) => item.original) && messages.explain.expectedConverted],
       );
     },
   },
