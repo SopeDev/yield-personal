@@ -526,7 +526,7 @@
       "month": "Días en un mes (promedio)"
     },
     "everydayNote": "El gasto cotidiano son las compras en tus categorías del día a día, como en un día típico.",
-    "fullAmountsNote": "Las compras cuentan completas el día que las hiciste. Para lo usual solo cuentan días terminados, de los últimos meses completos.",
+    "fullAmountsNote": "Las compras cuentan el día que las hiciste, y las de meses sin intereses una mensualidad por mes. Para lo usual solo cuentan días terminados, de los últimos meses completos.",
     "netIncome": "Ingreso neto",
     "workday": "día trabajado",
     "spendingOnLabel": "Gasto en {what}",

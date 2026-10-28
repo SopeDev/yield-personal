@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { LedgerItem } from "./ledger";
+import { amountBetween } from "./installments";
 import { dateFromKey } from "./months";
 import { averageSpending, parseSpendingParam, periodStart, spendingParam } from "./spending-average";
 
@@ -38,4 +39,14 @@ test("periods start today, on Monday, or on the 1st; the parameter reads back wh
   assert.deepEqual(parseSpendingParam(spendingParam("week", { kind: "item", id: "cm1abc" })), { period: "week", scope: { kind: "item", id: "cm1abc" } });
   assert.deepEqual(parseSpendingParam("day:all"), { period: "day", scope: { kind: "all" } });
   for (const bad of ["year:all", "week", "week:item.", "week:thing.x", "week:item.a:b"]) assert.equal(parseSpendingParam(bad), null);
+});
+
+test("a purchase in monthly installments counts one installment a month, not all of it the day it was bought", () => {
+  const car = { id: "car", key: "car", name: null, sortOrder: 0, kind: "EVERYDAY" as const };
+  // $5,600 in 10 months bought Oct 20: $560 on Oct 20, Nov 20, … Jul 20.
+  const purchase = { date: dateFromKey("2026-10-20"), amountCents: 560000, installmentCount: 10, item: { id: "llantas", name: "Llantas", category: car } };
+  assert.equal(amountBetween(purchase, "2026-10-01", "2026-10-31"), 56000);
+  assert.equal(amountBetween(purchase, "2026-10-21", "2026-11-19"), 0);
+  assert.equal(amountBetween(purchase, "2026-10-01", "2026-12-31"), 3 * 56000);
+  assert.equal(amountBetween({ ...purchase, installmentCount: 1 }, "2026-10-20", "2026-10-20"), 560000);
 });

@@ -149,6 +149,7 @@ Last updated: 2026-10-10
 - Emergency fund without work costs: its average monthly spending leaves out the categories income groups deduct (gas for rideshare stops with the income), shown apart in its breakdown. Checked against seeded data: the deducted categories averaged apart and the goal lowered by them.
 - Big rare purchases spread out: an item bought rarely and big for its category (brakes beside gas) counts in typical spending at its pace over the past year, at least 3 months, instead of inflating a short history; small one-offs and frequent items unchanged; named in the explanation. Checked with tests (three weeks of gas, one-off meals, and brakes; a year with two sets of brakes) and against seeded data.
 - Expected income in other currencies counts at today's rate in the month's expected income, the projection, and the forecast, labeled with its own amount. Checked against seeded data: US$200 expected at 18.2 adding $3,640 to each, on its date.
+- Installment purchases in averages: net income per day worked and average spending count a purchase in monthly installments one installment a month instead of in full on the day bought, matching the month's figures. Checked with tests.
 
 ## Next
 

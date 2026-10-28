@@ -1,7 +1,7 @@
+import { amountBetween } from "./installments";
 import { isEveryday } from "./categories";
 import { historyWindow } from "./daily-balance";
 import type { LedgerPurchase } from "./ledger";
-import { dateKeyOf } from "./months";
 
 export const SPENDING_PERIODS = ["day", "week", "month"] as const;
 export type SpendingPeriod = (typeof SPENDING_PERIODS)[number];
@@ -47,11 +47,12 @@ export function periodStart(today: string, period: SpendingPeriod) {
 
 /**
  * What's usually spent per period on a scope, from the same finished days typical daily spending looks back over
- * (`historyWindow`), and what's been spent so far in the period under way (today included). Purchases count in full
- * on the day they were made; "all" means everyday spending, as in a typical day.
+ * (`historyWindow`), and what's been spent so far in the period under way (today included). Purchases count on the
+ * day they were made, one in installments by the installments falling in those days (`amountBetween`); "all" means
+ * everyday spending, as in a typical day.
  */
 export function averageSpending({ purchases, today, historyStart = null, period, scope }: {
-  purchases: Pick<LedgerPurchase, "date" | "amountCents" | "item">[];
+  purchases: (Pick<LedgerPurchase, "date" | "amountCents" | "item"> & { installmentCount?: number })[];
   today: string;
   historyStart?: string | null;
   period: SpendingPeriod;
@@ -59,9 +60,7 @@ export function averageSpending({ purchases, today, historyStart = null, period,
 }) {
   const inScope = purchases.filter((purchase) => scope.kind === "all" ? isEveryday(purchase.item.category)
     : scope.kind === "category" ? purchase.item.category.id === scope.id : purchase.item.id === scope.id);
-  const total = (fromKey: string, toKey: string) => inScope
-    .filter((purchase) => dateKeyOf(purchase.date) >= fromKey && dateKeyOf(purchase.date) <= toKey)
-    .reduce((sum, purchase) => sum + purchase.amountCents, 0);
+  const total = (fromKey: string, toKey: string) => inScope.reduce((sum, purchase) => sum + amountBetween(purchase, fromKey, toKey), 0);
   const { fromKey, toKey, days } = historyWindow(today, historyStart);
   const totalCents = days < 1 ? 0 : total(fromKey, toKey);
   // From the rounded day, so the working shown for it adds up.

@@ -526,7 +526,7 @@
       "month": "Days in a month (average)"
     },
     "everydayNote": "Everyday spending is purchases in your everyday categories, as in a typical day.",
-    "fullAmountsNote": "Purchases count in full on the day you made them. Only finished days count toward the usual, from the last few full months.",
+    "fullAmountsNote": "Purchases count on the day you made them, and ones in monthly installments (MSI) one installment a month. Only finished days count toward the usual, from the last few full months.",
     "netIncome": "Net income",
     "workday": "day worked",
     "spendingOnLabel": "{what} spending",
