@@ -1,4 +1,5 @@
 import { historyWindow } from "./daily-balance";
+import { amountBetween } from "./installments";
 import type { LedgerIncome, LedgerPurchase } from "./ledger";
 import { dateKeyOf } from "./months";
 import { PERIOD_DAYS, periodStart } from "./spending-average";
@@ -41,7 +42,7 @@ export function parseIncomeParam<T extends string>(param: string, steps: readonl
 
 type IncomeRecords = {
   incomes: Pick<LedgerIncome, "date" | "amountCents" | "source">[];
-  purchases: Pick<LedgerPurchase, "date" | "amountCents" | "item">[];
+  purchases: (Pick<LedgerPurchase, "date" | "amountCents" | "item"> & { installmentCount?: number })[];
   scope: IncomeScope;
   basis: IncomeBasis;
   /** The categories whose spending comes off net income: the group's, or every group's for all income. */
@@ -49,8 +50,9 @@ type IncomeRecords = {
 };
 
 /**
- * Income in scope from `fromKey` through `toKey`: gross, the deducted categories' purchases (counted in full on the
- * day bought) for net, and the days that had any of it.
+ * Income in scope from `fromKey` through `toKey`: gross, the deducted categories' purchases for net (on the day
+ * bought, or for one in installments, the installments falling in those days: `amountBetween`), and the days that
+ * had any of it.
  */
 export function incomeBetween({ incomes, purchases, scope, basis, deductCategoryIds }: IncomeRecords, fromKey: string, toKey: string) {
   const within = (date: Date) => dateKeyOf(date) >= fromKey && dateKeyOf(date) <= toKey;
@@ -58,8 +60,8 @@ export function incomeBetween({ incomes, purchases, scope, basis, deductCategory
     && (scope.kind === "all" || (scope.kind === "group" ? income.source.groupId === scope.id : income.source.id === scope.id)));
   const grossCents = inScope.reduce((sum, income) => sum + income.amountCents, 0);
   const deductionsCents = basis === "gross" ? 0 : purchases
-    .filter((purchase) => within(purchase.date) && deductCategoryIds.includes(purchase.item.category.id))
-    .reduce((sum, purchase) => sum + purchase.amountCents, 0);
+    .filter((purchase) => deductCategoryIds.includes(purchase.item.category.id))
+    .reduce((sum, purchase) => sum + amountBetween(purchase, fromKey, toKey), 0);
   return { grossCents, deductionsCents, cents: grossCents - deductionsCents, workdays: new Set(inScope.map((income) => dateKeyOf(income.date))).size };
 }
 

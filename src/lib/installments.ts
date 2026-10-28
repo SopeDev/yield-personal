@@ -1,4 +1,4 @@
-import { addMonths, monthDifference, monthKeyOf, type MonthKey } from "./months";
+import { addMonths, dateInMonth, dateKeyOf, monthDifference, monthKeyOf, type MonthKey } from "./months";
 
 export const MAX_INSTALLMENTS = 48;
 
@@ -22,6 +22,21 @@ export function consumptionInMonth(purchase: InstallmentPurchase, month: MonthKe
     amountCents: splitInstallments(purchase.amountCents, purchase.installmentCount)[index],
     installmentNumber: index + 1,
   };
+}
+
+/**
+ * What a purchase counts for from `fromKey` through `toKey` ("YYYY-MM-DD"): each of its installments that falls in
+ * those days, an installment falling on the purchase's day of its month (the full amount on the day bought for one
+ * paid at once). A card purchase in 10 monthly installments counts one a month, never all of it on the day bought.
+ */
+export function amountBetween(purchase: { date: Date; amountCents: number; installmentCount?: number }, fromKey: string, toKey: string) {
+  const start = monthKeyOf(purchase.date);
+  const day = purchase.date.getUTCDate();
+  const amounts = splitInstallments(purchase.amountCents, Math.max(1, purchase.installmentCount ?? 1));
+  return amounts.reduce((sum, cents, index) => {
+    const key = dateKeyOf(dateInMonth(addMonths(start, index), day));
+    return key >= fromKey && key <= toKey ? sum + cents : sum;
+  }, 0);
 }
 
 /** Earliest purchase month whose installments can still reach the given month. */
