@@ -70,7 +70,7 @@ export type SavingsSnapshot = {
 };
 
 /** Money on hand in a wallet of another currency, and what it comes to in the main one when there's a rate for it. */
-export type OtherCash = { currency: string; cents: number; converted?: { cents: number; rate: number; date: string } };
+export type OtherCash = { currency: string; cents: number; converted?: { cents: number; rate: number; date: string; own?: true } };
 
 /** Names of what configurable stats can be about (categories, items, income sources), archived ones included. */
 export type StatNames = {
@@ -824,7 +824,8 @@ const STATS = {
       const converted = otherCash.filter((cash) => cash.converted);
       const otherWallets = unconverted.length > 0
         && format(messages.explain.noRateYet, { amounts: unconverted.map((cash) => formatCents(cash.cents, cash.currency, true)).join(", ") });
-      const ratesNote = converted.length > 0 && format(messages.explain.convertedAt, { date: formatShortDate(dateFromKey(converted[0].converted!.date), locale) });
+      const first = converted[0]?.converted;
+      const ratesNote = first !== undefined && format(first.own ? messages.explain.convertedAtOwn : messages.explain.convertedAt, { date: formatShortDate(dateFromKey(first.date), locale) });
       const mainCents = cashOnHandCents - sum(converted.map((cash) => cash.converted!.cents));
       const inMain = format(messages.explain.inCurrency, { currency });
       // Each other currency's wallet, at its rate, added to the main currency's.

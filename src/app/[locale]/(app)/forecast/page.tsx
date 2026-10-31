@@ -144,7 +144,8 @@ export default async function ForecastPage({ params }: PageProps<"/[locale]/fore
           {forecast.savings ? <p>{m.howSavings}</p> : null}
           {forecast.converted.length > 0 ? (
             <p>{format(m.howConverted, {
-              rates: forecast.converted.map((conversion) => `${currencySymbol(conversion.currency, true)}1 = ${formatCents(Math.round(conversion.rate * 100), currency)}`).join(" · "),
+              rates: forecast.converted.map((conversion) => `${currencySymbol(conversion.currency, true)}1 = ${formatCents(Math.round(conversion.rate * 100), currency)}${
+                conversion.own ? ` (${format(m.ownRate, { date: shortDate(conversion.date, locale) })})` : ""}`).join(" · "),
             })}</p>
           ) : null}
           <p>{format(m.howFaded, { days: FORECAST_SURE_DAYS })}</p>
