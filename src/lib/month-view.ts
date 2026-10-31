@@ -49,7 +49,7 @@ export async function loadMonthView(userId: string, month: MonthKey, currentMont
   // Expected income in other currencies is coming money too: like the balances it will join, it counts in the main
   // currency at today's rate (one in a currency with no rate known is left out).
   const otherExpected = others.flatMap(({ data: currencyData }) => (currencyData.expectedIncomes ?? []).filter((income) => monthKeyOf(income.date) === month));
-  const expectedRates = otherExpected.length > 0 ? await loadExchangeRates(currency, otherExpected.map((income) => income.currency ?? currency)) : new Map();
+  const expectedRates = otherExpected.length > 0 ? await loadExchangeRates(currency, otherExpected.map((income) => income.currency ?? currency), userId) : new Map();
   const convertedExpected = otherExpected.flatMap((income) => {
     const rate = expectedRates.get(income.currency ?? currency);
     return rate ? [{ ...income, amountCents: convertCents(income.amountCents, rate.rate), original: { currency: income.currency!, cents: income.amountCents } }] : [];
@@ -99,7 +99,7 @@ export function splitCash(balances: Awaited<ReturnType<typeof loadCashOnHand>>, 
   const mainCents = counted.find((cash) => cash.currency === mainCurrency)?.cents ?? null;
   const otherCash: OtherCash[] = counted.filter((cash) => cash.currency !== mainCurrency).map((cash) => {
     const rate = rates.get(cash.currency);
-    return rate ? { ...cash, converted: { cents: convertCents(cash.cents, rate.rate), rate: rate.rate, date: rate.date } } : cash;
+    return rate ? { ...cash, converted: { cents: convertCents(cash.cents, rate.rate), rate: rate.rate, date: rate.date, ...(rate.own ? { own: true as const } : {}) } } : cash;
   });
   const convertedCents = otherCash.reduce((sum, cash) => sum + (cash.converted?.cents ?? 0), 0);
   const anyConverted = otherCash.some((cash) => cash.converted);
@@ -114,7 +114,7 @@ export function splitCash(balances: Awaited<ReturnType<typeof loadCashOnHand>>, 
 export async function loadCash(userId: string, wallets: Awaited<ReturnType<typeof getCashWallets>>, mainCurrency: string) {
   const [balances, rates] = await Promise.all([
     loadCashOnHand(userId, wallets),
-    loadExchangeRates(mainCurrency, wallets.map((wallet) => wallet.currency)),
+    loadExchangeRates(mainCurrency, wallets.map((wallet) => wallet.currency), userId),
   ]);
   return splitCash(balances, mainCurrency, rates);
 }
@@ -199,7 +199,7 @@ export async function loadSavingsView(userId: string, currentMonth: MonthKey) {
  */
 export async function loadSavingsSnapshot(userId: string, currentMonth: MonthKey, mainCurrency: string): Promise<SavingsSnapshot> {
   const { funds, installmentsOwedCents } = await loadSavingsView(userId, currentMonth);
-  const rates = await loadExchangeRates(mainCurrency, funds.map((fund) => fund.currency));
+  const rates = await loadExchangeRates(mainCurrency, funds.map((fund) => fund.currency), userId);
   const counted = funds.flatMap((fund) => {
     if (fund.currency === mainCurrency) return [{ ...fund, original: null as { currency: string; cents: number } | null }];
     const rate = rates.get(fund.currency);
@@ -263,14 +263,14 @@ export async function loadForecast(userId: string, today: string) {
   // Cash bills in other currencies are paid from those wallets, which count in cash at today's rate: they leave it
   // the same way, converted (one in a currency with no rate known is left out, like its wallet).
   const otherCurrencies = currenciesIn(allData, currency).filter((code) => code !== currency);
-  const billRates = await loadExchangeRates(currency, otherCurrencies);
+  const billRates = await loadExchangeRates(currency, otherCurrencies, userId);
   // Expected income in other currencies arrives the same way, converted; it's no part of the main currency's pace.
   const otherIncomeEvents = otherCurrencies.flatMap((code) => {
     const rate = billRates.get(code);
     if (!rate) return [];
     return expectedIncomeEvents(forCurrency(allData, code, currency).expectedIncomes ?? [], { today, end, sourcePaceCents: () => 0, inPace: () => false }).map((event) => ({
       event: { ...event, label: `${event.label} (${formatCents(event.cents, code, true)})`, cents: convertCents(event.cents, rate.rate) },
-      conversion: { currency: code, rate: rate.rate, date: rate.date },
+      conversion: { currency: code, rate: rate.rate, date: rate.date, own: rate.own },
     }));
   });
   const otherBillEvents = otherCurrencies.flatMap((code) => {
@@ -278,7 +278,7 @@ export async function loadForecast(userId: string, today: string) {
     if (!rate) return [];
     return billEvents(occurrencesOf(forCurrency(allData, code, currency)), { today, end }).map((event) => ({
       event: { ...event, label: `${event.label} (${formatCents(-event.cents, code, true)})`, cents: -convertCents(-event.cents, rate.rate) },
-      conversion: { currency: code, rate: rate.rate, date: rate.date },
+      conversion: { currency: code, rate: rate.rate, date: rate.date, own: rate.own },
     }));
   });
   const cardEvents = cards
@@ -328,7 +328,7 @@ export async function loadForecast(userId: string, today: string) {
     startCents: cashOnHandCents,
     // Other currencies counted at today's rate, in cash and in savings, to say so.
     converted: conversionsUsed([
-      ...otherCash.flatMap((cash) => (cash.converted ? [{ currency: cash.currency, rate: cash.converted.rate, date: cash.converted.date }] : [])),
+      ...otherCash.flatMap((cash) => (cash.converted ? [{ currency: cash.currency, rate: cash.converted.rate, date: cash.converted.date, own: cash.converted.own }] : [])),
       ...funds.flatMap((fund) => (fund.converted ? [fund.converted] : [])),
       ...otherBillEvents.map(({ conversion }) => conversion),
       ...otherIncomeEvents.map(({ conversion }) => conversion),
@@ -340,7 +340,7 @@ export async function loadForecast(userId: string, today: string) {
 }
 
 /** Each currency converted once, by code. */
-function conversionsUsed(conversions: { currency: string; rate: number; date: string }[]) {
+function conversionsUsed(conversions: { currency: string; rate: number; date: string; own?: true }[]) {
   return [...new Map(conversions.map((conversion) => [conversion.currency, conversion])).values()].sort((a, b) => a.currency.localeCompare(b.currency));
 }
 
@@ -349,9 +349,9 @@ function conversionsUsed(conversions: { currency: string; rate: number; date: st
  * movements), its interest rates, and its planned deposit (with the days a deposit already made). Funds in other
  * currencies are counted at today's rate; one with no rate known is left out.
  */
-async function growingFunds(userId: string, currency: string, today: string): Promise<(GrowingFund & { converted?: { currency: string; rate: number; date: string } })[]> {
+async function growingFunds(userId: string, currency: string, today: string): Promise<(GrowingFund & { converted?: { currency: string; rate: number; date: string; own?: true } })[]> {
   const all = await getSavingsFunds(userId);
-  const rates = await loadExchangeRates(currency, all.map((fund) => fund.currency));
+  const rates = await loadExchangeRates(currency, all.map((fund) => fund.currency), userId);
   const funds = all.filter((fund) => fund.currency === currency || rates.has(fund.currency));
   if (funds.length === 0) return [];
   const movements = await db.savingsMovement.findMany({ where: { userId, fundId: { in: funds.map((fund) => fund.id) } }, select: { fundId: true, amountCents: true, date: true } });
@@ -380,7 +380,7 @@ async function growingFunds(userId: string, currency: string, today: string): Pr
       // they aren't moved again, and those partly made, which move only the rest.
       doneDates: made.flatMap(([day, match]) => (match?.complete ? [day] : [])),
       partlyMade: Object.fromEntries(made.flatMap(([day, match]) => (match && !match.complete ? [[day, inMain(match.amountCents)]] : []))),
-      ...(rate ? { converted: { currency: fund.currency, rate: rate.rate, date: rate.date } } : {}),
+      ...(rate ? { converted: { currency: fund.currency, rate: rate.rate, date: rate.date, own: rate.own } } : {}),
     };
   });
 }

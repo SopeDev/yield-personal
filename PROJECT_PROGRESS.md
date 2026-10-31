@@ -150,6 +150,7 @@ Last updated: 2026-10-10
 - Big rare purchases spread out: an item bought rarely and big for its category (brakes beside gas) counts in typical spending at its pace over the past year, at least 3 months, instead of inflating a short history; small one-offs and frequent items unchanged; named in the explanation. Checked with tests (three weeks of gas, one-off meals, and brakes; a year with two sets of brakes) and against seeded data.
 - Expected income in other currencies counts at today's rate in the month's expected income, the projection, and the forecast, labeled with its own amount. Checked against seeded data: US$200 expected at 18.2 adding $3,640 to each, on its date.
 - Installment purchases in averages: net income per day worked and average spending count a purchase in monthly installments one installment a month instead of in full on the day bought, matching the month's figures. Checked with tests.
+- Own exchange rate: money in other currencies counts at the rate of the user's latest exchange (within 60 days) instead of the reference rate, so buying dollars no longer makes cash on hand jump. Checked with tests and against seeded data: buying US$525 at 17.30 leaves cash unmoved but for revaluing the dollars already held to that rate.
 
 ## Next
 
