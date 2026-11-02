@@ -1,7 +1,7 @@
 import "server-only";
 
 import { db } from "@/db/client";
-import { dateFromKey, dateKeyOf } from "@/lib/months";
+import { dateFromKey, dateInMonth, dateKeyOf, monthRange, type MonthKey } from "@/lib/months";
 import { todayKey } from "@/lib/today";
 import { ownRate, OWN_RATE_DAYS, parseRateResponse, type ExchangeRate, type ExchangeRates } from "./currency-conversion";
 
@@ -37,6 +37,40 @@ export async function loadExchangeRates(main: string, currencies: string[], user
   if (reference.length === 0) return rates;
   await addReferenceRates(main, reference, rates);
   return rates;
+}
+
+/**
+ * Rates for counting each month's records in other currencies in the main one (`inMainCurrency`), by month: the
+ * rate of the user's latest exchange dated in that month (what that month's dollars really cost), else the current
+ * rate (`loadExchangeRates`). A month with an exchange of its own keeps its figures as the rate moves on.
+ */
+export async function loadMonthRates(userId: string, main: string, currencies: string[], months: MonthKey[]): Promise<Map<MonthKey, ExchangeRates>> {
+  const others = [...new Set(currencies)].filter((currency) => currency !== main);
+  const byMonth = new Map<MonthKey, ExchangeRates>(months.map((month) => [month, new Map()]));
+  if (others.length === 0 || months.length === 0) return byMonth;
+  const sorted = [...months].sort();
+  const [current, exchanges] = await Promise.all([
+    loadExchangeRates(main, others, userId),
+    db.currencyExchange.findMany({
+      where: {
+        userId, date: { gte: monthRange(sorted[0]).start, lt: monthRange(sorted.at(-1)!).end },
+        OR: [{ fromCurrency: main, toCurrency: { in: others } }, { toCurrency: main, fromCurrency: { in: others } }],
+      },
+      select: { date: true, createdAt: true, fromCurrency: true, toCurrency: true, fromCents: true, toCents: true },
+    }),
+  ]);
+  const dated = exchanges.map((exchange) => ({ ...exchange, date: dateKeyOf(exchange.date) }));
+  for (const month of months) {
+    const rates = byMonth.get(month)!;
+    const lastDay = dateKeyOf(dateInMonth(month, 31));
+    for (const currency of others) {
+      // Only exchanges in the month itself: `ownRate` looks back from its last day, so earlier ones are left out.
+      const own = ownRate(dated.filter((exchange) => exchange.date >= `${month}-01`), main, currency, lastDay);
+      const rate = own ?? current.get(currency);
+      if (rate) rates.set(currency, rate);
+    }
+  }
+  return byMonth;
 }
 
 /** Reference rates for `others` into `rates`: stored while fresh, else fetched, else the last stored. */

@@ -16,7 +16,8 @@ import { DEPOSIT_MATCH_DAYS, depositDays, matchDeposits, projectSavings, type De
 import { installmentsOwed } from "@/lib/statements";
 import { convertCents, type ExchangeRates } from "@/lib/currency-conversion";
 import { formatCents } from "@/lib/money";
-import { loadExchangeRates } from "@/lib/exchange-rates";
+import { loadExchangeRates, loadMonthRates } from "@/lib/exchange-rates";
+import { inMainCurrency } from "@/lib/currency-merge";
 
 /** The year view and averages cover the last 12 months, ending with the given month. */
 export const YEAR_MONTHS = 12;
@@ -28,8 +29,9 @@ export const CARRY_UNPAID_MONTHS = 12;
  * The current month also carries unpaid statements and cash bills from earlier months; other months show only
  * their own. Recent purchases and incomes are loaded too, for typical daily spending and the pace of work.
  *
- * Records are never converted: the month's figures (and `purchases`, for typical spending) are the main
- * currency's, `lists` holds the records of every currency to list them, and `others` totals each other currency.
+ * The month's figures (and `purchases`, for typical spending) count every currency in the main one, others converted
+ * at the month's rate (`inMainCurrency`); `lists` holds the records in their own currencies to list them, and
+ * `others` totals each currency with no rate known.
  * Recurring income's paydays are listed in every currency; only the main currency's are expected in the figures.
  */
 export async function loadMonthView(userId: string, month: MonthKey, currentMonth: MonthKey) {
@@ -46,28 +48,25 @@ export async function loadMonthView(userId: string, month: MonthKey, currentMont
   });
   const [main, ...others] = byCurrency;
   const summaries = byCurrency.map((entry) => entry.summary);
-  // Expected income in other currencies is coming money too: like the balances it will join, it counts in the main
-  // currency at today's rate (one in a currency with no rate known is left out).
-  const otherExpected = others.flatMap(({ data: currencyData }) => (currencyData.expectedIncomes ?? []).filter((income) => monthKeyOf(income.date) === month));
-  const expectedRates = otherExpected.length > 0 ? await loadExchangeRates(currency, otherExpected.map((income) => income.currency ?? currency), userId) : new Map();
-  const convertedExpected = otherExpected.flatMap((income) => {
-    const rate = expectedRates.get(income.currency ?? currency);
-    return rate ? [{ ...income, amountCents: convertCents(income.amountCents, rate.rate), original: { currency: income.currency!, cents: income.amountCents } }] : [];
-  });
+  // The month's figures count records in other currencies too, converted at what that month's money really cost
+  // (`loadMonthRates`): a rent paid in dollars is part of the month. A currency with no rate is noted beside them.
+  const rates = (await loadMonthRates(userId, currency, others.map((other) => other.currency), [month])).get(month) ?? new Map();
+  const merged = inMainCurrency(data, currency, rates);
+  const figures = summarizeMonth(merged, month, { carryFrom });
   const newestFirst = <T,>(items: T[], date: (item: T) => Date) => items.sort((a, b) => date(b).getTime() - date(a).getTime());
   const byClosingDate = (a: { closingDate: Date }, b: { closingDate: Date }) => a.closingDate.getTime() - b.closingDate.getTime();
 
   return {
-    ...main.summary,
+    ...figures,
     currency,
     cards,
     statements: data.statements,
-    purchases: main.data.purchases,
-    recentIncomes: main.data.incomes,
+    purchases: merged.purchases,
+    recentIncomes: merged.incomes,
     incomeGroupDefs: main.data.incomeGroups,
     recurringIncomes: recurringIncomes.filter((recurring) => (recurring.currency ?? currency) === currency),
-    // One-off income expected this month in the main currency (like a client's payment), counted as coming.
-    expectedIncomes: [...(main.data.expectedIncomes ?? []).filter((income) => monthKeyOf(income.date) === month), ...convertedExpected],
+    // One-off income expected this month (like a client's payment), counted as coming, other currencies converted.
+    expectedIncomes: (merged.expectedIncomes ?? []).filter((income) => monthKeyOf(income.date) === month),
     lists: {
       entries: newestFirst(summaries.flatMap((summary) => summary.entries), (entry) => entry.purchase.date),
       incomes: newestFirst(summaries.flatMap((summary) => summary.incomes), (income) => income.date),
@@ -80,7 +79,8 @@ export async function loadMonthView(userId: string, month: MonthKey, currentMont
       exchanges,
       expectedPaydays: expectedPaydays(recurringIncomes, data.incomes, month),
     },
-    others: others.map(({ currency: code, summary }) => ({
+    // Only currencies with no rate known are left beside the figures.
+    others: others.filter(({ currency: code }) => !rates.has(code)).map(({ currency: code, summary }) => ({
       currency: code,
       incomeCents: summary.income.totalCents,
       spendingCents: summary.spending.totalCents,
@@ -158,12 +158,15 @@ function averageSince(months: MonthSummary[], historyStart: MonthKey | null, exc
   );
 }
 
-/** The year in the main currency (records in other currencies aren't converted into it). */
+/** The year in the main currency, each month's records in other currencies converted at its rate. */
 export async function loadYearView(userId: string, endMonth: MonthKey) {
   const startMonth = addMonths(endMonth, -(YEAR_MONTHS - 1));
   const [{ data: allData }, currency] = await Promise.all([loadLedgerRange(userId, startMonth, endMonth), getMainCurrency(userId)]);
   const data = forCurrency(allData, currency, currency);
-  const months = Array.from({ length: YEAR_MONTHS }, (_, index) => summarizeMonth(data, addMonths(startMonth, index)));
+  // Each month counts its records in other currencies at that month's rate, as the month view does.
+  const monthKeys = Array.from({ length: YEAR_MONTHS }, (_, index) => addMonths(startMonth, index));
+  const rates = await loadMonthRates(userId, currency, currenciesIn(allData, currency), monthKeys);
+  const months = monthKeys.map((month) => summarizeMonth(inMainCurrency(allData, currency, rates.get(month) ?? new Map()), month));
   // Savings funds keep their own currencies, so their movements stay whole.
   return { data, categories: data.categories, months, currency, allSavingsMovements: allData.savingsMovements };
 }
