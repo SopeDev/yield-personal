@@ -579,7 +579,8 @@
     "changeSettings": "Cambiar ajustes"
   },
   "explain": {
-    "expectedConverted": "Los pagos esperados en otras monedas cuentan al tipo de cambio de hoy.",
+    "convertedAtOwn": "Las otras monedas cuentan al tipo de cambio de tu último cambio ({date}), así cambiar dinero nunca mueve tu disponible por sí solo; tras 60 días sin uno, se usa el tipo de referencia.",
+    "expectedConverted": "Los pagos esperados en otras monedas cuentan al tipo de cambio de tu último cambio, o al de referencia si no hay uno reciente.",
     "rareNote": "Las cosas grandes que compras rara vez, como {items}, cuentan repartidas en {months} meses, no como si se repitieran cada pocas semanas.",
     "expectedInPace": "Ritmo que reemplazan los pagos esperados",
     "expectedInPaceNote": "Los pagos esperados de una fuente que tu ritmo ya cuenta reemplazan la parte de esa fuente en el ritmo de su día, así no se cuentan dos veces.",
@@ -589,7 +590,7 @@
     "inCurrency": "En {currency}",
     "atRate": "{amount} a {rate}",
     "convertedAt": "Las otras monedas cuentan al tipo de cambio de referencia del {date} (Banco Central Europeo), y cambian con él.",
-    "savingsConverted": "Los fondos en otras monedas cuentan al tipo de cambio de referencia de hoy (Banco Central Europeo).",
+    "savingsConverted": "Los fondos en otras monedas cuentan al tipo de cambio de tu último cambio, o al de referencia (Banco Central Europeo) si no hay uno reciente.",
     "howCalculated": "Cómo se calcula",
     "aboutBalance": "Lo que te deja el mes: sus ingresos menos todo lo que sale este mes (Salidas).",
     "aboutTotalIncome": "Todo lo que recibiste este mes, y en cuántos días.",
@@ -723,9 +724,10 @@
     "overdueDays": "vencido hace {count} días"
   },
   "forecast": {
+    "ownRate": "tu cambio del {date}",
     "plannedEvent": "{item} · planeado",
     "noEvents": "Un día promedio",
-    "howConverted": "El dinero en otras monedas cuenta al tipo de cambio de hoy: {rates}.",
+    "howConverted": "El dinero en otras monedas cuenta a {rates}.",
     "title": "Pronóstico",
     "subtitle": "Tu dinero disponible en los próximos {days} días, si ingresos y gastos siguen a su ritmo reciente.",
     "cashNow": "Disponible hoy",

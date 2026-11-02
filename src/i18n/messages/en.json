@@ -579,7 +579,8 @@
     "changeSettings": "Change settings"
   },
   "explain": {
-    "expectedConverted": "Payments expected in other currencies count at today's exchange rate.",
+    "convertedAtOwn": "Other currencies count at the rate of your latest exchange ({date}), so changing money never moves your cash by itself; after 60 days without one, the reference rate takes over.",
+    "expectedConverted": "Payments expected in other currencies count at the rate of your latest exchange, or the reference rate without a recent one.",
     "rareNote": "Big things you buy rarely, like {items}, count spread over {months} months, not as if they came back every few weeks.",
     "expectedInPace": "Pace the expected payments take the place of",
     "expectedInPaceNote": "Expected payments from a source your pace already counts take the place of that source's share of the pace on their day, so it isn't counted twice.",
@@ -589,7 +590,7 @@
     "inCurrency": "In {currency}",
     "atRate": "{amount} at {rate}",
     "convertedAt": "Other currencies count at the reference rate of {date} (European Central Bank), and change with it.",
-    "savingsConverted": "Funds in other currencies count at today's reference rate (European Central Bank).",
+    "savingsConverted": "Funds in other currencies count at the rate of your latest exchange, or the reference rate (European Central Bank) without a recent one.",
     "howCalculated": "How it's calculated",
     "aboutBalance": "What the month leaves you: its income minus everything paid out this month (Money out).",
     "aboutTotalIncome": "Everything received this month, and on how many days.",
@@ -723,9 +724,10 @@
     "overdueDays": "{count} days overdue"
   },
   "forecast": {
+    "ownRate": "your exchange of {date}",
     "plannedEvent": "{item} · planned",
     "noEvents": "Just an average day",
-    "howConverted": "Money in other currencies counts at today's rate: {rates}.",
+    "howConverted": "Money in other currencies counts at {rates}.",
     "title": "Forecast",
     "subtitle": "Your cash on hand for the next {days} days, if income and spending keep their recent pace.",
     "cashNow": "Cash now",
