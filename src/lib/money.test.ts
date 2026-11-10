@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { amountAfterInput, currencySymbol, formatAmountInput, formatCents, formatCentsIn, formatWholeUnits, parseAmountToCents } from "./money";
+import { amountAfterInput, currencySymbol, formatAmountInput, formatCents, formatCentsIn, formatWholeUnits, parseAmountToCents, parseOptionalAmountToCents } from "./money";
 
 test("parses amounts into centavos", () => {
   assert.equal(parseAmountToCents("410"), 41000);
@@ -51,4 +51,12 @@ test("the amount input fills from the right, with centavos first", () => {
   // Letters and symbols are ignored, and the amount is capped.
   assert.equal(amountAfterInput(123, "1.23x"), 123);
   assert.equal(amountAfterInput(999_999_999, "9,999,999.999"), 999_999_999);
+});
+
+test("an optional amount: blank or zero is none, a positive amount its cents, anything else invalid", () => {
+  assert.equal(parseOptionalAmountToCents(""), null);
+  assert.equal(parseOptionalAmountToCents("0.00"), null);
+  assert.equal(parseOptionalAmountToCents("0"), null);
+  assert.equal(parseOptionalAmountToCents("1,500.00"), 150000);
+  assert.equal(parseOptionalAmountToCents("abc"), undefined);
 });

@@ -9,7 +9,7 @@ import { seal } from "@/db/encryption";
 import { LOCALE_COOKIE } from "@/i18n/config";
 import { isCategoryKind, type CategoryKind } from "@/lib/categories";
 import { loadCashOnHand } from "@/lib/ledger-data";
-import { isCurrency, parseAmountToCents } from "@/lib/money";
+import { isCurrency, parseAmountToCents, parseOptionalAmountToCents } from "@/lib/money";
 import { isIncomeRhythmKind, parsePayDays } from "@/lib/income-rhythm";
 import { dateFromKey, isDateKey, isMonthKey } from "@/lib/months";
 import { CARD_COLORS, CASH_COLOR, MAX_STATEMENT_DAY } from "@/lib/payment-methods";
@@ -361,14 +361,13 @@ export async function setCurrency(formData: FormData) {
 
 /**
  * Sets the starting estimates: roughly how much is spent a month on each everyday category (`estimate:<id>`), and how
- * much varying income comes in (`incomeEstimate`). A blank one is removed.
+ * much varying income comes in (`incomeEstimate`). One at zero (or blank) is removed.
  */
 export async function setEstimates(_state: FormState, formData: FormData): Promise<FormState> {
   const userId = await requireActionUserId();
   const everyday = await db.category.findMany({ where: { userId, kind: "EVERYDAY", archivedAt: null }, select: { id: true } });
   const amount = (name: string) => {
-    const text = readText(formData, name);
-    return text === "" ? null : parseAmountToCents(text) ?? undefined;
+    return parseOptionalAmountToCents(readText(formData, name));
   };
   const estimates = everyday.map((category) => ({ id: category.id, cents: amount(`estimate:${category.id}`) }));
   const incomeCents = amount("incomeEstimate");

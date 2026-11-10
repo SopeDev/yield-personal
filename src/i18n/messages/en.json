@@ -273,7 +273,7 @@
     "estimates": "Starting estimates",
     "spendingEstimates": "Everyday spending a month",
     "incomeEstimate": "Varying income a month",
-    "estimatesHint": "Rough amounts that stand in for your averages until you have a month of records, fading out as they come in. Leave any blank to drop it.",
+    "estimatesHint": "Rough amounts that stand in for your averages until you have a month of records, fading out as they come in. Set any to 0 to drop it.",
     "estimatesDone": "You have a month of records, so your averages no longer use these."
   },
   "errors": {
@@ -437,7 +437,7 @@
     "plannedDeposit": "Planned deposit",
     "depositEvery": "How often",
     "depositFrom": "Starting on",
-    "depositHint": "Optional. The forecast moves it from your cash into this fund on its days. Record the actual deposit when you make it.",
+    "depositHint": "Optional. The forecast moves it from your cash into this fund on its days. Record the actual deposit when you make it. Set it to 0 to remove it.",
     "earning": "{rate}% a year · about {daily} a day, {monthly} a month",
     "earningUntil": "until {date}, then {rate}%"
   },
