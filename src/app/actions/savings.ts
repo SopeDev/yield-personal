@@ -168,6 +168,20 @@ export async function setFundGrowth(_state: FormState, formData: FormData): Prom
   return { savedAt: Date.now() };
 }
 
+/** Removes a fund's planned deposit, leaving its interest rate as it is. */
+export async function clearPlannedDeposit(formData: FormData) {
+  const userId = await requireActionUserId();
+  const id = readText(formData, "id");
+  if (!isUuid(id)) return;
+  const fund = await db.savingsFund.findFirst({ where: { id, userId, archivedAt: null }, select: { id: true } });
+  if (!fund) return;
+  await db.savingsFund.update({
+    where: { id },
+    data: { ...seal("SavingsFund", { depositCents: null }), depositRhythm: null, depositAnchor: null, depositDays: [] },
+  });
+  revalidatePath(`/${localeFromForm(formData)}`, "layout");
+}
+
 /**
  * Records a planned deposit as made: its fund's planned amount (or `amount`), dated its planned day (or `date`, from 3
  * days before it to 10 after, the days a deposit counts for it); made ahead of its day, it's dated today.

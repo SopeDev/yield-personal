@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { setFundGrowth } from "@/app/actions/savings";
+import { clearPlannedDeposit, setFundGrowth } from "@/app/actions/savings";
 import type { FormState } from "@/app/actions/form-state";
 import type { Messages } from "@/i18n/dictionaries";
 import { SALARY_SCHEDULES, type SalarySchedule } from "@/lib/onboarding";
@@ -57,6 +57,12 @@ export function FundGrowthForm({ locale, fundId, initial, messages }: { locale: 
         )}
       </div>
       <p className="-mt-2 text-xs text-muted-foreground">{m.depositHint}</p>
+      {initial.deposit ? (
+        // Submits this form's fund id and locale to the remove action instead of saving.
+        <button className="-mt-2 text-sm font-medium text-loss disabled:opacity-60" disabled={pending} formAction={clearPlannedDeposit} type="submit">
+          {m.removeDeposit}
+        </button>
+      ) : null}
       {state.error ? <p className="text-sm text-loss" role="alert">{messages.errors[state.error]}</p> : null}
       <button className="min-h-12 w-full rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground disabled:opacity-60" disabled={pending} type="submit">
         {pending ? messages.common.saving : messages.common.save}

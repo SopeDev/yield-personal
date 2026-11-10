@@ -152,6 +152,7 @@ Last updated: 2026-10-10
 - Installment purchases in averages: net income per day worked and average spending count a purchase in monthly installments one installment a month instead of in full on the day bought, matching the month's figures. Checked with tests.
 - Own exchange rate: money in other currencies counts at the rate of the user's latest exchange (within 60 days) instead of the reference rate, so buying dollars no longer makes cash on hand jump. Checked with tests and against seeded data: buying US$525 at 17.30 leaves cash unmoved but for revaluing the dollars already held to that rate.
 - Other currencies in the month's figures: records in dollars (like a rent paid from the dollar wallet) count in the month and year at that month's exchange rate, the user's own when they exchanged that month; lists still show them in dollars. Checked with tests and against seeded data: a US$650 rent adding $11,830 at the reference rate and $11,245 once that month's exchange at 17.30 was logged.
+- Planned deposits get a "Remove planned deposit" link under the fund's interest and deposits form, like the balance goal's, instead of relying on setting the amount to 0 (which still works).
 
 ## Next
 
