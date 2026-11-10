@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db/client";
 import { seal } from "@/db/encryption";
-import { isCurrency, parseAmountToCents } from "@/lib/money";
+import { isCurrency, parseAmountToCents, parseOptionalAmountToCents } from "@/lib/money";
 import { dateFromKey, dateKeyOf, isDateKey } from "@/lib/months";
 import { parseSchedule } from "@/lib/onboarding";
 import { getMainCurrency } from "@/lib/queries";
@@ -125,7 +125,7 @@ export async function archiveGoalFund(formData: FormData) {
 
 /**
  * Sets how a fund grows: its annual interest rate (a percentage; blank for none), optionally until a day with the rate
- * after it, and a planned deposit (an amount and how often; blank amount for none), which the forecast moves from cash
+ * after it, and a planned deposit (an amount and how often; zero or blank for none), which the forecast moves from cash
  * into the fund on its days.
  */
 export async function setFundGrowth(_state: FormState, formData: FormData): Promise<FormState> {
@@ -144,9 +144,10 @@ export async function setFundGrowth(_state: FormState, formData: FormData): Prom
   const after = afterText === "" ? null : parseRatePercent(afterText);
   if (until !== "" && (!isDateKey(until) || rate === null)) fieldErrors.until = "date";
   if (until !== "" && after === null && afterText !== "0") fieldErrors.after = "rate";
-  const depositText = readText(formData, "deposit");
-  const depositCents = depositText === "" ? null : parseAmountToCents(depositText);
-  if (depositText !== "" && depositCents === null) fieldErrors.deposit = "amount";
+  // Zero (or blank) removes the planned deposit.
+  const parsedDeposit = parseOptionalAmountToCents(readText(formData, "deposit"));
+  if (parsedDeposit === undefined) fieldErrors.deposit = "amount";
+  const depositCents = parsedDeposit ?? null;
   const schedule = depositCents === null ? null : parseSchedule(readText(formData, "schedule"), readText(formData, "days"), readText(formData, "anchor"));
   if (depositCents !== null && schedule === null) fieldErrors.schedule = "payDays";
   if (Object.keys(fieldErrors).length > 0) return { fieldErrors };

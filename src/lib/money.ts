@@ -45,6 +45,16 @@ export function parseAmountToCents(input: string): number | null {
 }
 
 /**
+ * An optional amount from an amount input, which fills like a cash register and so shows 0.00 rather than going blank:
+ * blank or zero is none (null), a positive amount its cents, anything else undefined (invalid).
+ */
+export function parseOptionalAmountToCents(input: string): number | null | undefined {
+  const normalized = input.replace(/[$,\s]/g, "");
+  if (normalized === "" || /^0+(\.0{1,2})?$/.test(normalized)) return null;
+  return parseAmountToCents(input) ?? undefined;
+}
+
+/**
  * An amount stored in hundredths ("cents"), in the given currency: "$1,230.00", or with a `distinct` symbol
  * ("US$1,230.00") when it isn't in the main currency.
  */

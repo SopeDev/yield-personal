@@ -273,7 +273,7 @@
     "estimates": "Estimados iniciales",
     "spendingEstimates": "Gasto del día a día al mes",
     "incomeEstimate": "Ingresos variables al mes",
-    "estimatesHint": "Cantidades aproximadas que ocupan el lugar de tus promedios hasta que tengas un mes de registros, y se desvanecen conforme llegan. Deja en blanco las que quieras quitar.",
+    "estimatesHint": "Cantidades aproximadas que ocupan el lugar de tus promedios hasta que tengas un mes de registros, y se desvanecen conforme llegan. Pon en 0 las que quieras quitar.",
     "estimatesDone": "Ya tienes un mes de registros, así que tus promedios ya no los usan."
   },
   "errors": {
@@ -437,7 +437,7 @@
     "plannedDeposit": "Depósito planeado",
     "depositEvery": "Cada cuándo",
     "depositFrom": "A partir del",
-    "depositHint": "Opcional. El pronóstico lo pasa de tu dinero a este fondo en sus días. Registra el depósito real cuando lo hagas.",
+    "depositHint": "Opcional. El pronóstico lo pasa de tu dinero a este fondo en sus días. Registra el depósito real cuando lo hagas. Ponlo en 0 para quitarlo.",
     "earning": "{rate}% anual · unos {daily} al día, {monthly} al mes",
     "earningUntil": "hasta el {date}, luego {rate}%"
   },
