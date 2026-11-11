@@ -437,9 +437,10 @@
     "plannedDeposit": "Depósito planeado",
     "depositEvery": "Cada cuándo",
     "depositFrom": "A partir del",
-    "depositHint": "Opcional. El pronóstico lo pasa de tu dinero a este fondo en sus días. Registra el depósito real cuando lo hagas. Ponlo en 0 para quitarlo.",
+    "depositHint": "Opcional. El pronóstico lo pasa de tu dinero a este fondo en sus días. Registra el depósito real cuando lo hagas.",
     "earning": "{rate}% anual · unos {daily} al día, {monthly} al mes",
-    "earningUntil": "hasta el {date}, luego {rate}%"
+    "earningUntil": "hasta el {date}, luego {rate}%",
+    "removeDeposit": "Quitar depósito planeado"
   },
   "manage": {
     "categoryKind": "Tipo",

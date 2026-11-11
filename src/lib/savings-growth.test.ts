@@ -18,6 +18,14 @@ test("a fund earns its daily share of the annual rate, compounding, and its prom
   assert.equal(year.days.at(-1)!.interestCents, year.days.at(-1)!.savingsCents - 200000);
 });
 
+test("a weekly or two-weekly planned deposit starts on its date, not on the same weekday before it", () => {
+  // Thursday Nov 26 onward: not Nov 12 or 19, though they're Thursdays too.
+  assert.deepEqual(depositDays({ kind: "WEEKLY", anchor: "2026-11-26" }, "2026-11-01", "2026-12-10"), ["2026-11-26", "2026-12-03", "2026-12-10"]);
+  assert.deepEqual(depositDays({ kind: "BIWEEKLY", anchor: "2026-11-26" }, "2026-11-01", "2026-12-31"), ["2026-11-26", "2026-12-10", "2026-12-24"]);
+  // Once it has started, a later window keeps its rhythm.
+  assert.deepEqual(depositDays({ kind: "BIWEEKLY", anchor: "2026-11-26" }, "2026-12-11", "2026-12-31"), ["2026-12-24"]);
+});
+
 test("planned deposits move money from cash into the fund on their days, and today's counts unless it's done", () => {
   assert.deepEqual(depositDays({ kind: "MONTH_DAYS", days: [15, 30] }, "2026-10-15", "2026-11-30"), ["2026-10-15", "2026-10-30", "2026-11-15", "2026-11-30"]);
   const deposit = { cents: 100000, rhythm: { kind: "MONTH_DAYS" as const, days: [15, 30] } };

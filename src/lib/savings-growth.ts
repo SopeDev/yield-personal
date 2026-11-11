@@ -34,8 +34,12 @@ export function dailyInterestCents(fund: Pick<GrowingFund, "balanceCents" | "rat
   return (fund.balanceCents * rateOn(fund, today)) / 10000 / DAYS_PER_YEAR;
 }
 
-/** A planned deposit's days from `fromKey` through `toKey`. */
+/**
+ * A planned deposit's days from `fromKey` through `toKey`. A weekly or two-weekly plan starts on its date (its
+ * anchor): no deposit is planned before it, though the same weekday comes round earlier.
+ */
 export function depositDays(rhythm: RecurringIncomeRhythm, fromKey: string, toKey: string) {
+  if (rhythm.kind !== "MONTH_DAYS" && rhythm.anchor > fromKey) fromKey = rhythm.anchor;
   const days: string[] = [];
   for (let month = fromKey.slice(0, 7) as MonthKey; month <= toKey.slice(0, 7); month = addMonths(month, 1)) {
     days.push(...paydaysInMonth(rhythm, month).filter((day) => day >= fromKey && day <= toKey));

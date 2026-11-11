@@ -437,9 +437,10 @@
     "plannedDeposit": "Planned deposit",
     "depositEvery": "How often",
     "depositFrom": "Starting on",
-    "depositHint": "Optional. The forecast moves it from your cash into this fund on its days. Record the actual deposit when you make it. Set it to 0 to remove it.",
+    "depositHint": "Optional. The forecast moves it from your cash into this fund on its days. Record the actual deposit when you make it.",
     "earning": "{rate}% a year · about {daily} a day, {monthly} a month",
-    "earningUntil": "until {date}, then {rate}%"
+    "earningUntil": "until {date}, then {rate}%",
+    "removeDeposit": "Remove planned deposit"
   },
   "manage": {
     "categoryKind": "Type",
