@@ -352,7 +352,10 @@
     "noCharges": "No charges yet.",
     "charges": "Charges",
     "installment": "{number} of {count}",
-    "recurringCharge": "Recurring"
+    "recurringCharge": "Recurring",
+    "history": "History",
+    "historyHint": "Every statement that has closed, newest first. Open one to see its charges or change whether it's paid.",
+    "noHistory": "No closed statements yet."
   },
   "year": {
     "title": "Year",

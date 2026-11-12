@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { dateFromKey, dateKeyOf } from "./months";
-import { buildStatements, statementDates, statementMonthOf } from "./statements";
+import { buildStatements, currentStatements, statementDates, statementMonthOf, type Statement } from "./statements";
 
 test("charges up to and including the closing day stay on that month's statement", () => {
   assert.equal(statementMonthOf(dateFromKey("2026-10-25"), 25), "2026-10");
@@ -45,4 +45,24 @@ test("installments land on consecutive statements and recurring charges join the
     ["2026-12", 33300, false],
   ]);
   assert.equal(dateKeyOf(statements[0].dueDate), "2026-12-15");
+});
+
+test("the statements shown first: unpaid ones however old, the last one paid, and those still to close", () => {
+  const statement = (month: string, closing: string, paid: boolean) =>
+    ({ month, closingDate: dateFromKey(closing), dueDate: dateFromKey(closing), paid, totalCents: 100, charges: [] }) as unknown as Statement;
+  const list = [
+    statement("2026-06", "2026-06-09", false), // unpaid, months old
+    statement("2026-08", "2026-08-09", true),
+    statement("2026-09", "2026-09-09", true),
+    statement("2026-10", "2026-10-09", true), // the last paid
+    statement("2026-11", "2026-11-09", false), // closed, due
+    statement("2026-12", "2026-12-09", false), // open
+    statement("2027-01", "2027-01-09", false), // upcoming
+  ];
+  const { shown, hasHistory } = currentStatements(list, "2026-11-12", "2025-11");
+  assert.deepEqual(shown.map((item) => item.month), ["2026-06", "2026-10", "2026-11", "2026-12", "2027-01"]);
+  assert.equal(hasHistory, true);
+  // Unpaid ones older than the month view carries are history only.
+  assert.deepEqual(currentStatements(list, "2026-11-12", "2026-07").shown.map((item) => item.month), ["2026-10", "2026-11", "2026-12", "2027-01"]);
+  assert.equal(currentStatements([statement("2026-12", "2026-12-09", false)], "2026-11-12", "2025-11").hasHistory, false);
 });

@@ -154,6 +154,7 @@ Last updated: 2026-10-10
 - Other currencies in the month's figures: records in dollars (like a rent paid from the dollar wallet) count in the month and year at that month's exchange rate, the user's own when they exchanged that month; lists still show them in dollars. Checked with tests and against seeded data: a US$650 rent adding $11,830 at the reference rate and $11,245 once that month's exchange at 17.30 was logged.
 - Weekly and every-two-weeks planned deposits start on their "starting" date: the same weekday before it no longer shows a deposit in the forecast or the month. The fund's interest and deposits form keeps what was saved (React's form reset showed "Once a month" after saving). Checked with tests.
 - Planned deposits get a "Remove planned deposit" link under the fund's interest and deposits form, like the balance goal's, instead of relying on setting the amount to 0 (which still works).
+- Cards screen shows what's worth acting on: per card, every closed statement still unpaid (as far back as the month view carries them), the last one paid, and every one still to close. A "History" link opens the card's every closed statement since its first charge, newest first, each still opening to its charges and paid toggle. Checked with tests.
 
 ## Next
 

@@ -1,5 +1,5 @@
 import { splitInstallments } from "./installments";
-import { addMonths, dateInMonth, daysInMonth, monthKeyOf, type MonthKey } from "./months";
+import { addMonths, dateInMonth, dateKeyOf, daysInMonth, monthKeyOf, type MonthKey } from "./months";
 
 /** A card closes on `closingDay` each month and is due `paymentDays` days later. */
 export type BillingCycle = { closingDay: number; paymentDays: number };
@@ -100,4 +100,15 @@ export function installmentsOwed(statements: Statement[]) {
     .flatMap((statement) => statement.charges)
     .filter((charge) => charge.installmentCount > 1)
     .reduce((sum, charge) => sum + charge.amountCents, 0);
+}
+
+/**
+ * The statements of one card worth showing first: every closed one still unpaid (from `unpaidFrom` on), the latest
+ * closed one paid, and every one still to close, in order. The rest are its history.
+ */
+export function currentStatements(statements: Statement[], today: string, unpaidFrom: MonthKey) {
+  const closed = (statement: Statement) => dateKeyOf(statement.closingDate) < today;
+  const lastPaid = statements.filter((statement) => statement.paid && closed(statement)).at(-1);
+  const shown = statements.filter((statement) => statement === lastPaid || !closed(statement) || (!statement.paid && statement.month >= unpaidFrom));
+  return { shown, hasHistory: statements.some(closed) };
 }
