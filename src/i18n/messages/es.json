@@ -352,7 +352,10 @@
     "noCharges": "Todavía no hay cargos.",
     "charges": "Cargos",
     "installment": "{number} de {count}",
-    "recurringCharge": "Recurrente"
+    "recurringCharge": "Recurrente",
+    "history": "Historial",
+    "historyHint": "Todos los estados de cuenta que ya cerraron, del más reciente al más antiguo. Abre uno para ver sus cargos o cambiar si está pagado.",
+    "noHistory": "Aún no hay estados de cuenta cerrados."
   },
   "year": {
     "title": "Año",
